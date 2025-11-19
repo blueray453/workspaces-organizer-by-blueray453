@@ -87,8 +87,6 @@ class WindowPreview extends St.Button {
     }
 }
 
-// WorkspaceThumbnail Class
-
 class WorkspaceThumbnail extends St.Button {
     static {
         GObject.registerClass(this);
