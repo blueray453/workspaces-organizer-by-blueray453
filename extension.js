@@ -1,5 +1,3 @@
-// -*- mode: js2; indent-tabs-mode: nil; js2-basic-offset: 4 -*-
-
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GObject from 'gi://GObject';
@@ -163,7 +161,9 @@ class WorkspaceThumbnail extends St.Button {
         // Create a new context menu
 
         let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP, 0);
+
         menu.removeAll();
+
         let manager = new PopupMenu.PopupMenuManager(this);
         manager.addMenu(menu);
         Main.uiGroup.add_child(menu.actor);
@@ -309,7 +309,7 @@ class WorkspaceIndicator extends PanelMenu.Button {
     constructor() {
         super(0.0, _('Workspace Indicator'));
 
-        this._origUpdateSwitcherVisibility =
+        this._origUpdateSwitcher =
             WorkspacesView.prototype._updateSwitcher;
 
         let container = new St.Widget({
@@ -373,6 +373,10 @@ class WorkspaceIndicator extends PanelMenu.Button {
         if (this._settingsChangedId) {
             this._settings.disconnect(this._settingsChangedId);
             this._settingsChangedId = 0;
+        }
+
+        if (this._origUpdateSwitcher) {
+            WorkspacesView.prototype._updateSwitcher = this._origUpdateSwitcher;
         }
 
         Main.panel.set_offscreen_redirect(Clutter.OffscreenRedirect.ALWAYS);

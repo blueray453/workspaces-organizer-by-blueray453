@@ -1,0 +1,49 @@
+[cols="1,1,1,1",options="header"]
+|===
+| Subject        | What is attached                          | Where disconnected/removed            | Status
+
+| WindowPreview
+| notify::focus-window (global.workspace_manager)
+| in WindowPreview.destroy() via global.workspace_manager.disconnect(this._focusChangedId)
+| OK (but guard before disconnect recommended)
+
+| WindowPreview
+| notify::wm-class, notify::mapped (window)
+| in WindowPreview.destroy() via this._window.disconnect(this._wmClassChangedId / this._mappedId)
+| OK (but guard before disconnect recommended)
+
+| WorkspaceThumbnail (per workspace)
+| workspace 'window-added' / 'window-removed'
+| in WorkspaceThumbnail.destroy() via this._workspace.disconnect(this._windowAddedId / this._windowRemovedId)
+| OK
+
+| WorkspaceThumbnail
+| global.display 'restacked' / 'window-created'
+| in WorkspaceThumbnail.destroy() via global.display.disconnect(this._restackedId / this._windowCreatedId)
+| OK
+
+| WorkspaceThumbnail
+| GLib.timeout_add per window
+| removed in cleanupSources() and destroy()
+| OK
+
+| WorkspaceThumbnail
+| actor 'button-press-event'
+| not explicitly disconnected (actor destroy will remove it)
+| Acceptable (actor-local), optional explicit disconnect
+
+| WorkspaceIndicator
+| workspace manager signals (connect_after...)
+| stored in _workspaceManagerSignals and disconnected in destroy()
+| OK
+
+| WorkspaceIndicator
+| Gio.Settings 'changed::workspace-names'
+| disconnected in destroy()
+| OK
+
+| Misc
+| DND.makeDraggable (WindowPreview)
+| draggable signals bound to actor; destroying actor removes them
+| OK
+|===
