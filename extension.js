@@ -100,6 +100,9 @@ class WorkspaceThumbnail extends St.Button {
             style_class: 'workspace',
             x_expand: true,
             y_expand: true,
+            reactive: true,
+            track_hover: true,
+            can_focus: true,
         });
 
         this._windowsBox = new St.BoxLayout({
@@ -158,26 +161,20 @@ class WorkspaceThumbnail extends St.Button {
 
     _showContextMenu() {
         // Create a new context menu
+
         let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP, 0);
+        menu.removeAll();
+        let manager = new PopupMenu.PopupMenuManager(this);
+        manager.addMenu(menu);
+        Main.uiGroup.add_child(menu.actor);
 
-        // Add "Close All Windows" menu item
-        let closeAllItem = new PopupMenu.PopupMenuItem(_('Close All Windows'));
-        closeAllItem.connect('activate', () => {
-            this._closeAllWindows();
-        });
-        menu.addMenuItem(closeAllItem);
+        let item1 = new PopupMenu.PopupMenuItem('Right Menu Item 1');
 
-        // Add separator
-        menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        journal(`menu is ${menu}`);
 
-        // Add workspace info
-        let windowCount = this._workspace.list_windows().length;
-        let infoItem = new PopupMenu.PopupMenuItem(`${windowCount} windows on workspace ${this._index + 1}`);
-        infoItem.setSensitive(false); // Make it non-clickable
-        menu.addMenuItem(infoItem);
-
-        // Open the menu
+        menu.addMenuItem(item1);
         menu.open(true);
+
     }
 
     _closeAllWindows() {
