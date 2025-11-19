@@ -169,24 +169,20 @@ class WorkspaceThumbnail extends St.Button {
         Main.uiGroup.add_child(menu.actor);
 
         let item1 = new PopupMenu.PopupMenuItem('Right Menu Item 1');
-
-        journal(`menu is ${menu}`);
-
         menu.addMenuItem(item1);
+
+        item1.connect('activate', () => {
+            let windows = this._workspace.list_windows();
+            windows.forEach(window => {
+                if (window.get_window_type() === 0) {
+                    journal(`Closing window: ${window.get_title()}`);
+                    // window.delete(global.get_current_time());
+                }
+            });
+        });
+
         menu.open(true);
 
-    }
-
-    _closeAllWindows() {
-        journal(`Closing all windows on workspace ${this._index}`);
-
-        let windows = this._workspace.list_windows();
-        windows.forEach(window => {
-            if (!window.is_skip_taskbar()) {
-                journal(`Closing window: ${window.get_title()}`);
-                window.delete(global.get_current_time());
-            }
-        });
     }
 
     acceptDrop(source) {
