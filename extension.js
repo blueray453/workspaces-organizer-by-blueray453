@@ -14,7 +14,6 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import { WorkspacesView } from 'resource:///org/gnome/shell/ui/workspacesView.js';
 import * as DND from 'resource:///org/gnome/shell/ui/dnd.js';
-import * as SessionMode from 'resource:///org/gnome/shell/ui/sessionMode.js';
 
 // gettext is provided via the Extension module import above
 
@@ -80,7 +79,7 @@ let WindowPreview = GObject.registerClass(
         }
 
         _onFocusChanged() {
-            
+
         }
     });
 
@@ -311,7 +310,7 @@ let WorkspaceIndicator = GObject.registerClass(
         destroy() {
             this.cleanupSources();
             this._thumbnailsBox?.destroy();
-            
+
             for (let i = 0; i < this._workspaceManagerSignals.length; i++)
                 global.workspace_manager.disconnect(this._workspaceManagerSignals[i]);
 
@@ -464,14 +463,14 @@ export default class TopNotchWorkspaces extends Extension {
 
 
     enable() {
-        
+
         // Workspace indicator in top bar
         this._indicator = new WorkspaceIndicator();
         Main.panel.addToStatusArea('workspace-indicator', this._indicator, 0, 'center');
     }
 
     disable() {
-        
+
         // Destroy workspace indicator
         if (this._indicator) {
             this._indicator.destroy();
