@@ -97,9 +97,6 @@ class WorkspaceThumbnail extends St.Button {
             style_class: 'workspace',
             x_expand: true,
             y_expand: true,
-            reactive: true,
-            track_hover: true,
-            can_focus: true,
         });
 
         this._windowsBox = new St.BoxLayout({
