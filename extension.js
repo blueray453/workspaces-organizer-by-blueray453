@@ -475,11 +475,11 @@ export default class TopNotchWorkspaces extends Extension {
             }
 
             GLib.log_structured(
-                'testing-by-blueray453',
+                'workspaces-organizer-by-blueray453',
                 level,
                 {
                     MESSAGE: `${msg}`,
-                    SYSLOG_IDENTIFIER: 'testing-by-blueray453',
+                    SYSLOG_IDENTIFIER: 'workspaces-organizer-by-blueray453',
                     CODE_FILE: GLib.filename_from_uri(import.meta.url)[0]
                 }
             );
@@ -487,7 +487,7 @@ export default class TopNotchWorkspaces extends Extension {
 
         setLogging(true);
 
-        // journalctl -f -o cat SYSLOG_IDENTIFIER=testing-by-blueray453
+        // journalctl -f -o cat SYSLOG_IDENTIFIER=workspaces-organizer-by-blueray453
         journal(`Enabled`);
 
         // Workspace indicator in top bar
