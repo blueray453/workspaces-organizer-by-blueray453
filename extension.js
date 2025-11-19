@@ -24,8 +24,11 @@ const WORKSPACE_SCHEMA = 'org.gnome.desktop.wm.preferences';
 const WORKSPACE_KEY = 'workspace-names';
 
 // WindowPreview Class
-let WindowPreview = GObject.registerClass(
     class WindowPreview extends St.Button {
+        static {
+            GObject.registerClass(this);
+        }
+
         _init(window) {
             super._init({
                 style_class: 'workspace-indicator-window-preview',
@@ -83,11 +86,15 @@ let WindowPreview = GObject.registerClass(
         _onFocusChanged() {
 
         }
-    });
+    }
 
 // WorkspaceThumbnail Class
-let WorkspaceThumbnail = GObject.registerClass(
+
     class WorkspaceThumbnail extends St.Button {
+        static {
+            GObject.registerClass(this);
+        }
+
         _init(index) {
             super._init({
                 style_class: 'workspace',
@@ -247,11 +254,12 @@ let WorkspaceThumbnail = GObject.registerClass(
             this._addWindowTimeoutIds.clear();
             super.destroy();
         }
-    });
+    }
 
-// WorkspaceIndicator Class
-let WorkspaceIndicator = GObject.registerClass(
     class WorkspaceIndicator extends PanelMenu.Button {
+        static {
+            GObject.registerClass(this);
+        }
         _init() {
             super._init(0.0, _('Workspace Indicator'));
 
@@ -452,7 +460,7 @@ let WorkspaceIndicator = GObject.registerClass(
             let newIndex = global.workspace_manager.get_active_workspace_index() + diff;
             this._activate(newIndex);
         }
-    });
+    }
 
 export default class TopNotchWorkspaces extends Extension {
     constructor(metadata) {
@@ -462,10 +470,7 @@ export default class TopNotchWorkspaces extends Extension {
         this._origUpdateSwitcher = null;
     }
 
-
-
     enable() {
-
         setLogFn((msg, error = false) => {
             let level;
             if (error) {
