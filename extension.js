@@ -29,8 +29,8 @@ class WindowPreview extends St.Button {
         GObject.registerClass(this);
     }
 
-    _init(window) {
-        super._init({
+    constructor(window) {
+        super({
             style_class: 'workspace-indicator-window-preview',
         });
 
@@ -95,8 +95,8 @@ class WorkspaceThumbnail extends St.Button {
         GObject.registerClass(this);
     }
 
-    _init(index) {
-        super._init({
+    constructor(index) {
+        super({
             style_class: 'workspace',
             x_expand: true,
             y_expand: true,
@@ -107,6 +107,7 @@ class WorkspaceThumbnail extends St.Button {
             x_align: Clutter.ActorAlign.CENTER,
             y_align: Clutter.ActorAlign.CENTER,
         });
+
         this.set_child(this._windowsBox);
 
         this._index = index;
@@ -260,8 +261,8 @@ class WorkspaceIndicator extends PanelMenu.Button {
     static {
         GObject.registerClass(this);
     }
-    _init() {
-        super._init(0.0, _('Workspace Indicator'));
+    constructor() {
+        super(0.0, _('Workspace Indicator'));
 
         this._origUpdateSwitcherVisibility =
             WorkspacesView.prototype._updateSwitcher;
