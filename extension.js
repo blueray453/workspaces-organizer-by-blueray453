@@ -352,11 +352,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
         this._createWorkspacesSection();
         this._updateThumbnails();
         this._onWorkspaceOrientationChanged();
-
-        this._settings = new Gio.Settings({ schema_id: WORKSPACE_SCHEMA });
-        this._settingsChangedId = this._settings.connect(
-            `changed::${WORKSPACE_KEY}`,
-            this._updateMenuLabels.bind(this));
     }
 
     destroy() {
@@ -365,11 +360,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
 
         for (let i = 0; i < this._workspaceManagerSignals.length; i++)
             WorkspaceManager.disconnect(this._workspaceManagerSignals[i]);
-
-        if (this._settingsChangedId) {
-            this._settings.disconnect(this._settingsChangedId);
-            this._settingsChangedId = 0;
-        }
 
         Main.panel.set_offscreen_redirect(Clutter.OffscreenRedirect.ALWAYS);
 
@@ -428,11 +418,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
             return (workspaceIndex + 1).toString();
         }
         return Meta.prefs_get_workspace_name(workspaceIndex);
-    }
-
-    _updateMenuLabels() {
-        for (let i = 0; i < this._workspacesItems.length; i++)
-            this._workspacesItems[i].label.text = this._labelText(i);
     }
 
     _createWorkspacesSection() {
