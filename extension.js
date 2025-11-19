@@ -15,6 +15,8 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import { WorkspacesView } from 'resource:///org/gnome/shell/ui/workspacesView.js';
 import * as DND from 'resource:///org/gnome/shell/ui/dnd.js';
 
+import { setLogging, setLogFn, journal } from './utils.js'
+
 // gettext is provided via the Extension module import above
 
 // Schema and Key
@@ -463,6 +465,30 @@ export default class TopNotchWorkspaces extends Extension {
 
 
     enable() {
+
+        setLogFn((msg, error = false) => {
+            let level;
+            if (error) {
+                level = GLib.LogLevelFlags.LEVEL_CRITICAL;
+            } else {
+                level = GLib.LogLevelFlags.LEVEL_MESSAGE;
+            }
+
+            GLib.log_structured(
+                'testing-by-blueray453',
+                level,
+                {
+                    MESSAGE: `${msg}`,
+                    SYSLOG_IDENTIFIER: 'testing-by-blueray453',
+                    CODE_FILE: GLib.filename_from_uri(import.meta.url)[0]
+                }
+            );
+        });
+
+        setLogging(true);
+
+        // journalctl -f -o cat SYSLOG_IDENTIFIER=testing-by-blueray453
+        journal(`Enabled`);
 
         // Workspace indicator in top bar
         this._indicator = new WorkspaceIndicator();
