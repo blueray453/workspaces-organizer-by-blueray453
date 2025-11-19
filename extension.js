@@ -119,6 +119,9 @@ class WorkspaceThumbnail extends St.Button {
         let workspaceManager = global.workspace_manager;
         this._workspace = workspaceManager.get_workspace_by_index(index);
 
+        // Connect button-press-event for right-click handling
+        this.connect('button-press-event', this._onButtonPress.bind(this));
+
         this._windowAddedId = this._workspace.connect('window-added',
             (ws, window) => {
                 this._addWindow(window);
@@ -138,6 +141,55 @@ class WorkspaceThumbnail extends St.Button {
 
         this._workspace.list_windows().forEach(w => this._addWindow(w));
         this._onRestacked();
+    }
+
+    _onButtonPress(actor, event) {
+        let button = event.get_button();
+
+        if (button === Clutter.BUTTON_SECONDARY) { // right click
+            journal(`Right click detected on workspace ${this._index}!`);
+            this._showContextMenu();
+            return Clutter.EVENT_STOP; // prevent default
+        }
+
+        // For left click, let the default handler work
+        return Clutter.EVENT_PROPAGATE;
+    }
+
+    _showContextMenu() {
+        // Create a new context menu
+        let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP, 0);
+
+        // Add "Close All Windows" menu item
+        let closeAllItem = new PopupMenu.PopupMenuItem(_('Close All Windows'));
+        closeAllItem.connect('activate', () => {
+            this._closeAllWindows();
+        });
+        menu.addMenuItem(closeAllItem);
+
+        // Add separator
+        menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
+        // Add workspace info
+        let windowCount = this._workspace.list_windows().length;
+        let infoItem = new PopupMenu.PopupMenuItem(`${windowCount} windows on workspace ${this._index + 1}`);
+        infoItem.setSensitive(false); // Make it non-clickable
+        menu.addMenuItem(infoItem);
+
+        // Open the menu
+        menu.open(true);
+    }
+
+    _closeAllWindows() {
+        journal(`Closing all windows on workspace ${this._index}`);
+
+        let windows = this._workspace.list_windows();
+        windows.forEach(window => {
+            if (!window.is_skip_taskbar()) {
+                journal(`Closing window: ${window.get_title()}`);
+                window.delete(global.get_current_time());
+            }
+        });
     }
 
     acceptDrop(source) {
