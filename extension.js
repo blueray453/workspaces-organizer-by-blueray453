@@ -10,7 +10,6 @@ import { Extension, gettext as _ } from 'resource:///org/gnome/shell/extensions/
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
-import { WorkspacesView } from 'resource:///org/gnome/shell/ui/workspacesView.js';
 import * as DND from 'resource:///org/gnome/shell/ui/dnd.js';
 
 import { setLogging, setLogFn, journal } from './utils.js'
@@ -20,6 +19,8 @@ import { setLogging, setLogFn, journal } from './utils.js'
 // Schema and Key
 const WORKSPACE_SCHEMA = 'org.gnome.desktop.wm.preferences';
 const WORKSPACE_KEY = 'workspace-names';
+const WorkspaceManager = global.workspace_manager;
+const Display = global.display;
 
 // WindowPreview Class
 class WindowPreview extends St.Button {
@@ -42,7 +43,7 @@ class WindowPreview extends St.Button {
 
         this._updateIcon();
 
-        this._focusChangedId = global.workspace_manager.connect('notify::focus-window',
+        this._focusChangedId = WorkspaceManager.connect('notify::focus-window',
             this._onFocusChanged.bind(this));
         this._wmClassChangedId = this._window.connect('notify::wm-class',
             this._updateIcon.bind(this));
@@ -75,7 +76,7 @@ class WindowPreview extends St.Button {
     }
 
     destroy() {
-        global.workspace_manager.disconnect(this._focusChangedId);
+        WorkspaceManager.disconnect(this._focusChangedId);
         this._window.disconnect(this._wmClassChangedId);
         this._window.disconnect(this._mappedId);
         super.destroy();
@@ -117,8 +118,7 @@ class WorkspaceThumbnail extends St.Button {
         this._windowPreviews = new Map();
         this._addWindowTimeoutIds = new Map();
 
-        let workspaceManager = global.workspace_manager;
-        this._workspace = workspaceManager.get_workspace_by_index(index);
+        this._workspace = WorkspaceManager.get_workspace_by_index(index);
 
         // Connect button-press-event for right-click handling
         this.connect('button-press-event', this._onButtonPress.bind(this));
@@ -131,9 +131,9 @@ class WorkspaceThumbnail extends St.Button {
             (ws, window) => {
                 this._removeWindow(window);
             });
-        this._restackedId = global.display.connect('restacked',
+        this._restackedId = Display.connect('restacked',
             this._onRestacked.bind(this));
-        this._windowCreatedId = global.display.connect('window-created',
+        this._windowCreatedId = Display.connect('window-created',
             (display, window) => {
                 if (window.get_workspace() === this._workspace) {
                     this._addWindow(window);
@@ -176,7 +176,7 @@ class WorkspaceThumbnail extends St.Button {
             windows.forEach(window => {
                 if (window.get_window_type() === 0) {
                     journal(`Closing window: ${window.get_title()}`);
-                    window.delete(global.get_current_time());
+                    window.delete(0);
                 }
             });
         });
@@ -224,8 +224,8 @@ class WorkspaceThumbnail extends St.Button {
 
             let preview = new WindowPreview(window);
             preview.connect('clicked', () => {
-                this._workspace.activate(global.get_current_time());
-                window.activate(global.get_current_time());
+                this._workspace.activate(0);
+                window.activate(0);
             });
             this._windowPreviews.set(window, preview);
             // Double check container is still valid  before adding
@@ -275,9 +275,9 @@ class WorkspaceThumbnail extends St.Button {
     }
 
     on_clicked() {
-        let ws = global.workspace_manager.get_workspace_by_index(this._index);
+        let ws = WorkspaceManager.get_workspace_by_index(this._index);
         if (ws)
-            ws.activate(global.get_current_time());
+            ws.activate(0);
     }
 
     // Explicitly cancel main loop sources without destroying the actor
@@ -291,8 +291,8 @@ class WorkspaceThumbnail extends St.Button {
     destroy() {
         this._workspace.disconnect(this._windowAddedId);
         this._workspace.disconnect(this._windowRemovedId);
-        global.display.disconnect(this._restackedId);
-        global.display.disconnect(this._windowCreatedId);
+        Display.disconnect(this._restackedId);
+        Display.disconnect(this._windowCreatedId);
         // Clear any pending timeouts
         for (const [, id] of this._addWindowTimeoutIds) {
             GLib.Source.remove(id);
@@ -306,11 +306,9 @@ class WorkspaceIndicator extends PanelMenu.Button {
     static {
         GObject.registerClass(this);
     }
+
     constructor() {
         super(0.0, _('Workspace Indicator'));
-
-        this._origUpdateSwitcher =
-            WorkspacesView.prototype._updateSwitcher;
 
         let container = new St.Widget({
             layout_manager: new Clutter.BinLayout(),
@@ -319,9 +317,7 @@ class WorkspaceIndicator extends PanelMenu.Button {
         });
         this.add_child(container);
 
-        let workspaceManager = global.workspace_manager;
-
-        this._currentWorkspace = workspaceManager.get_active_workspace_index();
+        this._currentWorkspace = WorkspaceManager.get_active_workspace_index();
         this._statusLabel = new St.Label({
             style_class: 'panel-workspace-indicator',
             y_align: Clutter.ActorAlign.CENTER,
@@ -343,11 +339,11 @@ class WorkspaceIndicator extends PanelMenu.Button {
         this.menu.addMenuItem(this._workspaceSection);
 
         this._workspaceManagerSignals = [
-            workspaceManager.connect_after('notify::n-workspaces',
+            WorkspaceManager.connect_after('notify::n-workspaces',
                 this._nWorkspacesChanged.bind(this)),
-            workspaceManager.connect_after('workspace-switched',
+            WorkspaceManager.connect_after('workspace-switched',
                 this._onWorkspaceSwitched.bind(this)),
-            workspaceManager.connect('notify::layout-rows',
+            WorkspaceManager.connect('notify::layout-rows',
                 this._onWorkspaceOrientationChanged.bind(this)),
         ];
 
@@ -368,15 +364,11 @@ class WorkspaceIndicator extends PanelMenu.Button {
         this._thumbnailsBox?.destroy();
 
         for (let i = 0; i < this._workspaceManagerSignals.length; i++)
-            global.workspace_manager.disconnect(this._workspaceManagerSignals[i]);
+            WorkspaceManager.disconnect(this._workspaceManagerSignals[i]);
 
         if (this._settingsChangedId) {
             this._settings.disconnect(this._settingsChangedId);
             this._settingsChangedId = 0;
-        }
-
-        if (this._origUpdateSwitcher) {
-            WorkspacesView.prototype._updateSwitcher = this._origUpdateSwitcher;
         }
 
         Main.panel.set_offscreen_redirect(Clutter.OffscreenRedirect.ALWAYS);
@@ -385,7 +377,7 @@ class WorkspaceIndicator extends PanelMenu.Button {
     }
 
     _onWorkspaceOrientationChanged() {
-        let vertical = global.workspace_manager.layout_rows === -1;
+        let vertical = WorkspaceManager.layout_rows === -1;
         this.reactive = vertical;
 
         this._statusLabel.visible = vertical;
@@ -399,7 +391,7 @@ class WorkspaceIndicator extends PanelMenu.Button {
     }
 
     _onWorkspaceSwitched() {
-        this._currentWorkspace = global.workspace_manager.get_active_workspace_index();
+        this._currentWorkspace = WorkspaceManager.get_active_workspace_index();
 
         this._updateMenuOrnament();
         this._updateActiveThumbnail();
@@ -444,14 +436,12 @@ class WorkspaceIndicator extends PanelMenu.Button {
     }
 
     _createWorkspacesSection() {
-        let workspaceManager = global.workspace_manager;
-
         this._workspaceSection.removeAll();
         this._workspacesItems = [];
-        this._currentWorkspace = workspaceManager.get_active_workspace_index();
+        this._currentWorkspace = WorkspaceManager.get_active_workspace_index();
 
         let i = 0;
-        for (; i < workspaceManager.n_workspaces; i++) {
+        for (; i < WorkspaceManager.n_workspaces; i++) {
             this._workspacesItems[i] = new PopupMenu.PopupMenuItem(this._labelText(i));
             this._workspaceSection.addMenuItem(this._workspacesItems[i]);
             this._workspacesItems[i].workspaceId = i;
@@ -468,11 +458,9 @@ class WorkspaceIndicator extends PanelMenu.Button {
     }
 
     _updateThumbnails() {
-        let workspaceManager = global.workspace_manager;
-
         this._thumbnailsBox.destroy_all_children();
 
-        for (let i = 0; i < workspaceManager.n_workspaces; i++) {
+        for (let i = 0; i < WorkspaceManager.n_workspaces; i++) {
             let thumb = new WorkspaceThumbnail(i);
             this._thumbnailsBox.add_child(thumb);
         }
@@ -489,11 +477,9 @@ class WorkspaceIndicator extends PanelMenu.Button {
     }
 
     _activate(index) {
-        let workspaceManager = global.workspace_manager;
-
-        if (index >= 0 && index < workspaceManager.n_workspaces) {
-            let metaWorkspace = workspaceManager.get_workspace_by_index(index);
-            metaWorkspace.activate(global.get_current_time());
+        if (index >= 0 && index < WorkspaceManager.n_workspaces) {
+            let metaWorkspace = WorkspaceManager.get_workspace_by_index(index);
+            metaWorkspace.activate(0);
         }
     }
 
@@ -507,7 +493,7 @@ class WorkspaceIndicator extends PanelMenu.Button {
         else
             return;
 
-        let newIndex = global.workspace_manager.get_active_workspace_index() + diff;
+        let newIndex = WorkspaceManager.get_active_workspace_index() + diff;
         this._activate(newIndex);
     }
 }
