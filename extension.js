@@ -19,7 +19,7 @@ import { setLogging, setLogFn, journal } from './utils.js'
 const WorkspaceManager = global.workspace_manager;
 const Display = global.display;
 
-// WindowPreview Class
+// Represents a single window icon inside a workspace thumbnail.
 class WindowPreview extends St.Button {
     static {
         GObject.registerClass(this);
@@ -84,6 +84,8 @@ class WindowPreview extends St.Button {
     }
 }
 
+// Represents a single workspace in the panel indicator.
+// Holds a set of WindowPreviews for all windows in that workspace.
 class WorkspaceThumbnail extends St.Button {
     static {
         GObject.registerClass(this);
@@ -294,6 +296,8 @@ class WorkspaceThumbnail extends St.Button {
     }
 }
 
+// The top-level indicator that sits in the GNOME top panel.
+// Contains all WorkspaceThumbnails in a row (or vertical layout if orientation changes).
 class WorkspaceIndicator extends PanelMenu.Button {
     static {
         GObject.registerClass(this);
