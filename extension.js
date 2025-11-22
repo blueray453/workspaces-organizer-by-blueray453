@@ -241,7 +241,7 @@ class WorkspaceThumbnail extends St.Button {
             let preview = new WindowPreview(window);
             preview.connect('clicked', () => {
                 this._workspace.activate(0);
-                window.activate(0);
+                // window.activate(0);
             });
             this._windowPreviews.set(window, preview);
             // Double check container is still valid  before adding
