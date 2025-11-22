@@ -82,17 +82,20 @@ class WindowPreview extends St.Button {
                 const windowActor = this._window.get_compositor_private();
                 if (!windowActor) return;
 
-                // Create simple preview
+                // Create larger preview
                 const allocation = this.get_allocation_box();
                 const [x, y] = this.get_transformed_position();
-                const width = allocation.x2 - allocation.x1;
+                const windowWidth = allocation.x2 - allocation.x1;
+
+                const previewWidth = 1600;
+                const previewHeight = 1200;
 
                 this._hoverPreview = new Clutter.Clone({
                     source: windowActor,
-                    x: x + (width - 250) / 2,
-                    y: y - 180,
-                    width: 250,
-                    height: 150
+                    x: x + (windowWidth - previewWidth) / 2,
+                    y: y - previewHeight - 20, // 20px gap above window
+                    width: previewWidth,
+                    height: previewHeight
                 });
 
                 Main.layoutManager.addChrome(this._hoverPreview);
@@ -100,6 +103,7 @@ class WindowPreview extends St.Button {
             }
         );
     }
+
 
     _hideHoverPreview() {
         if (this._showPreviewTimeout) {
@@ -310,7 +314,7 @@ class WorkspaceThumbnail extends St.Button {
             let preview = new WindowPreview(window);
             preview.connect('clicked', () => {
                 this._workspace.activate(0);
-                // window.activate(0);
+                window.activate(0);
             });
             this._windowPreviews.set(window, preview);
             // Double check container is still valid  before adding
