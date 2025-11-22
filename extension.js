@@ -111,7 +111,6 @@ class WindowPreview extends St.Button {
         );
     }
 
-
     _hideHoverPreview() {
         if (this._showPreviewTimeout) {
             GLib.source_remove(this._showPreviewTimeout);
@@ -135,7 +134,6 @@ class WindowPreview extends St.Button {
             }
         );
     }
-
 
     _showWindowMenu() {
         let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP, 0);
