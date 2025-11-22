@@ -36,7 +36,7 @@ class WindowPreview extends St.Button {
         this._window = window;
 
         /* Use a smaller icon to allow more previews to fit in a workspace */
-        this.icon_size = 48;
+        this.icon_size = 64;
 
         this._updateIcon();
 
