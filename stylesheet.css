@@ -22,7 +22,9 @@
 .panel-workspace-indicator-box .workspace {
         /* outline color, borders */
 
-	border: 2px solid #10421d;
+	/* border: 2px solid #cb4b16; */
+    box-shadow: inset 0 0 4px 2px #cb4b16;
+    /* background-color: #073642; */
 }
 
 .panel-workspace-indicator-box .workspace + .workspace {
@@ -32,7 +34,11 @@
 .panel-workspace-indicator,
 .panel-workspace-indicator-box .workspace.active {
     /* highlight color */
-	background-color: rgba(44, 183, 60, 0.362);
+	/* background-color: #2aa198;
+    background-color: rgba(42, 161, 152, 0.15); */
+    background-color: rgba(42, 161, 152, 0.35);
+    /* background-color: rgba(42, 161, 152, 0.50);
+    background-color: rgba(42, 161, 152, 1); */
 }
 
 .workspace-windows {
