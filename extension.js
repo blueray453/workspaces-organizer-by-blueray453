@@ -47,6 +47,27 @@ class WindowPreview extends St.Button {
         this._mappedId = this._window.connect('notify::mapped',
             this._updateIcon.bind(this));
         this._onFocusChanged();
+
+        this.connect('button-press-event', (actor, event) => {
+            if (event.get_button() === Clutter.BUTTON_SECONDARY) {
+                this._showWindowMenu();
+                return Clutter.EVENT_STOP;
+            }
+            return Clutter.EVENT_PROPAGATE;
+        });
+    }
+
+    _showWindowMenu() {
+        let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP, 0);
+        let manager = new PopupMenu.PopupMenuManager(this);
+        manager.addMenu(menu);
+        Main.uiGroup.add_child(menu.actor);
+
+        let closeItem = new PopupMenu.PopupMenuItem(`Close ${this._window.title}`);
+        closeItem.connect('activate', () => this._window.delete(0));
+        menu.addMenuItem(closeItem);
+
+        menu.open(true);
     }
 
     // needed for DND
@@ -86,6 +107,7 @@ class WindowPreview extends St.Button {
 
 // Represents a single workspace in the panel indicator.
 // Holds a set of WindowPreviews for all windows in that workspace.
+// shows a context menu (e.g., close all windows).
 class WorkspaceThumbnail extends St.Button {
     static {
         GObject.registerClass(this);
