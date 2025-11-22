@@ -30,6 +30,11 @@ class WindowPreview extends St.Button {
             style_class: 'workspace-indicator-window-preview',
         });
 
+        this._hoverPreview = null;
+        this._showPreviewTimeout = null;
+        this._hidePreviewTimeout = null;
+        this._windowDestroyId = 0;
+
         this._delegate = this;
         DND.makeDraggable(this, { restoreOnSuccess: true });
 
@@ -56,6 +61,7 @@ class WindowPreview extends St.Button {
         // Connect hover signals
         this.connect('enter-event', () => this._showHoverPreview());
         this.connect('leave-event', () => this._hideHoverPreview());
+        this.connect('destroy', () => this._hideHoverPreview());
     }
 
     _showHoverPreview() {
