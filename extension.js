@@ -55,7 +55,76 @@ class WindowPreview extends St.Button {
             }
             return Clutter.EVENT_PROPAGATE;
         });
+
+        // Connect hover signals
+        this.connect('enter-event', () => this._showHoverPreview());
+        this.connect('leave-event', () => this._hideHoverPreview());
     }
+
+    _showHoverPreview() {
+        if (this._hidePreviewTimeout) {
+            GLib.source_remove(this._hidePreviewTimeout);
+            this._hidePreviewTimeout = null;
+        }
+
+        if (this._hoverPreview) {
+            return;
+        }
+
+        this._showPreviewTimeout = GLib.timeout_add(
+            GLib.PRIORITY_DEFAULT,
+            200,
+            () => {
+                this._showPreviewTimeout = null;
+
+                if (!this._window) return;
+
+                const windowActor = this._window.get_compositor_private();
+                if (!windowActor) return;
+
+                // Create simple preview
+                const allocation = this.get_allocation_box();
+                const [x, y] = this.get_transformed_position();
+                const width = allocation.x2 - allocation.x1;
+
+                this._hoverPreview = new Clutter.Clone({
+                    source: windowActor,
+                    x: x + (width - 250) / 2,
+                    y: y - 180,
+                    width: 250,
+                    height: 150
+                });
+
+                Main.layoutManager.addChrome(this._hoverPreview);
+                return GLib.SOURCE_REMOVE;
+            }
+        );
+    }
+
+    _hideHoverPreview() {
+        if (this._showPreviewTimeout) {
+            GLib.source_remove(this._showPreviewTimeout);
+            this._showPreviewTimeout = null;
+        }
+
+        if (!this._hoverPreview) {
+            return;
+        }
+
+        this._hidePreviewTimeout = GLib.timeout_add(
+            GLib.PRIORITY_DEFAULT,
+            100,
+            () => {
+                this._hidePreviewTimeout = null;
+                if (this._hoverPreview) {
+                    this._hoverPreview.destroy();
+                    this._hoverPreview = null;
+                }
+                return GLib.SOURCE_REMOVE;
+            }
+        );
+    }
+
 
     _showWindowMenu() {
         let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP, 0);
