@@ -40,13 +40,10 @@ class WindowPreview extends St.Button {
 
         this._updateIcon();
 
-        this._focusChangedId = WorkspaceManager.connect('notify::focus-window',
-            this._onFocusChanged.bind(this));
         this._wmClassChangedId = this._window.connect('notify::wm-class',
             this._updateIcon.bind(this));
         this._mappedId = this._window.connect('notify::mapped',
             this._updateIcon.bind(this));
-        this._onFocusChanged();
 
         this.connect('button-press-event', (actor, event) => {
             if (event.get_button() === Clutter.BUTTON_SECONDARY) {
@@ -87,8 +84,8 @@ class WindowPreview extends St.Button {
                 const [x, y] = this.get_transformed_position();
                 const windowWidth = allocation.x2 - allocation.x1;
 
-                const previewWidth = 1600;
-                const previewHeight = 1200;
+                const previewWidth = 1200;
+                const previewHeight = 800;
 
                 this._hoverPreview = new Clutter.Clone({
                     source: windowActor,
@@ -171,10 +168,6 @@ class WindowPreview extends St.Button {
         this._window.disconnect(this._wmClassChangedId);
         this._window.disconnect(this._mappedId);
         super.destroy();
-    }
-
-    _onFocusChanged() {
-
     }
 }
 
