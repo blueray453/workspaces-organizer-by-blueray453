@@ -55,8 +55,8 @@
     margin: 0 1px;
     min-width: 16px;
     min-height: 16px;
-    max-width: 22px;
-    max-height: 22px;
+    /* max-width: 22px;
+    max-height: 22px; */
     padding: 0px;
 }
 
