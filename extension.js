@@ -340,8 +340,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
                 this._onWorkspaceOrientationChanged.bind(this)),
         ];
 
-        this.connect('scroll-event', this._onScrollEvent.bind(this));
-        this._thumbnailsBox.connect('scroll-event', this._onScrollEvent.bind(this));
         this._createWorkspacesSection();
         this._updateThumbnails();
         this._onWorkspaceOrientationChanged();
@@ -459,20 +457,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
             let metaWorkspace = WorkspaceManager.get_workspace_by_index(index);
             metaWorkspace.activate(0);
         }
-    }
-
-    _onScrollEvent(actor, event) {
-        let direction = event.get_scroll_direction();
-        let diff = 0;
-        if (direction === Clutter.ScrollDirection.DOWN)
-            diff = 1;
-        else if (direction === Clutter.ScrollDirection.UP)
-            diff = -1;
-        else
-            return;
-
-        let newIndex = WorkspaceManager.get_active_workspace_index() + diff;
-        this._activate(newIndex);
     }
 }
 
