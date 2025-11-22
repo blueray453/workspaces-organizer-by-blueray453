@@ -79,23 +79,33 @@ class WindowPreview extends St.Button {
                 const windowActor = this._window.get_compositor_private();
                 if (!windowActor) return;
 
-                // Create larger preview
                 const allocation = this.get_allocation_box();
-                const [x, y] = this.get_transformed_position();
-                const windowWidth = allocation.x2 - allocation.x1;
+                const actorWidth = allocation.get_width();
+                const [actorX, actorY] = this.get_transformed_position();
 
-                const previewWidth = 1200;
-                const previewHeight = 800;
+                const windowFrame = this._window.get_frame_rect();
+                const windowWidth = windowFrame.width;
+                const windowHeight = windowFrame.height;
+
+                const aspectRatio = windowWidth / windowHeight;
+
+                const previewHeight = 600; // fixed
+                const previewWidth = previewHeight * aspectRatio;
+
+                // Directly above the actor (no gap)
+                const previewX = actorX + (actorWidth - previewWidth) / 2;
+                const previewY = actorY - previewHeight - 20; // 20px gap above window
 
                 this._hoverPreview = new Clutter.Clone({
                     source: windowActor,
-                    x: x + (windowWidth - previewWidth) / 2,
-                    y: y - previewHeight - 20, // 20px gap above window
+                    x: previewX,
+                    y: previewY,
                     width: previewWidth,
                     height: previewHeight
                 });
 
                 Main.layoutManager.addChrome(this._hoverPreview);
+
                 return GLib.SOURCE_REMOVE;
             }
         );
