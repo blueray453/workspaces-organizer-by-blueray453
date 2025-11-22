@@ -16,9 +16,6 @@ import { setLogging, setLogFn, journal } from './utils.js'
 
 // gettext is provided via the Extension module import above
 
-// Schema and Key
-const WORKSPACE_SCHEMA = 'org.gnome.desktop.wm.preferences';
-const WORKSPACE_KEY = 'workspace-names';
 const WorkspaceManager = global.workspace_manager;
 const Display = global.display;
 
@@ -324,6 +321,7 @@ class WorkspaceIndicator extends PanelMenu.Button {
         this._thumbnailsBox = new St.BoxLayout({
             style_class: 'panel-workspace-indicator-box',
             y_expand: true,
+            x_expand: true,
             reactive: true,
         });
 

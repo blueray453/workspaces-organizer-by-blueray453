@@ -7,12 +7,12 @@
 .panel-workspace-indicator-box {
 	padding: 1px 1px;
     border-radius: 8px;
-    overflow: hidden;
+    /* overflow: hidden; */
 }
 
 .panel-workspace-indicator-box .workspace {
     /* make workspace thumbnails slightly smaller so more previews fit */
-    width: 70px;
+    min-width: 70px;
     height: 28px;
     background-color: rgba(10, 10, 10, 0.504);
     border-radius: 8px;
