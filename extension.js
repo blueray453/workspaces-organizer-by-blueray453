@@ -90,56 +90,67 @@ class WindowPreview extends St.Button {
     }
 
     _showHoverPreview() {
-        if (!this._window || this._hoverPreview) return;
+        if (!this._window || this._hoverPreview || this._hoverTimeout) return;
 
-        const windowActor = this._window.get_compositor_private();
-        if (!windowActor) return;
+        this._hoverTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => {
+            this._hoverTimeout = null;
 
-        // const allocation = this.get_allocation_box();
-        // const actorWidth = allocation.get_width();
-        const actorWidth = this.get_width();
-        journal(`actorWidth : ${actorWidth}`);
-        const [actorX, actorY] = this.get_transformed_position();
+            const windowActor = this._window.get_compositor_private();
+                if (!windowActor) return GLib.SOURCE_REMOVE;
 
-        const windowFrame = this._window.get_frame_rect();
-        const windowWidth = windowFrame.width;
-        const windowHeight = windowFrame.height;
+            // const allocation = this.get_allocation_box();
+            // const actorWidth = allocation.get_width();
+            const actorWidth = this.get_width();
+            journal(`actorWidth : ${actorWidth}`);
+            const [actorX, actorY] = this.get_transformed_position();
 
-        const aspectRatio = windowWidth / windowHeight;
+            const windowFrame = this._window.get_frame_rect();
+            const windowWidth = windowFrame.width;
+            const windowHeight = windowFrame.height;
 
-        const previewHeight = 600; // fixed
-        const previewWidth = previewHeight * aspectRatio;
+            const aspectRatio = windowWidth / windowHeight;
 
-        // Directly above the actor (no gap)
-        const previewX = actorX + (actorWidth - previewWidth) / 2;
-        const previewY = actorY - previewHeight - 40; // 20px gap above window
+            const previewHeight = 600; // fixed
+            const previewWidth = previewHeight * aspectRatio;
 
-        this._hoverPreview = new Clutter.Clone({
-            source: windowActor,
-            x: previewX,
-            y: previewY,
-            width: previewWidth,
-            height: previewHeight,
-            reactive: false // ensures it does not block hover leave
-        });
+            // Directly above the actor (no gap)
+            const previewX = actorX + (actorWidth - previewWidth) / 2;
+            const previewY = actorY - previewHeight - 40; // 20px gap above window
 
-        // Main.layoutManager.addChrome(this._hoverPreview);
+            this._hoverPreview = new Clutter.Clone({
+                source: windowActor,
+                x: previewX,
+                y: previewY,
+                width: previewWidth,
+                height: previewHeight,
+                reactive: false // ensures it does not block hover leave
+            });
 
-        this._hoverPreview.opacity = 0;
-        Main.layoutManager.addChrome(this._hoverPreview);
-        this._hoverPreview.ease({
-            opacity: 255,
-            duration: 800,
-            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            // Main.layoutManager.addChrome(this._hoverPreview);
+
+            this._hoverPreview.opacity = 0;
+            Main.layoutManager.addChrome(this._hoverPreview);
+            this._hoverPreview.ease({
+                opacity: 255,
+                duration: 600,
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            });
+            return GLib.SOURCE_REMOVE;
         });
     }
 
     _hideHoverPreview() {
+
+        if (this._hoverTimeout) {
+            GLib.source_remove(this._hoverTimeout);
+            this._hoverTimeout = null;
+        }
+
         if (!this._hoverPreview) return;
 
         this._hoverPreview.ease({
             opacity: 0,
-            duration: 800,
+            duration: 900,
             mode: Clutter.AnimationMode.EASE_IN_QUAD,
             onComplete: () => {
                 Main.layoutManager.removeChrome(this._hoverPreview);
