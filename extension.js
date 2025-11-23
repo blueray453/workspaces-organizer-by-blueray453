@@ -497,18 +497,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
         this._updateThumbnails();
     }
 
-    destroy() {
-        this.cleanupSources();
-        this._thumbnailsBox?.destroy();
-
-        for (let i = 0; i < this._workspaceManagerSignals.length; i++)
-            WorkspaceManager.disconnect(this._workspaceManagerSignals[i]);
-
-        Main.panel.set_offscreen_redirect(Clutter.OffscreenRedirect.ALWAYS);
-
-        super.destroy();
-    }
-
     _updateActiveThumbnail() {
         let thumbs = this._thumbnailsBox.get_children();
         for (let i = 0; i < thumbs.length; i++) {
@@ -536,6 +524,18 @@ class WorkspaceIndicator extends PanelMenu.Button {
             if (typeof thumbs[i].cleanupSources === 'function')
                 thumbs[i].cleanupSources();
         }
+    }
+
+    destroy() {
+        this.cleanupSources();
+        this._thumbnailsBox?.destroy();
+
+        for (let i = 0; i < this._workspaceManagerSignals.length; i++)
+            WorkspaceManager.disconnect(this._workspaceManagerSignals[i]);
+
+        Main.panel.set_offscreen_redirect(Clutter.OffscreenRedirect.ALWAYS);
+
+        super.destroy();
     }
 }
 
