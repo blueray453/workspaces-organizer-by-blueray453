@@ -152,22 +152,22 @@ class WindowPreview extends St.Button {
 
         if (!this._hoverPreview) return;
 
-        this._hoverPreview.ease({
-            opacity: 0,
-            duration: 900,
-            mode: Clutter.AnimationMode.EASE_IN_QUAD,
-            onComplete: () => {
-                Main.layoutManager.removeChrome(this._hoverPreview);
-                this._hoverPreview.destroy();
-                this._hoverPreview = null;
-            }
-        });
+        // this._hoverPreview.ease({
+        //     opacity: 0,
+        //     duration: 300,
+        //     mode: Clutter.AnimationMode.EASE_IN_QUAD,
+        //     onComplete: () => {
+        //         Main.layoutManager.removeChrome(this._hoverPreview);
+        //         this._hoverPreview.destroy();
+        //         this._hoverPreview = null;
+        //     }
+        // });
 
-        // if (this._hoverPreview) {
-        //     Main.layoutManager.removeChrome(this._hoverPreview);
-        //     this._hoverPreview.destroy();
-        //     this._hoverPreview = null;
-        // }
+        if (this._hoverPreview) {
+            Main.layoutManager.removeChrome(this._hoverPreview);
+            this._hoverPreview.destroy();
+            this._hoverPreview = null;
+        }
     }
 
     // needed for DND
