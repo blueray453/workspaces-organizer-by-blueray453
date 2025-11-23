@@ -70,8 +70,10 @@ class WindowPreview extends St.Button {
         const windowActor = this._window.get_compositor_private();
         if (!windowActor) return;
 
-        const allocation = this.get_allocation_box();
-        const actorWidth = allocation.get_width();
+        // const allocation = this.get_allocation_box();
+        // const actorWidth = allocation.get_width();
+        const actorWidth = this.get_width();
+        journal(`actorWidth : ${actorWidth}`);
         const [actorX, actorY] = this.get_transformed_position();
 
         const windowFrame = this._window.get_frame_rect();
