@@ -114,8 +114,22 @@ class WindowPreview extends St.Button {
         Main.uiGroup.add_child(menu.actor);
 
         let closeItem = new PopupMenu.PopupMenuItem(`Close ${this._window.title}`);
+
         closeItem.connect('activate', () => this._window.delete(0));
         menu.addMenuItem(closeItem);
+
+        let closeAllItem = new PopupMenu.PopupMenuItem(`Close all windows on workspace ${this._window.get_workspace().index()}`);
+        menu.addMenuItem(closeAllItem);
+
+        closeAllItem.connect('activate', () => {
+            let windows = this._window.get_workspace().list_windows();
+            windows.forEach(window => {
+                if (window.get_window_type() === 0) {
+                    journal(`Closing window: ${window.get_title()}`);
+                    window.delete(0);
+                }
+            });
+        });
 
         menu.open(true);
     }
