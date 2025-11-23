@@ -489,7 +489,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
 
         container.add_child(this._thumbnailsBox);
 
-        this._workspacesItems = [];
         this._workspaceSection = new PopupMenu.PopupMenuSection();
         this.menu.addMenuItem(this._workspaceSection);
 
@@ -500,7 +499,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
                 this._onWorkspaceSwitched.bind(this)),
         ];
 
-        this._createWorkspacesSection();
         this._updateThumbnails();
     }
 
@@ -522,7 +520,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
     }
 
     _nWorkspacesChanged() {
-        this._createWorkspacesSection();
         this._updateThumbnails();
     }
 
@@ -533,22 +530,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
                 thumbs[i].add_style_class_name('active');
             else
                 thumbs[i].remove_style_class_name('active');
-        }
-    }
-
-    _createWorkspacesSection() {
-        this._workspaceSection.removeAll();
-        this._workspacesItems = [];
-        this._currentWorkspace = WorkspaceManager.get_active_workspace_index();
-
-        let i = 0;
-        for (; i < WorkspaceManager.n_workspaces; i++) {
-            this._workspacesItems[i] = new PopupMenu.PopupMenuItem(Meta.prefs_get_workspace_name(i));
-            this._workspaceSection.addMenuItem(this._workspacesItems[i]);
-            this._workspacesItems[i].workspaceId = i;
-
-            if (i === this._currentWorkspace)
-                this._workspacesItems[i].setOrnament(PopupMenu.Ornament.DOT);
         }
     }
 
