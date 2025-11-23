@@ -209,6 +209,13 @@ class WorkspaceThumbnail extends St.Button {
     _onButtonPress(actor, event) {
         let button = event.get_button();
 
+        if (button === Clutter.BUTTON_PRIMARY) { // left click
+            let ws = WorkspaceManager.get_workspace_by_index(this._index);
+            if (ws)
+                ws.activate(0);
+            return Clutter.EVENT_STOP; // prevent default
+        }
+
         if (button === Clutter.BUTTON_SECONDARY) { // right click
             journal(`Right click detected on workspace ${this._index}!`);
             this._showContextMenu();
@@ -334,12 +341,6 @@ class WorkspaceThumbnail extends St.Button {
         if (monitorIndex !== window.get_monitor())
             window.move_to_monitor(monitorIndex);
         window.change_workspace_by_index(this._index, false);
-    }
-
-    on_clicked() {
-        let ws = WorkspaceManager.get_workspace_by_index(this._index);
-        if (ws)
-            ws.activate(0);
     }
 
     // Explicitly cancel main loop sources without destroying the actor
