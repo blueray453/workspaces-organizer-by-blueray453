@@ -495,6 +495,8 @@ class WorkspaceIndicator extends PanelMenu.Button {
         ];
 
         this._updateThumbnails();
+        this._workspaceSection = new PopupMenu.PopupMenuSection();
+        this.menu.addMenuItem(this._workspaceSection);
         this._createWorkspacesSection();
     }
 
