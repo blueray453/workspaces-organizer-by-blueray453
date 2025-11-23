@@ -59,6 +59,16 @@ class WindowPreview extends St.Button {
                 closeItem.connect('activate', () => this._window.delete(0));
                 menu.addMenuItem(closeItem);
 
+                let activateItem = new PopupMenu.PopupMenuItem(`Activate ${this._window.title}`);
+
+                activateItem.connect('activate', () => {
+                    let win_workspace = this._window.get_workspace();
+                    // Here global.get_current_time() instead of 0 will also work
+                    win_workspace.activate_with_focus(this._window, 0);
+                });
+
+                menu.addMenuItem(activateItem);
+
                 let closeAllItem = new PopupMenu.PopupMenuItem(`Close all windows on workspace ${this._window.get_workspace().index()}`);
                 menu.addMenuItem(closeAllItem);
 
@@ -508,22 +518,12 @@ class WorkspaceIndicator extends PanelMenu.Button {
 
     _onWorkspaceSwitched() {
         this._currentWorkspace = WorkspaceManager.get_active_workspace_index();
-
-        this._updateMenuOrnament();
         this._updateActiveThumbnail();
     }
 
     _nWorkspacesChanged() {
         this._createWorkspacesSection();
         this._updateThumbnails();
-    }
-
-    _updateMenuOrnament() {
-        for (let i = 0; i < this._workspacesItems.length; i++) {
-            this._workspacesItems[i].setOrnament(i === this._currentWorkspace
-                ? PopupMenu.Ornament.DOT
-                : PopupMenu.Ornament.NONE);
-        }
     }
 
     _updateActiveThumbnail() {
@@ -554,9 +554,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
             this._workspacesItems[i] = new PopupMenu.PopupMenuItem(this._labelText(i));
             this._workspaceSection.addMenuItem(this._workspacesItems[i]);
             this._workspacesItems[i].workspaceId = i;
-            this._workspacesItems[i].connect('activate', (actor, _event) => {
-                this._activate(actor.workspaceId);
-            });
 
             if (i === this._currentWorkspace)
                 this._workspacesItems[i].setOrnament(PopupMenu.Ornament.DOT);
@@ -579,13 +576,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
         for (let i = 0; i < thumbs.length; i++) {
             if (typeof thumbs[i].cleanupSources === 'function')
                 thumbs[i].cleanupSources();
-        }
-    }
-
-    _activate(index) {
-        if (index >= 0 && index < WorkspaceManager.n_workspaces) {
-            let metaWorkspace = WorkspaceManager.get_workspace_by_index(index);
-            metaWorkspace.activate(0);
         }
     }
 }
