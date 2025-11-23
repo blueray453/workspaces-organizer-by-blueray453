@@ -81,7 +81,12 @@ class WindowPreview extends St.Button {
         // Connect hover signals
         this.connect('enter-event', () => this._showHoverPreview());
         this.connect('leave-event', () => this._hideHoverPreview());
-        this.connect('destroy', () => this._hideHoverPreview());
+        this.connect('destroy', () => {
+            this._window.disconnect(this._wmClassChangedId);
+            this._window.disconnect(this._mappedId);
+            this._hideHoverPreview();
+        });
+
     }
 
     _showHoverPreview() {
@@ -118,15 +123,36 @@ class WindowPreview extends St.Button {
             reactive: false // ensures it does not block hover leave
         });
 
+        // Main.layoutManager.addChrome(this._hoverPreview);
+
+        this._hoverPreview.opacity = 0;
         Main.layoutManager.addChrome(this._hoverPreview);
+        this._hoverPreview.ease({
+            opacity: 255,
+            duration: 800,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        });
     }
 
     _hideHoverPreview() {
-        if (this._hoverPreview) {
-            Main.layoutManager.removeChrome(this._hoverPreview);
-            this._hoverPreview.destroy();
-            this._hoverPreview = null;
-        }
+        if (!this._hoverPreview) return;
+
+        this._hoverPreview.ease({
+            opacity: 0,
+            duration: 800,
+            mode: Clutter.AnimationMode.EASE_IN_QUAD,
+            onComplete: () => {
+                Main.layoutManager.removeChrome(this._hoverPreview);
+                this._hoverPreview.destroy();
+                this._hoverPreview = null;
+            }
+        });
+
+        // if (this._hoverPreview) {
+        //     Main.layoutManager.removeChrome(this._hoverPreview);
+        //     this._hoverPreview.destroy();
+        //     this._hoverPreview = null;
+        // }
     }
 
     // needed for DND
