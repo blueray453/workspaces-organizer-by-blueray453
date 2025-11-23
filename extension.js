@@ -296,7 +296,7 @@ class WorkspaceThumbnail extends St.Button {
                 const windowCount = windows.length;
 
                 if (windowCount === 0) {
-                    return
+                    return Clutter.EVENT_STOP; // Fix: Return STOP to prevent menu creation
                 }
 
                 let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP, 0);
@@ -322,7 +322,7 @@ class WorkspaceThumbnail extends St.Button {
             }
 
             // For left click, let the default handler work
-            return Clutter.EVENT_PROPAGATE;
+            // return Clutter.EVENT_PROPAGATE;
         });
 
         this._windowAddedId = this._workspace.connect('window-added',
@@ -536,14 +536,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
         }
     }
 
-    _labelText(workspaceIndex) {
-        if (workspaceIndex === undefined) {
-            workspaceIndex = this._currentWorkspace;
-            return (workspaceIndex + 1).toString();
-        }
-        return Meta.prefs_get_workspace_name(workspaceIndex);
-    }
-
     _createWorkspacesSection() {
         this._workspaceSection.removeAll();
         this._workspacesItems = [];
@@ -551,7 +543,7 @@ class WorkspaceIndicator extends PanelMenu.Button {
 
         let i = 0;
         for (; i < WorkspaceManager.n_workspaces; i++) {
-            this._workspacesItems[i] = new PopupMenu.PopupMenuItem(this._labelText(i));
+            this._workspacesItems[i] = new PopupMenu.PopupMenuItem(Meta.prefs_get_workspace_name(i));
             this._workspaceSection.addMenuItem(this._workspacesItems[i]);
             this._workspacesItems[i].workspaceId = i;
 
@@ -584,8 +576,6 @@ export default class TopNotchWorkspaces extends Extension {
     constructor(metadata) {
         super(metadata);
         this._indicator = null;
-        this._handles = [];
-        this._origUpdateSwitcher = null;
     }
 
     enable() {
