@@ -79,14 +79,14 @@ class WindowPreview extends St.Button {
         });
 
         // Connect hover signals
-        this.connect('enter-event', () => this._showHoverPreview());
-        this.connect('leave-event', () => this._hideHoverPreview());
-        this.connect('destroy', () => {
+        this._enterEventId = this.connect('enter-event', () => this._showHoverPreview());
+        this._leaveEventId = this.connect('leave-event', () => this._hideHoverPreview());
+        this._destroyEventId = this.connect('destroy', () => {
             this._window.disconnect(this._wmClassChangedId);
             this._window.disconnect(this._mappedId);
             this._hideHoverPreview();
         });
-        this._wsChangedId = global.workspace_manager.connect(
+        this._wsChangedId = WorkspaceManager.connect(
             'workspace-switched',
             () => this._hideHoverPreview()
         );
@@ -194,9 +194,44 @@ class WindowPreview extends St.Button {
     }
 
     destroy() {
-        this._hideHoverPreview();
-        this._window.disconnect(this._wmClassChangedId);
-        this._window.disconnect(this._mappedId);
+        // Disconnect preview signals
+        if (this._enterEventId) {
+            this.disconnect(this._enterEventId);
+            this._enterEventId = null;
+        }
+
+        if (this._leaveEventId) {
+            this.disconnect(this._leaveEventId);
+            this._leaveEventId = null;
+        }
+
+        if (this._destroyEventId) {
+            this.disconnect(this._destroyEventId);
+            this._destroyEventId = null;
+        }
+
+        if (this._hoverPreview) {
+            this._hideHoverPreview();
+        }
+
+        /* disconnect window signal: wm-class */
+        if (this._wmClassChangedId && this._window) {
+            this._window.disconnect(this._wmClassChangedId);
+            this._wmClassChangedId = null;
+        }
+
+        /* disconnect window signal: mapped */
+        if (this._mappedId && this._window) {
+            this._window.disconnect(this._mappedId);
+            this._mappedId = null;
+        }
+
+        /* disconnect workspace-changed */
+        if (this._wsChangedId && WorkspaceManager) {
+            WorkspaceManager.disconnect(this._wsChangedId);
+            this._wsChangedId = null;
+        }
+
         super.destroy();
     }
 }
