@@ -110,7 +110,7 @@ class WindowPreview extends St.Button {
 
         // Directly above the actor (no gap)
         const previewX = actorX + (actorWidth - previewWidth) / 2;
-        const previewY = actorY - previewHeight - 20; // 20px gap above window
+        const previewY = actorY - previewHeight - 40; // 20px gap above window
 
         this._hoverPreview = new Clutter.Clone({
             source: windowActor,
@@ -382,21 +382,18 @@ class WorkspaceIndicator extends PanelMenu.Button {
     constructor() {
         super(0.0, _('Workspace Indicator'));
 
+        this.add_style_class_name('workspace-indicator-button');
+
         let container = new St.Widget({
             layout_manager: new Clutter.BinLayout(),
             x_expand: true,
             y_expand: true,
+            reactive: true  // removes :insensitive
         });
+
         this.add_child(container);
 
         this._currentWorkspace = WorkspaceManager.get_active_workspace_index();
-        this._statusLabel = new St.Label({
-            style_class: 'panel-workspace-indicator',
-            y_align: Clutter.ActorAlign.CENTER,
-            text: this._labelText(),
-        });
-
-        container.add_child(this._statusLabel);
 
         this._thumbnailsBox = new St.BoxLayout({
             style_class: 'panel-workspace-indicator-box',
@@ -416,13 +413,10 @@ class WorkspaceIndicator extends PanelMenu.Button {
                 this._nWorkspacesChanged.bind(this)),
             WorkspaceManager.connect_after('workspace-switched',
                 this._onWorkspaceSwitched.bind(this)),
-            WorkspaceManager.connect('notify::layout-rows',
-                this._onWorkspaceOrientationChanged.bind(this)),
         ];
 
         this._createWorkspacesSection();
         this._updateThumbnails();
-        this._onWorkspaceOrientationChanged();
     }
 
     destroy() {
@@ -437,27 +431,11 @@ class WorkspaceIndicator extends PanelMenu.Button {
         super.destroy();
     }
 
-    _onWorkspaceOrientationChanged() {
-        let vertical = WorkspaceManager.layout_rows === -1;
-        this.reactive = vertical;
-
-        this._statusLabel.visible = vertical;
-        this._thumbnailsBox.visible = !vertical;
-
-        // Disable offscreen-redirect when showing the workspace switcher
-        // so that clip-to-allocation works
-        Main.panel.set_offscreen_redirect(vertical
-            ? Clutter.OffscreenRedirect.ALWAYS
-            : Clutter.OffscreenRedirect.AUTOMATIC_FOR_OPACITY);
-    }
-
     _onWorkspaceSwitched() {
         this._currentWorkspace = WorkspaceManager.get_active_workspace_index();
 
         this._updateMenuOrnament();
         this._updateActiveThumbnail();
-
-        this._statusLabel.set_text(this._labelText());
     }
 
     _nWorkspacesChanged() {
@@ -501,7 +479,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
             this._workspacesItems[i] = new PopupMenu.PopupMenuItem(this._labelText(i));
             this._workspaceSection.addMenuItem(this._workspacesItems[i]);
             this._workspacesItems[i].workspaceId = i;
-            this._workspacesItems[i].label_actor = this._statusLabel;
             this._workspacesItems[i].connect('activate', (actor, _event) => {
                 this._activate(actor.workspaceId);
             });
@@ -509,8 +486,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
             if (i === this._currentWorkspace)
                 this._workspacesItems[i].setOrnament(PopupMenu.Ornament.DOT);
         }
-
-        this._statusLabel.set_text(this._labelText());
     }
 
     _updateThumbnails() {
