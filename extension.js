@@ -241,9 +241,6 @@ class WorkspaceThumbnail extends St.Button {
     }
 
     _showContextMenu() {
-        // Create a new context menu
-
-
         let windows = this._workspace.list_windows().filter(w =>
             w.get_window_type() === 0
         );
