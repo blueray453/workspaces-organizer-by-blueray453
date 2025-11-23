@@ -296,7 +296,8 @@ class WorkspaceThumbnail extends St.Button {
                 const windowCount = windows.length;
 
                 if (windowCount === 0) {
-                    return Clutter.EVENT_STOP; // Fix: Return STOP to prevent menu creation
+                    return;
+                    // return Clutter.EVENT_STOP; // Fix: Return STOP to prevent menu creation
                 }
 
                 let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP, 0);
