@@ -253,7 +253,7 @@ class WorkspaceThumbnail extends St.Button {
 
         let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP, 0);
 
-        menu.removeAll();
+        // menu.removeAll();
 
         let manager = new PopupMenu.PopupMenuManager(this);
         manager.addMenu(menu);
