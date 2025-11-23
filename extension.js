@@ -86,6 +86,10 @@ class WindowPreview extends St.Button {
             this._window.disconnect(this._mappedId);
             this._hideHoverPreview();
         });
+        this._wsChangedId = global.workspace_manager.connect(
+            'workspace-switched',
+            () => this._hideHoverPreview()
+        );
 
     }
 
