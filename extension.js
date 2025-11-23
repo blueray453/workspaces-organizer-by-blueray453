@@ -230,10 +230,10 @@ class WorkspaceThumbnail extends St.Button {
         manager.addMenu(menu);
         Main.uiGroup.add_child(menu.actor);
 
-        let item1 = new PopupMenu.PopupMenuItem(`Close all windows on workspace ${this._index}`);
-        menu.addMenuItem(item1);
+        let closeAllItem = new PopupMenu.PopupMenuItem(`Close all windows on workspace ${this._index}`);
+        menu.addMenuItem(closeAllItem);
 
-        item1.connect('activate', () => {
+        closeAllItem.connect('activate', () => {
             let windows = this._workspace.list_windows();
             windows.forEach(window => {
                 if (window.get_window_type() === 0) {
