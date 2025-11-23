@@ -243,6 +243,17 @@ class WorkspaceThumbnail extends St.Button {
     _showContextMenu() {
         // Create a new context menu
 
+
+        let windows = this._workspace.list_windows().filter(w =>
+            w.get_window_type() === 0
+        );
+
+        const windowCount = windows.length;
+
+        if (windowCount === 0) {
+            return
+        }
+
         let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP, 0);
 
         menu.removeAll();
@@ -255,17 +266,13 @@ class WorkspaceThumbnail extends St.Button {
         menu.addMenuItem(closeAllItem);
 
         closeAllItem.connect('activate', () => {
-            let windows = this._workspace.list_windows();
             windows.forEach(window => {
-                if (window.get_window_type() === 0) {
-                    journal(`Closing window: ${window.get_title()}`);
-                    window.delete(0);
-                }
+                journal(`Closing window: ${window.get_title()}`);
+                window.delete(0);
             });
         });
 
         menu.open(true);
-
     }
 
     acceptDrop(source) {
