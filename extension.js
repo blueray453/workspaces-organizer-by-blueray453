@@ -31,9 +31,6 @@ class WindowPreview extends St.Button {
         });
 
         this._hoverPreview = null;
-        this._showPreviewTimeout = null;
-        this._hidePreviewTimeout = null;
-        this._windowDestroyId = 0;
 
         this._delegate = this;
         DND.makeDraggable(this, { restoreOnSuccess: true });
@@ -88,7 +85,7 @@ class WindowPreview extends St.Button {
     }
 
     _showHoverPreview() {
-        if (!this._window) return;
+        if (!this._window || this._hoverPreview) return;
 
         const windowActor = this._window.get_compositor_private();
         if (!windowActor) return;
@@ -117,14 +114,21 @@ class WindowPreview extends St.Button {
             x: previewX,
             y: previewY,
             width: previewWidth,
-            height: previewHeight
+            height: previewHeight,
+            reactive: false // ensures it does not block hover leave
         });
 
         Main.layoutManager.addChrome(this._hoverPreview);
+
+        // GLib.timeout_add(GLib.PRIORITY_DEFAULT, 5000, () => {
+        //     this._hideHoverPreview();
+        //     return GLib.SOURCE_REMOVE;
+        // });
     }
 
     _hideHoverPreview() {
         if (this._hoverPreview) {
+            Main.layoutManager.removeChrome(this._hoverPreview);
             this._hoverPreview.destroy();
             this._hoverPreview = null;
         }
@@ -154,7 +158,7 @@ class WindowPreview extends St.Button {
     }
 
     destroy() {
-        WorkspaceManager.disconnect(this._focusChangedId);
+        this._hideHoverPreview();
         this._window.disconnect(this._wmClassChangedId);
         this._window.disconnect(this._mappedId);
         super.destroy();
