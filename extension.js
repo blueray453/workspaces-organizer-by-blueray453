@@ -495,6 +495,23 @@ class WorkspaceIndicator extends PanelMenu.Button {
         ];
 
         this._updateThumbnails();
+        this._createWorkspacesSection();
+    }
+
+    _createWorkspacesSection() {
+        this._workspaceSection.removeAll();
+        this._workspacesItems = [];
+        this._currentWorkspace = WorkspaceManager.get_active_workspace_index();
+
+        let i = 0;
+        for (; i < WorkspaceManager.n_workspaces; i++) {
+            this._workspacesItems[i] = new PopupMenu.PopupMenuItem(Meta.prefs_get_workspace_name(i));
+            this._workspaceSection.addMenuItem(this._workspacesItems[i]);
+            this._workspacesItems[i].workspaceId = i;
+
+            if (i === this._currentWorkspace)
+                this._workspacesItems[i].setOrnament(PopupMenu.Ornament.DOT);
+        }
     }
 
     _updateActiveThumbnail() {
