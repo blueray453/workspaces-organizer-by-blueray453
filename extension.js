@@ -478,8 +478,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
 
         this.add_child(container);
 
-        this._currentWorkspace = WorkspaceManager.get_active_workspace_index();
-
         this._thumbnailsBox = new St.BoxLayout({
             style_class: 'panel-workspace-indicator-box',
             y_expand: true,
@@ -489,14 +487,11 @@ class WorkspaceIndicator extends PanelMenu.Button {
 
         container.add_child(this._thumbnailsBox);
 
-        this._workspaceSection = new PopupMenu.PopupMenuSection();
-        this.menu.addMenuItem(this._workspaceSection);
-
         this._workspaceManagerSignals = [
             WorkspaceManager.connect_after('notify::n-workspaces',
-                this._nWorkspacesChanged.bind(this)),
+                this._updateThumbnails.bind(this)),
             WorkspaceManager.connect_after('workspace-switched',
-                this._onWorkspaceSwitched.bind(this)),
+                this._updateActiveThumbnail.bind(this)),
         ];
 
         this._updateThumbnails();
@@ -514,19 +509,10 @@ class WorkspaceIndicator extends PanelMenu.Button {
         super.destroy();
     }
 
-    _onWorkspaceSwitched() {
-        this._currentWorkspace = WorkspaceManager.get_active_workspace_index();
-        this._updateActiveThumbnail();
-    }
-
-    _nWorkspacesChanged() {
-        this._updateThumbnails();
-    }
-
     _updateActiveThumbnail() {
         let thumbs = this._thumbnailsBox.get_children();
         for (let i = 0; i < thumbs.length; i++) {
-            if (i === this._currentWorkspace)
+            if (i === WorkspaceManager.get_active_workspace_index())
                 thumbs[i].add_style_class_name('active');
             else
                 thumbs[i].remove_style_class_name('active');
