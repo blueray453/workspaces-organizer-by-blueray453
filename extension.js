@@ -52,7 +52,30 @@ class WindowPreview extends St.Button {
 
         this.connect('button-press-event', (actor, event) => {
             if (event.get_button() === Clutter.BUTTON_SECONDARY) {
-                this._showWindowMenu();
+                let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP, 0);
+                let manager = new PopupMenu.PopupMenuManager(this);
+                manager.addMenu(menu);
+                Main.uiGroup.add_child(menu.actor);
+
+                let closeItem = new PopupMenu.PopupMenuItem(`Close ${this._window.title}`);
+
+                closeItem.connect('activate', () => this._window.delete(0));
+                menu.addMenuItem(closeItem);
+
+                let closeAllItem = new PopupMenu.PopupMenuItem(`Close all windows on workspace ${this._window.get_workspace().index()}`);
+                menu.addMenuItem(closeAllItem);
+
+                closeAllItem.connect('activate', () => {
+                    let windows = this._window.get_workspace().list_windows();
+                    windows.forEach(window => {
+                        if (window.get_window_type() === 0) {
+                            journal(`Closing window: ${window.get_title()}`);
+                            window.delete(0);
+                        }
+                    });
+                });
+
+                menu.open(true);
                 return Clutter.EVENT_STOP;
             }
             return Clutter.EVENT_PROPAGATE;
@@ -105,33 +128,6 @@ class WindowPreview extends St.Button {
             this._hoverPreview.destroy();
             this._hoverPreview = null;
         }
-    }
-
-    _showWindowMenu() {
-        let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP, 0);
-        let manager = new PopupMenu.PopupMenuManager(this);
-        manager.addMenu(menu);
-        Main.uiGroup.add_child(menu.actor);
-
-        let closeItem = new PopupMenu.PopupMenuItem(`Close ${this._window.title}`);
-
-        closeItem.connect('activate', () => this._window.delete(0));
-        menu.addMenuItem(closeItem);
-
-        let closeAllItem = new PopupMenu.PopupMenuItem(`Close all windows on workspace ${this._window.get_workspace().index()}`);
-        menu.addMenuItem(closeAllItem);
-
-        closeAllItem.connect('activate', () => {
-            let windows = this._window.get_workspace().list_windows();
-            windows.forEach(window => {
-                if (window.get_window_type() === 0) {
-                    journal(`Closing window: ${window.get_title()}`);
-                    window.delete(0);
-                }
-            });
-        });
-
-        menu.open(true);
     }
 
     // needed for DND
@@ -196,8 +192,53 @@ class WorkspaceThumbnail extends St.Button {
 
         this._workspace = WorkspaceManager.get_workspace_by_index(index);
 
-        // Connect button-press-event for right-click handling
-        this.connect('button-press-event', this._onButtonPress.bind(this));
+        this.connect('button-press-event', (actor, event) => {
+            let button = event.get_button();
+
+            if (button === Clutter.BUTTON_PRIMARY) { // left click
+                let ws = WorkspaceManager.get_workspace_by_index(this._index);
+                if (ws)
+                    ws.activate(0);
+                return Clutter.EVENT_STOP; // prevent default
+            }
+
+            if (button === Clutter.BUTTON_SECONDARY) { // right click
+                journal(`Right click detected on workspace ${this._index}!`);
+                let windows = this._workspace.list_windows().filter(w =>
+                    w.get_window_type() === 0
+                );
+
+                const windowCount = windows.length;
+
+                if (windowCount === 0) {
+                    return
+                }
+
+                let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP, 0);
+
+                // menu.removeAll();
+
+                let manager = new PopupMenu.PopupMenuManager(this);
+                manager.addMenu(menu);
+                Main.uiGroup.add_child(menu.actor);
+
+                let closeAllItem = new PopupMenu.PopupMenuItem(`Close all windows on workspace ${this._index}`);
+                menu.addMenuItem(closeAllItem);
+
+                closeAllItem.connect('activate', () => {
+                    windows.forEach(window => {
+                        journal(`Closing window: ${window.get_title()}`);
+                        window.delete(0);
+                    });
+                });
+
+                menu.open(true);
+                return Clutter.EVENT_STOP; // prevent default
+            }
+
+            // For left click, let the default handler work
+            return Clutter.EVENT_PROPAGATE;
+        });
 
         this._windowAddedId = this._workspace.connect('window-added',
             (ws, window) => {
@@ -218,58 +259,6 @@ class WorkspaceThumbnail extends St.Button {
 
         this._workspace.list_windows().forEach(w => this._addWindow(w));
         this._onRestacked();
-    }
-
-    _onButtonPress(actor, event) {
-        let button = event.get_button();
-
-        if (button === Clutter.BUTTON_PRIMARY) { // left click
-            let ws = WorkspaceManager.get_workspace_by_index(this._index);
-            if (ws)
-                ws.activate(0);
-            return Clutter.EVENT_STOP; // prevent default
-        }
-
-        if (button === Clutter.BUTTON_SECONDARY) { // right click
-            journal(`Right click detected on workspace ${this._index}!`);
-            this._showContextMenu();
-            return Clutter.EVENT_STOP; // prevent default
-        }
-
-        // For left click, let the default handler work
-        return Clutter.EVENT_PROPAGATE;
-    }
-
-    _showContextMenu() {
-        let windows = this._workspace.list_windows().filter(w =>
-            w.get_window_type() === 0
-        );
-
-        const windowCount = windows.length;
-
-        if (windowCount === 0) {
-            return
-        }
-
-        let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP, 0);
-
-        // menu.removeAll();
-
-        let manager = new PopupMenu.PopupMenuManager(this);
-        manager.addMenu(menu);
-        Main.uiGroup.add_child(menu.actor);
-
-        let closeAllItem = new PopupMenu.PopupMenuItem(`Close all windows on workspace ${this._index}`);
-        menu.addMenuItem(closeAllItem);
-
-        closeAllItem.connect('activate', () => {
-            windows.forEach(window => {
-                journal(`Closing window: ${window.get_title()}`);
-                window.delete(0);
-            });
-        });
-
-        menu.open(true);
     }
 
     acceptDrop(source) {
