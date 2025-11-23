@@ -119,11 +119,6 @@ class WindowPreview extends St.Button {
         });
 
         Main.layoutManager.addChrome(this._hoverPreview);
-
-        // GLib.timeout_add(GLib.PRIORITY_DEFAULT, 5000, () => {
-        //     this._hideHoverPreview();
-        //     return GLib.SOURCE_REMOVE;
-        // });
     }
 
     _hideHoverPreview() {
