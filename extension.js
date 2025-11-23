@@ -65,80 +65,44 @@ class WindowPreview extends St.Button {
     }
 
     _showHoverPreview() {
-        if (this._hidePreviewTimeout) {
-            GLib.source_remove(this._hidePreviewTimeout);
-            this._hidePreviewTimeout = null;
-        }
+        if (!this._window) return;
 
-        if (this._hoverPreview) {
-            return;
-        }
+        const windowActor = this._window.get_compositor_private();
+        if (!windowActor) return;
 
-        this._showPreviewTimeout = GLib.timeout_add(
-            GLib.PRIORITY_DEFAULT,
-            200,
-            () => {
-                this._showPreviewTimeout = null;
+        const allocation = this.get_allocation_box();
+        const actorWidth = allocation.get_width();
+        const [actorX, actorY] = this.get_transformed_position();
 
-                if (!this._window) return;
+        const windowFrame = this._window.get_frame_rect();
+        const windowWidth = windowFrame.width;
+        const windowHeight = windowFrame.height;
 
-                const windowActor = this._window.get_compositor_private();
-                if (!windowActor) return;
+        const aspectRatio = windowWidth / windowHeight;
 
-                const allocation = this.get_allocation_box();
-                const actorWidth = allocation.get_width();
-                const [actorX, actorY] = this.get_transformed_position();
+        const previewHeight = 600; // fixed
+        const previewWidth = previewHeight * aspectRatio;
 
-                const windowFrame = this._window.get_frame_rect();
-                const windowWidth = windowFrame.width;
-                const windowHeight = windowFrame.height;
+        // Directly above the actor (no gap)
+        const previewX = actorX + (actorWidth - previewWidth) / 2;
+        const previewY = actorY - previewHeight - 20; // 20px gap above window
 
-                const aspectRatio = windowWidth / windowHeight;
+        this._hoverPreview = new Clutter.Clone({
+            source: windowActor,
+            x: previewX,
+            y: previewY,
+            width: previewWidth,
+            height: previewHeight
+        });
 
-                const previewHeight = 600; // fixed
-                const previewWidth = previewHeight * aspectRatio;
-
-                // Directly above the actor (no gap)
-                const previewX = actorX + (actorWidth - previewWidth) / 2;
-                const previewY = actorY - previewHeight - 20; // 20px gap above window
-
-                this._hoverPreview = new Clutter.Clone({
-                    source: windowActor,
-                    x: previewX,
-                    y: previewY,
-                    width: previewWidth,
-                    height: previewHeight
-                });
-
-                Main.layoutManager.addChrome(this._hoverPreview);
-
-                return GLib.SOURCE_REMOVE;
-            }
-        );
+        Main.layoutManager.addChrome(this._hoverPreview);
     }
 
     _hideHoverPreview() {
-        if (this._showPreviewTimeout) {
-            GLib.source_remove(this._showPreviewTimeout);
-            this._showPreviewTimeout = null;
+        if (this._hoverPreview) {
+            this._hoverPreview.destroy();
+            this._hoverPreview = null;
         }
-
-        if (!this._hoverPreview) {
-            return;
-        }
-
-        this._hidePreviewTimeout = GLib.timeout_add(
-            GLib.PRIORITY_DEFAULT,
-            100,
-            () => {
-                this._hidePreviewTimeout = null;
-                if (this._hoverPreview) {
-                    this._hoverPreview.destroy();
-                    this._hoverPreview = null;
-                }
-                return GLib.SOURCE_REMOVE;
-            }
-        );
     }
 
     _showWindowMenu() {
