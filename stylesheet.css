@@ -1,14 +1,4 @@
-.workspace-indicator-button {
-    padding: 0px !important;
-    margin: 0px !important;
-    border-radius: 0px !important;
-    background-color: transparent !important;
-    -minimum-hpadding: 0px !important;
-    -natural-hpadding: 0px !important;
-    /* border: 1px solid red; */
-}
-
-.panel-workspace-indicator-box .workspace {
+.workspace-indicator .workspace-thumbnail {
     /* make workspace thumbnails slightly smaller so more previews fit */
     min-width: 70px;
     height: 100%;
@@ -17,30 +7,20 @@
     box-shadow: inset 0 0 4px 2px #268bd2;
 }
 
-.panel-workspace-indicator-box .workspace + .workspace {
-    border-left-width: 0;
-}
-
-.panel-workspace-indicator-box .workspace.active {
+.workspace-indicator .workspace-thumbnail.active {
     /* highlight color */
 	/* background-color: #2aa198;
     background-color: rgba(42, 161, 152, 0.15); */
-    background-color: rgba(42, 161, 152, 0.35);
+    background-color: rgba(42, 161, 152, 0.50);
     /* background-color: rgba(42, 161, 152, 0.50);
     background-color: rgba(42, 161, 152, 1); */
 }
 
-.workspace-windows {
-    padding: 2px;
-}
-
-.workspace-indicator-window-preview {
-    background-color: transparent;
-    padding: 0;
-    margin: 0;
-}
-
-.workspace-indicator-window-preview.active {
-    background-color: rgba(13, 113, 235, 0.874);
-    border-radius: 4px;
+.workspace-indicator .workspace-thumbnail:hover {
+    /* highlight color */
+	/* background-color: #2aa198;
+    background-color: rgba(42, 161, 152, 0.15); */
+    /* background-color: rgba(42, 161, 152, 0.35); */
+    background-color: rgba(38, 139, 210, 0.50)
+    /* background-color: rgba(42, 161, 152, 1); */
 }

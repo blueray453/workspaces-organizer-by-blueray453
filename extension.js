@@ -26,9 +26,7 @@ class WindowPreview extends St.Button {
     }
 
     constructor(window) {
-        super({
-            style_class: 'workspace-indicator-window-preview',
-        });
+        super();
 
         this._hoverPreview = null;
 
@@ -256,16 +254,12 @@ class WorkspaceThumbnail extends St.Button {
 
     constructor(workspace) {
         super({
-            style_class: 'workspace',
+            style_class: 'workspace-thumbnail',
             x_expand: true,
             y_expand: true,
         });
 
-        this._windowsBox = new St.BoxLayout({
-            style_class: 'workspace-windows',
-            x_align: Clutter.ActorAlign.CENTER,
-            y_align: Clutter.ActorAlign.CENTER,
-        });
+        this._windowsBox = new St.BoxLayout();
 
         this.set_child(this._windowsBox);
 
@@ -465,22 +459,22 @@ class WorkspaceIndicator extends PanelMenu.Button {
 
         this.reactive = false;
 
-        let container = new St.Widget({
-            layout_manager: new Clutter.BinLayout(),
-            x_expand: true,
-            y_expand: true,
-        });
+        // let container = new St.Widget({
+        //     layout_manager: new Clutter.BinLayout(),
+        //     x_expand: true,
+        //     y_expand: true,
+        // });
 
-        this.add_child(container);
+        // this.add_child(container);
 
         this._thumbnailsBox = new St.BoxLayout({
-            style_class: 'panel-workspace-indicator-box',
+            style_class: 'workspace-indicator',
             y_expand: true,
             x_expand: true,
             reactive: true,
         });
 
-        container.add_child(this._thumbnailsBox);
+        this.add_child(this._thumbnailsBox);
 
         // this._workspacesItems = [];
         this._workspaceSection = new PopupMenu.PopupMenuSection();
