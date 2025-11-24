@@ -129,24 +129,50 @@ class WindowPreview extends St.Button {
             const previewX = actorX + (actorWidth - previewWidth) / 2;
             const previewY = actorY - previewHeight - 40; // 20px gap above window
 
-            this._hoverPreview = new Clutter.Clone({
-                source: windowActor,
+            // this._hoverPreview = new Clutter.Clone({
+            //     source: windowActor,
+            //     x: previewX,
+            //     y: previewY,
+            //     width: previewWidth,
+            //     height: previewHeight,
+            //     reactive: false // ensures it does not block hover leave
+            // });
+
+            // Create wrapper that can have CSS
+            const wrapper = new St.BoxLayout({
+                style_class: 'hover-preview-wrapper',
                 x: previewX,
                 y: previewY,
-                width: previewWidth,
+                width: previewWidth + 8,
                 height: previewHeight,
-                reactive: false // ensures it does not block hover leave
+                reactive: false,
             });
 
-            // Main.layoutManager.addChrome(this._hoverPreview);
+            // MATH: width = previewWidth + (borderSize * 2)
+
+            // Create the clone
+            const clone = new Clutter.Clone({
+                source: windowActor,
+                width: previewWidth,
+                height: previewHeight,
+                reactive: false,
+            });
+
+            // Pack clone inside wrapper
+            wrapper.add_child(clone);
+
+            // Assign wrapper as hover preview
+            this._hoverPreview = wrapper;
 
             this._hoverPreview.opacity = 0;
             Main.layoutManager.addChrome(this._hoverPreview);
+
             this._hoverPreview.ease({
                 opacity: 255,
                 duration: 600,
                 mode: Clutter.AnimationMode.EASE_OUT_QUAD,
             });
+
             return GLib.SOURCE_REMOVE;
         });
     }

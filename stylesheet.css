@@ -19,3 +19,8 @@
 /* .workspace-indicator .workspace-thumbnail:hover {
     background-color: rgba(38, 139, 210, 0.50)
 } */
+
+.hover-preview-wrapper {
+    border: 4px solid #268bd2;
+    border-radius: 8px;
+}
