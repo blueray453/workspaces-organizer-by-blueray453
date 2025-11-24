@@ -276,54 +276,50 @@ class WorkspaceThumbnail extends St.Button {
 
         this._workspace = workspace;
 
-        // this.connect('button-press-event', (actor, event) => {
-        //     let button = event.get_button();
+        this.connect('button-press-event', (actor, event) => {
+            let button = event.get_button();
 
-        //     if (button === Clutter.BUTTON_PRIMARY) { // left click
-        //         let ws = WorkspaceManager.get_workspace_by_index(this._index);
-        //         if (ws)
-        //             ws.activate(0);
-        //         return Clutter.EVENT_STOP; // prevent default
-        //     }
+            if (button === Clutter.BUTTON_PRIMARY) { // left click
+                this._workspace.activate(0);
+                return Clutter.EVENT_STOP; // prevent default
+            }
 
-        //     if (button === Clutter.BUTTON_SECONDARY) { // right click
-        //         journal(`Right click detected on workspace ${this._index}!`);
-        //         let windows = this._workspace.list_windows().filter(w =>
-        //             w.get_window_type() === 0
-        //         );
+            if (button === Clutter.BUTTON_SECONDARY) { // right click
+                let windows = this._workspace.list_windows().filter(w =>
+                    w.get_window_type() === 0
+                );
 
-        //         const windowCount = windows.length;
+                const windowCount = windows.length;
 
-        //         if (windowCount === 0) {
-        //             return;
-        //             // return Clutter.EVENT_STOP; // Fix: Return STOP to prevent menu creation
-        //         }
+                if (windowCount === 0) {
+                    return Clutter.EVENT_STOP; // Fix: Return STOP to prevent menu creation
+                }
 
-        //         let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP, 0);
+                let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP, 0);
 
-        //         // menu.removeAll();
+                // menu.removeAll();
 
-        //         let manager = new PopupMenu.PopupMenuManager(this);
-        //         manager.addMenu(menu);
-        //         Main.uiGroup.add_child(menu.actor);
+                let manager = new PopupMenu.PopupMenuManager(this);
+                manager.addMenu(menu);
+                Main.uiGroup.add_child(menu.actor);
 
-        //         let closeAllItem = new PopupMenu.PopupMenuItem(`Close all windows on workspace ${this._index}`);
-        //         menu.addMenuItem(closeAllItem);
+                let closeAllItem = new PopupMenu.PopupMenuItem(`Close all windows on workspace ${this._workspace.index()}`);
+                menu.addMenuItem(closeAllItem);
 
-        //         closeAllItem.connect('activate', () => {
-        //             windows.forEach(window => {
-        //                 journal(`Closing window: ${window.get_title()}`);
-        //                 window.delete(0);
-        //             });
-        //         });
+                closeAllItem.connect('activate', () => {
+                    windows.forEach(window => {
+                        journal(`Closing window: ${window.get_title()}`);
+                        window.delete(0);
+                    });
+                });
 
-        //         menu.open(true);
-        //         return Clutter.EVENT_STOP; // prevent default
-        //     }
+                menu.open(true);
+                return Clutter.EVENT_STOP; // prevent default
+            }
 
-        //     // For left click, let the default handler work
-        //     // return Clutter.EVENT_PROPAGATE;
-        // });
+            // For left click, let the default handler work
+            // return Clutter.EVENT_PROPAGATE;
+        });
 
         this._windowAddedId = this._workspace.connect('window-added',
             (ws, window) => {
@@ -443,9 +439,9 @@ class WorkspaceThumbnail extends St.Button {
         this._addWindowTimeoutIds.clear();
     }
 
-    on_clicked() {
-        this._workspace.activate(0);
-    }
+    // on_clicked() {
+    //     this._workspace.activate(0);
+    // }
 
     destroy() {
         this._workspace.disconnect(this._windowAddedId);
@@ -499,26 +495,26 @@ class WorkspaceIndicator extends PanelMenu.Button {
         ];
 
         this._updateThumbnails();
-        this._workspaceSection = new PopupMenu.PopupMenuSection();
-        this.menu.addMenuItem(this._workspaceSection);
-        this._createWorkspacesSection();
+        // this._workspaceSection = new PopupMenu.PopupMenuSection();
+        // this.menu.addMenuItem(this._workspaceSection);
+        // this._createWorkspacesSection();
     }
 
-    _createWorkspacesSection() {
-        this._workspaceSection.removeAll();
-        this._workspacesItems = [];
-        this._currentWorkspace = WorkspaceManager.get_active_workspace_index();
+    // _createWorkspacesSection() {
+    //     this._workspaceSection.removeAll();
+    //     this._workspacesItems = [];
+    //     this._currentWorkspace = WorkspaceManager.get_active_workspace_index();
 
-        let i = 0;
-        for (; i < WorkspaceManager.n_workspaces; i++) {
-            this._workspacesItems[i] = new PopupMenu.PopupMenuItem(Meta.prefs_get_workspace_name(i));
-            this._workspaceSection.addMenuItem(this._workspacesItems[i]);
-            this._workspacesItems[i].workspaceId = i;
+    //     let i = 0;
+    //     for (; i < WorkspaceManager.n_workspaces; i++) {
+    //         this._workspacesItems[i] = new PopupMenu.PopupMenuItem(Meta.prefs_get_workspace_name(i));
+    //         this._workspaceSection.addMenuItem(this._workspacesItems[i]);
+    //         this._workspacesItems[i].workspaceId = i;
 
-            if (i === this._currentWorkspace)
-                this._workspacesItems[i].setOrnament(PopupMenu.Ornament.DOT);
-        }
-    }
+    //         if (i === this._currentWorkspace)
+    //             this._workspacesItems[i].setOrnament(PopupMenu.Ornament.DOT);
+    //     }
+    // }
 
     _updateActiveThumbnail() {
         let thumbs = this._thumbnailsBox.get_children();
@@ -547,12 +543,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
             if (typeof thumbs[i].cleanupSources === 'function')
                 thumbs[i].cleanupSources();
         }
-    }
-
-    on_clicked() {
-        let ws = WorkspaceManager.get_workspace_by_index(1);
-        if (ws)
-            ws.activate(0);
     }
 
     destroy() {
