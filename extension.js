@@ -475,13 +475,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
         this.add_child(container);
 
         this._currentWorkspace = WorkspaceManager.get_active_workspace_index();
-        this._statusLabel = new St.Label({
-            style_class: 'panel-workspace-indicator',
-            y_align: Clutter.ActorAlign.CENTER,
-            text: this._labelText(),
-        });
-
-        container.add_child(this._statusLabel);
 
         this._thumbnailsBox = new St.BoxLayout({
             style_class: 'panel-workspace-indicator-box',
@@ -526,7 +519,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
         let vertical = WorkspaceManager.layout_rows === -1;
         this.reactive = vertical;
 
-        this._statusLabel.visible = vertical;
         this._thumbnailsBox.visible = !vertical;
 
         // Disable offscreen-redirect when showing the workspace switcher
@@ -541,8 +533,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
 
         this._updateMenuOrnament();
         this._updateActiveThumbnail();
-
-        this._statusLabel.set_text(this._labelText());
     }
 
     _nWorkspacesChanged() {
@@ -568,14 +558,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
         }
     }
 
-    _labelText(workspaceIndex) {
-        if (workspaceIndex === undefined) {
-            workspaceIndex = this._currentWorkspace;
-            return (workspaceIndex + 1).toString();
-        }
-        return Meta.prefs_get_workspace_name(workspaceIndex);
-    }
-
     _createWorkspacesSection() {
         this._workspaceSection.removeAll();
         this._workspacesItems = [];
@@ -583,10 +565,9 @@ class WorkspaceIndicator extends PanelMenu.Button {
 
         let i = 0;
         for (; i < WorkspaceManager.n_workspaces; i++) {
-            this._workspacesItems[i] = new PopupMenu.PopupMenuItem(this._labelText(i));
+            this._workspacesItems[i] = new PopupMenu.PopupMenuItem(Meta.prefs_get_workspace_name(i));
             this._workspaceSection.addMenuItem(this._workspacesItems[i]);
             this._workspacesItems[i].workspaceId = i;
-            this._workspacesItems[i].label_actor = this._statusLabel;
             this._workspacesItems[i].connect('activate', (actor, _event) => {
                 this._activate(actor.workspaceId);
             });
@@ -594,8 +575,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
             if (i === this._currentWorkspace)
                 this._workspacesItems[i].setOrnament(PopupMenu.Ornament.DOT);
         }
-
-        this._statusLabel.set_text(this._labelText());
     }
 
     _updateThumbnails() {
