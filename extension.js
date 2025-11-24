@@ -31,9 +31,6 @@ class WindowPreview extends St.Button {
         });
 
         this._hoverPreview = null;
-        this._showPreviewTimeout = null;
-        this._hidePreviewTimeout = null;
-        this._windowDestroyId = 0;
 
         this._delegate = this;
         DND.makeDraggable(this, { restoreOnSuccess: true });
@@ -62,6 +59,16 @@ class WindowPreview extends St.Button {
                 closeItem.connect('activate', () => this._window.delete(0));
                 menu.addMenuItem(closeItem);
 
+                let activateItem = new PopupMenu.PopupMenuItem(`Activate ${this._window.title}`);
+
+                activateItem.connect('activate', () => {
+                    let win_workspace = this._window.get_workspace();
+                    // Here global.get_current_time() instead of 0 will also work
+                    win_workspace.activate_with_focus(this._window, 0);
+                });
+
+                menu.addMenuItem(activateItem);
+
                 let closeAllItem = new PopupMenu.PopupMenuItem(`Close all windows on workspace ${this._window.get_workspace().index()}`);
                 menu.addMenuItem(closeAllItem);
 
@@ -82,49 +89,92 @@ class WindowPreview extends St.Button {
         });
 
         // Connect hover signals
-        this.connect('enter-event', () => this._showHoverPreview());
-        this.connect('leave-event', () => this._hideHoverPreview());
-        this.connect('destroy', () => this._hideHoverPreview());
+        this._enterEventId = this.connect('enter-event', () => this._showHoverPreview());
+        this._leaveEventId = this.connect('leave-event', () => this._hideHoverPreview());
+        this._destroyEventId = this.connect('destroy', () => {
+            this._window.disconnect(this._wmClassChangedId);
+            this._window.disconnect(this._mappedId);
+            this._hideHoverPreview();
+        });
+        this._wsChangedId = WorkspaceManager.connect(
+            'workspace-switched',
+            () => this._hideHoverPreview()
+        );
+
     }
 
     _showHoverPreview() {
-        if (!this._window) return;
+        if (!this._window || this._hoverPreview || this._hoverTimeout) return;
 
-        const windowActor = this._window.get_compositor_private();
-        if (!windowActor) return;
+        this._hoverTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => {
+            this._hoverTimeout = null;
 
-        // const allocation = this.get_allocation_box();
-        // const actorWidth = allocation.get_width();
-        const actorWidth = this.get_width();
-        journal(`actorWidth : ${actorWidth}`);
-        const [actorX, actorY] = this.get_transformed_position();
+            const windowActor = this._window.get_compositor_private();
+                if (!windowActor) return GLib.SOURCE_REMOVE;
 
-        const windowFrame = this._window.get_frame_rect();
-        const windowWidth = windowFrame.width;
-        const windowHeight = windowFrame.height;
+            // const allocation = this.get_allocation_box();
+            // const actorWidth = allocation.get_width();
+            const actorWidth = this.get_width();
+            journal(`actorWidth : ${actorWidth}`);
+            const [actorX, actorY] = this.get_transformed_position();
 
-        const aspectRatio = windowWidth / windowHeight;
+            const windowFrame = this._window.get_frame_rect();
+            const windowWidth = windowFrame.width;
+            const windowHeight = windowFrame.height;
 
-        const previewHeight = 600; // fixed
-        const previewWidth = previewHeight * aspectRatio;
+            const aspectRatio = windowWidth / windowHeight;
 
-        // Directly above the actor (no gap)
-        const previewX = actorX + (actorWidth - previewWidth) / 2;
-        const previewY = actorY - previewHeight - 20; // 20px gap above window
+            const previewHeight = 600; // fixed
+            const previewWidth = previewHeight * aspectRatio;
 
-        this._hoverPreview = new Clutter.Clone({
-            source: windowActor,
-            x: previewX,
-            y: previewY,
-            width: previewWidth,
-            height: previewHeight
+            // Directly above the actor (no gap)
+            const previewX = actorX + (actorWidth - previewWidth) / 2;
+            const previewY = actorY - previewHeight - 40; // 20px gap above window
+
+            this._hoverPreview = new Clutter.Clone({
+                source: windowActor,
+                x: previewX,
+                y: previewY,
+                width: previewWidth,
+                height: previewHeight,
+                reactive: false // ensures it does not block hover leave
+            });
+
+            // Main.layoutManager.addChrome(this._hoverPreview);
+
+            this._hoverPreview.opacity = 0;
+            Main.layoutManager.addChrome(this._hoverPreview);
+            this._hoverPreview.ease({
+                opacity: 255,
+                duration: 600,
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            });
+            return GLib.SOURCE_REMOVE;
         });
-
-        Main.layoutManager.addChrome(this._hoverPreview);
     }
 
     _hideHoverPreview() {
+
+        if (this._hoverTimeout) {
+            GLib.source_remove(this._hoverTimeout);
+            this._hoverTimeout = null;
+        }
+
+        if (!this._hoverPreview) return;
+
+        // this._hoverPreview.ease({
+        //     opacity: 0,
+        //     duration: 300,
+        //     mode: Clutter.AnimationMode.EASE_IN_QUAD,
+        //     onComplete: () => {
+        //         Main.layoutManager.removeChrome(this._hoverPreview);
+        //         this._hoverPreview.destroy();
+        //         this._hoverPreview = null;
+        //     }
+        // });
+
         if (this._hoverPreview) {
+            Main.layoutManager.removeChrome(this._hoverPreview);
             this._hoverPreview.destroy();
             this._hoverPreview = null;
         }
@@ -154,9 +204,44 @@ class WindowPreview extends St.Button {
     }
 
     destroy() {
-        WorkspaceManager.disconnect(this._focusChangedId);
-        this._window.disconnect(this._wmClassChangedId);
-        this._window.disconnect(this._mappedId);
+        // Disconnect preview signals
+        if (this._enterEventId) {
+            this.disconnect(this._enterEventId);
+            this._enterEventId = null;
+        }
+
+        if (this._leaveEventId) {
+            this.disconnect(this._leaveEventId);
+            this._leaveEventId = null;
+        }
+
+        if (this._destroyEventId) {
+            this.disconnect(this._destroyEventId);
+            this._destroyEventId = null;
+        }
+
+        if (this._hoverPreview) {
+            this._hideHoverPreview();
+        }
+
+        /* disconnect window signal: wm-class */
+        if (this._wmClassChangedId && this._window) {
+            this._window.disconnect(this._wmClassChangedId);
+            this._wmClassChangedId = null;
+        }
+
+        /* disconnect window signal: mapped */
+        if (this._mappedId && this._window) {
+            this._window.disconnect(this._mappedId);
+            this._mappedId = null;
+        }
+
+        /* disconnect workspace-changed */
+        if (this._wsChangedId && WorkspaceManager) {
+            WorkspaceManager.disconnect(this._wsChangedId);
+            this._wsChangedId = null;
+        }
+
         super.destroy();
     }
 }
