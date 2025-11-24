@@ -439,10 +439,6 @@ class WorkspaceThumbnail extends St.Button {
         this._addWindowTimeoutIds.clear();
     }
 
-    // on_clicked() {
-    //     this._workspace.activate(0);
-    // }
-
     destroy() {
         this._workspace.disconnect(this._windowAddedId);
         this._workspace.disconnect(this._windowRemovedId);
@@ -467,14 +463,15 @@ class WorkspaceIndicator extends PanelMenu.Button {
     constructor() {
         super(0.0, _('Workspace Indicator'));
 
+        this.reactive = false;
+
         let container = new St.Widget({
             layout_manager: new Clutter.BinLayout(),
             x_expand: true,
             y_expand: true,
         });
-        this.add_child(container);
 
-        this._currentWorkspace = WorkspaceManager.get_active_workspace_index();
+        this.add_child(container);
 
         this._thumbnailsBox = new St.BoxLayout({
             style_class: 'panel-workspace-indicator-box',
@@ -485,22 +482,19 @@ class WorkspaceIndicator extends PanelMenu.Button {
 
         container.add_child(this._thumbnailsBox);
 
-        this._workspacesItems = [];
+        // this._workspacesItems = [];
         this._workspaceSection = new PopupMenu.PopupMenuSection();
         this.menu.addMenuItem(this._workspaceSection);
 
         this._workspaceManagerSignals = [
             WorkspaceManager.connect_after('notify::n-workspaces',
-                this._nWorkspacesChanged.bind(this)),
+                this._updateThumbnails.bind(this)),
             WorkspaceManager.connect_after('workspace-switched',
-                this._onWorkspaceSwitched.bind(this)),
-            WorkspaceManager.connect('notify::layout-rows',
-                this._onWorkspaceOrientationChanged.bind(this)),
+                this._updateActiveThumbnail.bind(this)),
         ];
 
-        this._createWorkspacesSection();
+        // this._createWorkspacesSection();
         this._updateThumbnails();
-        this._onWorkspaceOrientationChanged();
     }
 
     destroy() {
@@ -515,65 +509,13 @@ class WorkspaceIndicator extends PanelMenu.Button {
         super.destroy();
     }
 
-    _onWorkspaceOrientationChanged() {
-        let vertical = WorkspaceManager.layout_rows === -1;
-        this.reactive = vertical;
-
-        this._thumbnailsBox.visible = !vertical;
-
-        // Disable offscreen-redirect when showing the workspace switcher
-        // so that clip-to-allocation works
-        Main.panel.set_offscreen_redirect(vertical
-            ? Clutter.OffscreenRedirect.ALWAYS
-            : Clutter.OffscreenRedirect.AUTOMATIC_FOR_OPACITY);
-    }
-
-    _onWorkspaceSwitched() {
-        this._currentWorkspace = WorkspaceManager.get_active_workspace_index();
-
-        this._updateMenuOrnament();
-        this._updateActiveThumbnail();
-    }
-
-    _nWorkspacesChanged() {
-        this._createWorkspacesSection();
-        this._updateThumbnails();
-    }
-
-    _updateMenuOrnament() {
-        for (let i = 0; i < this._workspacesItems.length; i++) {
-            this._workspacesItems[i].setOrnament(i === this._currentWorkspace
-                ? PopupMenu.Ornament.DOT
-                : PopupMenu.Ornament.NONE);
-        }
-    }
-
     _updateActiveThumbnail() {
         let thumbs = this._thumbnailsBox.get_children();
         for (let i = 0; i < thumbs.length; i++) {
-            if (i === this._currentWorkspace)
+            if (i === WorkspaceManager.get_active_workspace_index())
                 thumbs[i].add_style_class_name('active');
             else
                 thumbs[i].remove_style_class_name('active');
-        }
-    }
-
-    _createWorkspacesSection() {
-        this._workspaceSection.removeAll();
-        this._workspacesItems = [];
-        this._currentWorkspace = WorkspaceManager.get_active_workspace_index();
-
-        let i = 0;
-        for (; i < WorkspaceManager.n_workspaces; i++) {
-            this._workspacesItems[i] = new PopupMenu.PopupMenuItem(Meta.prefs_get_workspace_name(i));
-            this._workspaceSection.addMenuItem(this._workspacesItems[i]);
-            this._workspacesItems[i].workspaceId = i;
-            this._workspacesItems[i].connect('activate', (actor, _event) => {
-                this._activate(actor.workspaceId);
-            });
-
-            if (i === this._currentWorkspace)
-                this._workspacesItems[i].setOrnament(PopupMenu.Ornament.DOT);
         }
     }
 
@@ -596,12 +538,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
         }
     }
 
-    _activate(index) {
-        if (index >= 0 && index < WorkspaceManager.n_workspaces) {
-            let metaWorkspace = WorkspaceManager.get_workspace_by_index(index);
-            metaWorkspace.activate(0);
-        }
-    }
 }
 
 export default class TopNotchWorkspaces extends Extension {
