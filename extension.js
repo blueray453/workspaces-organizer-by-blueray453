@@ -468,7 +468,7 @@ class WorkspaceIndicator extends PanelMenu.Button {
         // this.add_child(container);
 
         this._thumbnailsBox = new St.BoxLayout({
-            style_class: 'workspace-indicator',
+            style_class: 'workspace-indicator-class',
             y_expand: true,
             x_expand: true,
             reactive: true,
