@@ -1,26 +1,37 @@
-.workspace-indicator-button {
-    padding: 0px !important;
-    margin: 0px !important;
-    border-radius: 0px !important;
-    background-color: transparent !important;
-    -minimum-hpadding: 0px !important;
-    -natural-hpadding: 0px !important;
-    /* border: 1px solid red; */
+.panel-workspace-indicator {
+	padding: 1px 1px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.panel-workspace-indicator-box {
+	padding: 1px 1px;
+    border-radius: 8px;
+    /* overflow: hidden; */
 }
 
 .panel-workspace-indicator-box .workspace {
     /* make workspace thumbnails slightly smaller so more previews fit */
     min-width: 70px;
-    height: 100%;
+    height: 28px;
     background-color: rgba(10, 10, 10, 0.504);
-    /* border-radius: 8px; */
+    border-radius: 8px;
+}
+
+.panel-workspace-indicator,
+.panel-workspace-indicator-box .workspace {
+        /* outline color, borders */
+
+	/* border: 2px solid #cb4b16; */
     box-shadow: inset 0 0 4px 2px #268bd2;
+    /* background-color: #073642; */
 }
 
 .panel-workspace-indicator-box .workspace + .workspace {
     border-left-width: 0;
 }
 
+.panel-workspace-indicator,
 .panel-workspace-indicator-box .workspace.active {
     /* highlight color */
 	/* background-color: #2aa198;
@@ -31,16 +42,36 @@
 }
 
 .workspace-windows {
-    padding: 2px;
+    /* reduce spacing between window previews inside a workspace thumbnail
+       Use padding and per-preview margins instead of the non-standard
+       'spacing' property. */
+    padding: 0px 0px;
 }
 
 .workspace-indicator-window-preview {
     background-color: transparent;
+    border: none;
     padding: 0;
     margin: 0;
+    border-radius: 6px;
+}
+
+/* Make previews compact so many icons can fit in the workspace thumbnail */
+.workspace-indicator-window-preview {
+    margin: 0 1px;
+    min-width: 16px;
+    min-height: 16px;
+    /* max-width: 22px;
+    max-height: 22px; */
+    padding: 0px;
 }
 
 .workspace-indicator-window-preview.active {
     background-color: rgba(13, 113, 235, 0.874);
     border-radius: 4px;
 }
+
+.panel-transparency {
+    background-color: rgba(0, 0, 0, 0.428);
+}
+
