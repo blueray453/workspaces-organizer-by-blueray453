@@ -46,10 +46,24 @@ class WindowPreview extends St.Button {
             this._updateIcon.bind(this));
 
         // Single hover signal handler
-        this._hoverSignalId = this.connect('notify::hover',
-            this._onHoverChanged.bind(this));
+        this._hoverSignalId = this.connect('notify::hover', () => {
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
+                if (this.hover) {
+                    // Show preview immediately when hovered
+                    this._showHoverPreview();
+                } else {
+                    // When unhovered, check if we're hovering over the preview
+                    if (!this._hoverPreview || !this._hoverPreview.hover) {
+                        this._hideHoverPreview();
+                    }
+                    // If we are hovering over the preview, don't hide - wait for preview's hover signal
+                }
 
-        this.connect('button-press-event', (actor, event) => {
+                return GLib.SOURCE_REMOVE;
+            });
+        });
+
+        this._buttonPressedId = this.connect('button-press-event', (actor, event) => {
             if (event.get_button() === Clutter.BUTTON_SECONDARY) {
                 let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP, 0);
                 let manager = new PopupMenu.PopupMenuManager(this);
@@ -89,22 +103,6 @@ class WindowPreview extends St.Button {
             'workspace-switched',
             () => this._hideHoverPreview()
         );
-    }
-
-    _onHoverChanged() {
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
-            if (this.hover) {
-                // Show preview immediately when hovered
-                this._showHoverPreview();
-            } else {
-                // When unhovered, check if we're hovering over the preview
-                if (!this._hoverPreview || !this._hoverPreview.hover) {
-                    this._hideHoverPreview();
-                }
-                // If we are hovering over the preview, don't hide - wait for preview's hover signal
-            }
-            return GLib.SOURCE_REMOVE;
-        });
     }
 
     _showHoverPreview() {
@@ -214,20 +212,10 @@ class WindowPreview extends St.Button {
     }
 
     destroy() {
-        // Disconnect preview signals
-        if (this._enterEventId) {
-            this.disconnect(this._enterEventId);
-            this._enterEventId = null;
-        }
-
-        if (this._leaveEventId) {
-            this.disconnect(this._leaveEventId);
-            this._leaveEventId = null;
-        }
-
-        if (this._destroyEventId) {
-            this.disconnect(this._destroyEventId);
-            this._destroyEventId = null;
+        // Disconnect the single hover signal
+        if (this._hoverSignalId) {
+            this.disconnect(this._hoverSignalId);
+            this._hoverSignalId = null;
         }
 
         if (this._hoverPreview) {
@@ -243,6 +231,11 @@ class WindowPreview extends St.Button {
         /* disconnect window signal: mapped */
         if (this._mappedId && this._window) {
             this._window.disconnect(this._mappedId);
+            this._mappedId = null;
+        }
+
+        if (this._buttonPressedId) {
+            this.disconnect(this._buttonPressedId);
             this._mappedId = null;
         }
 
