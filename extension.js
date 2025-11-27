@@ -187,6 +187,17 @@ class WindowPreview extends St.Button {
                 return Clutter.EVENT_PROPAGATE;
             });
 
+            // Add click handler to activate the window
+            wrapper.connect('button-press-event', (actor, event) => {
+                if (event.get_button() === Clutter.BUTTON_PRIMARY) {
+                    let win_workspace = this._window.get_workspace();
+                    win_workspace.activate_with_focus(this._window, 0);
+                    this._hideHoverPreview();
+                    return Clutter.EVENT_STOP;
+                }
+                return Clutter.EVENT_PROPAGATE;
+            });
+
             // MATH: width = previewWidth + (borderSize * 2)
 
             // Create the clone
