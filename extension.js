@@ -26,16 +26,16 @@ class WindowPreview extends St.Button {
     }
 
     constructor(window) {
-        super();
+        super({
+            reactive: true,
+            track_hover: true,  // Enable built-in hover tracking
+        });
 
         this._hoverPreview = null;
-
         this._delegate = this;
         DND.makeDraggable(this, { restoreOnSuccess: true });
 
         this._window = window;
-
-        /* Use a smaller icon to allow more previews to fit in a workspace */
         this.icon_size = 64;
 
         this._updateIcon();
@@ -45,6 +45,10 @@ class WindowPreview extends St.Button {
         this._mappedId = this._window.connect('notify::mapped',
             this._updateIcon.bind(this));
 
+        // Single hover signal handler
+        this._hoverSignalId = this.connect('notify::hover',
+            this._onHoverChanged.bind(this));
+
         this.connect('button-press-event', (actor, event) => {
             if (event.get_button() === Clutter.BUTTON_SECONDARY) {
                 let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP, 0);
@@ -53,23 +57,17 @@ class WindowPreview extends St.Button {
                 Main.uiGroup.add_child(menu.actor);
 
                 let closeItem = new PopupMenu.PopupMenuItem(`Close ${this._window.title}`);
-
                 closeItem.connect('activate', () => this._window.delete(0));
                 menu.addMenuItem(closeItem);
 
                 let activateItem = new PopupMenu.PopupMenuItem(`Activate ${this._window.title}`);
-
                 activateItem.connect('activate', () => {
                     let win_workspace = this._window.get_workspace();
-                    // Here global.get_current_time() instead of 0 will also work
                     win_workspace.activate_with_focus(this._window, 0);
                 });
-
                 menu.addMenuItem(activateItem);
 
                 let closeAllItem = new PopupMenu.PopupMenuItem(`Close all windows on workspace ${this._window.get_workspace().index()}`);
-                menu.addMenuItem(closeAllItem);
-
                 closeAllItem.connect('activate', () => {
                     let windows = this._window.get_workspace().list_windows();
                     windows.forEach(window => {
@@ -79,6 +77,7 @@ class WindowPreview extends St.Button {
                         }
                     });
                 });
+                menu.addMenuItem(closeAllItem);
 
                 menu.open(true);
                 return Clutter.EVENT_STOP;
@@ -86,172 +85,109 @@ class WindowPreview extends St.Button {
             return Clutter.EVENT_PROPAGATE;
         });
 
-        // Connect hover signals
-        this._enterEventId = this.connect('enter-event', () => this._showHoverPreview());
-        this._leaveEventId = this.connect('leave-event', () => this._scheduleHideHoverPreview());
-        this._destroyEventId = this.connect('destroy', () => {
-            this._window.disconnect(this._wmClassChangedId);
-            this._window.disconnect(this._mappedId);
-            this._hideHoverPreview();
-        });
         this._wsChangedId = WorkspaceManager.connect(
             'workspace-switched',
             () => this._hideHoverPreview()
         );
-
     }
 
-    _scheduleHideHoverPreview() {
-        // clear previous timer
-        if (this._hideTimer) {
-            GLib.source_remove(this._hideTimer);
-            this._hideTimer = null;
-        }
-
-        this._hideTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
-            if (!this._insidePreview) {
-                this._hideHoverPreview();
+    _onHoverChanged() {
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
+            if (this.hover) {
+                // Show preview immediately when hovered
+                this._showHoverPreview();
+            } else {
+                // When unhovered, check if we're hovering over the preview
+                if (!this._hoverPreview || !this._hoverPreview.hover) {
+                    this._hideHoverPreview();
+                }
+                // If we are hovering over the preview, don't hide - wait for preview's hover signal
             }
-            this._hideTimer = null;
             return GLib.SOURCE_REMOVE;
         });
     }
 
-
     _showHoverPreview() {
-        if (!this._window || this._hoverPreview || this._hoverTimeout) return;
+        if (!this._window || this._hoverPreview) return;
 
-        this._hoverTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => {
-            this._hoverTimeout = null;
+        const windowActor = this._window.get_compositor_private();
+        if (!windowActor) return;
 
-            const windowActor = this._window.get_compositor_private();
-                if (!windowActor) return GLib.SOURCE_REMOVE;
+        const actorWidth = this.get_width();
+        const [actorX, actorY] = this.get_transformed_position();
 
-            // const allocation = this.get_allocation_box();
-            // const actorWidth = allocation.get_width();
-            const actorWidth = this.get_width();
-            journal(`actorWidth : ${actorWidth}`);
-            const [actorX, actorY] = this.get_transformed_position();
+        const windowFrame = this._window.get_frame_rect();
+        const windowWidth = windowFrame.width;
+        const windowHeight = windowFrame.height;
 
-            const windowFrame = this._window.get_frame_rect();
-            const windowWidth = windowFrame.width;
-            const windowHeight = windowFrame.height;
+        const aspectRatio = windowWidth / windowHeight;
+        const previewHeight = 600;
+        const previewWidth = previewHeight * aspectRatio;
 
-            const aspectRatio = windowWidth / windowHeight;
+        const previewX = actorX + (actorWidth - previewWidth) / 2;
+        const previewY = actorY - previewHeight - 40;
 
-            const previewHeight = 600; // fixed
-            const previewWidth = previewHeight * aspectRatio;
+        // Create wrapper with hover tracking
+        const wrapper = new St.BoxLayout({
+            style_class: 'hover-preview-wrapper',
+            x: previewX,
+            y: previewY,
+            width: previewWidth + 8,
+            height: previewHeight,
+            reactive: true,
+            track_hover: true,  // Track hover on preview too
+        });
 
-            // Directly above the actor (no gap)
-            const previewX = actorX + (actorWidth - previewWidth) / 2;
-            const previewY = actorY - previewHeight - 40; // 20px gap above window
+        // Connect preview's hover signal
+        wrapper.connect('notify::hover', () => {
+            if (!wrapper.hover && !this.hover) {
+                // Neither button nor preview is hovered - hide the preview
+                this._hideHoverPreview();
+            }
+        });
 
-            // this._hoverPreview = new Clutter.Clone({
-            //     source: windowActor,
-            //     x: previewX,
-            //     y: previewY,
-            //     width: previewWidth,
-            //     height: previewHeight,
-            //     reactive: false // ensures it does not block hover leave
-            // });
+        // Add click handler
+        wrapper.connect('button-press-event', (actor, event) => {
+            if (event.get_button() === Clutter.BUTTON_PRIMARY) {
+                let win_workspace = this._window.get_workspace();
+                win_workspace.activate_with_focus(this._window, 0);
+                this._hideHoverPreview();
+                return Clutter.EVENT_STOP;
+            }
+            return Clutter.EVENT_PROPAGATE;
+        });
 
-            // Create wrapper that can have CSS
-            const wrapper = new St.BoxLayout({
-                style_class: 'hover-preview-wrapper',
-                x: previewX,
-                y: previewY,
-                width: previewWidth + 8,
-                height: previewHeight,
-                reactive: true,       // was false
-                track_hover: true,    // new
-            });
+        // Create the clone
+        const clone = new Clutter.Clone({
+            source: windowActor,
+            width: previewWidth,
+            height: previewHeight,
+            reactive: false,
+        });
 
-            wrapper.connect('enter-event', () => {
-                this._insidePreview = true;
+        // Pack clone inside wrapper
+        wrapper.add_child(clone);
+        this._hoverPreview = wrapper;
 
-                // if we were planning to hide, cancel the timer
-                if (this._hideTimer) {
-                    GLib.source_remove(this._hideTimer);
-                    this._hideTimer = null;
-                }
+        this._hoverPreview.opacity = 0;
+        Main.layoutManager.addChrome(this._hoverPreview);
 
-                return Clutter.EVENT_PROPAGATE;
-            });
-
-            wrapper.connect('leave-event', () => {
-                this._insidePreview = false;
-
-                // pointer left preview → schedule hide again
-                this._scheduleHideHoverPreview();
-
-                return Clutter.EVENT_PROPAGATE;
-            });
-
-            // Add click handler to activate the window
-            wrapper.connect('button-press-event', (actor, event) => {
-                if (event.get_button() === Clutter.BUTTON_PRIMARY) {
-                    let win_workspace = this._window.get_workspace();
-                    win_workspace.activate_with_focus(this._window, 0);
-                    this._hideHoverPreview();
-                    return Clutter.EVENT_STOP;
-                }
-                return Clutter.EVENT_PROPAGATE;
-            });
-
-            // MATH: width = previewWidth + (borderSize * 2)
-
-            // Create the clone
-            const clone = new Clutter.Clone({
-                source: windowActor,
-                width: previewWidth,
-                height: previewHeight,
-                reactive: false,
-            });
-
-            // Pack clone inside wrapper
-            wrapper.add_child(clone);
-
-            // Assign wrapper as hover preview
-            this._hoverPreview = wrapper;
-
-            this._hoverPreview.opacity = 0;
-            Main.layoutManager.addChrome(this._hoverPreview);
-
-            this._hoverPreview.ease({
-                opacity: 255,
-                duration: 600,
-                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-            });
-
-            return GLib.SOURCE_REMOVE;
+        this._hoverPreview.ease({
+            opacity: 255,
+            duration: 600,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
         });
     }
 
     _hideHoverPreview() {
-
-        if (this._hoverTimeout) {
-            GLib.source_remove(this._hoverTimeout);
-            this._hoverTimeout = null;
-        }
-
         if (!this._hoverPreview) return;
 
-        // this._hoverPreview.ease({
-        //     opacity: 0,
-        //     duration: 300,
-        //     mode: Clutter.AnimationMode.EASE_IN_QUAD,
-        //     onComplete: () => {
-        //         Main.layoutManager.removeChrome(this._hoverPreview);
-        //         this._hoverPreview.destroy();
-        //         this._hoverPreview = null;
-        //     }
-        // });
+        // Remove the hover signal from preview before destroying
+        const wrapper = this._hoverPreview;
+        this._hoverPreview = null;
 
-        if (this._hoverPreview) {
-            Main.layoutManager.removeChrome(this._hoverPreview);
-            this._hoverPreview.destroy();
-            this._hoverPreview = null;
-        }
+        Main.layoutManager.removeChrome(wrapper);
+        wrapper.destroy();
     }
 
     // needed for DND
