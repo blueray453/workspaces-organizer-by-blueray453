@@ -88,7 +88,7 @@ class WindowPreview extends St.Button {
 
         // Connect hover signals
         this._enterEventId = this.connect('enter-event', () => this._showHoverPreview());
-        this._leaveEventId = this.connect('leave-event', () => this._hideHoverPreview());
+        this._leaveEventId = this.connect('leave-event', () => this._scheduleHideHoverPreview());
         this._destroyEventId = this.connect('destroy', () => {
             this._window.disconnect(this._wmClassChangedId);
             this._window.disconnect(this._mappedId);
@@ -100,6 +100,23 @@ class WindowPreview extends St.Button {
         );
 
     }
+
+    _scheduleHideHoverPreview() {
+        // clear previous timer
+        if (this._hideTimer) {
+            GLib.source_remove(this._hideTimer);
+            this._hideTimer = null;
+        }
+
+        this._hideTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
+            if (!this._insidePreview) {
+                this._hideHoverPreview();
+            }
+            this._hideTimer = null;
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
 
     _showHoverPreview() {
         if (!this._window || this._hoverPreview || this._hoverTimeout) return;
@@ -145,7 +162,29 @@ class WindowPreview extends St.Button {
                 y: previewY,
                 width: previewWidth + 8,
                 height: previewHeight,
-                reactive: false,
+                reactive: true,       // was false
+                track_hover: true,    // new
+            });
+
+            wrapper.connect('enter-event', () => {
+                this._insidePreview = true;
+
+                // if we were planning to hide, cancel the timer
+                if (this._hideTimer) {
+                    GLib.source_remove(this._hideTimer);
+                    this._hideTimer = null;
+                }
+
+                return Clutter.EVENT_PROPAGATE;
+            });
+
+            wrapper.connect('leave-event', () => {
+                this._insidePreview = false;
+
+                // pointer left preview → schedule hide again
+                this._scheduleHideHoverPreview();
+
+                return Clutter.EVENT_PROPAGATE;
             });
 
             // MATH: width = previewWidth + (borderSize * 2)
