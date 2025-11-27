@@ -472,6 +472,23 @@ class WorkspaceIndicator extends PanelMenu.Button {
 
         // this.add_child(container);
 
+        // Main container
+        this._mainBox = new St.BoxLayout({
+            style_class: 'workspace-indicator-main-box',
+            y_expand: true,
+            x_expand: true,
+            reactive: true,
+        });
+
+        // Current workspace name label
+        this._workspaceName = new St.Label({
+            style_class: 'workspace-name-label',
+            y_expand: true,
+            y_align: Clutter.ActorAlign.CENTER,
+            text: this._getCurrentWorkspaceName(),
+        });
+
+        // Thumbnails container
         this._thumbnailsBox = new St.BoxLayout({
             style_class: 'workspace-indicator-class',
             y_expand: true,
@@ -479,7 +496,11 @@ class WorkspaceIndicator extends PanelMenu.Button {
             reactive: true,
         });
 
-        this.add_child(this._thumbnailsBox);
+        // Add both to main box
+        this._mainBox.add_child(this._workspaceName);
+        this._mainBox.add_child(this._thumbnailsBox);
+
+        this.add_child(this._mainBox);
 
         // this._workspacesItems = [];
         this._workspaceSection = new PopupMenu.PopupMenuSection();
@@ -489,11 +510,34 @@ class WorkspaceIndicator extends PanelMenu.Button {
             WorkspaceManager.connect_after('notify::n-workspaces',
                 this._updateThumbnails.bind(this)),
             WorkspaceManager.connect_after('workspace-switched',
-                this._updateActiveThumbnail.bind(this)),
+                this._onWorkspaceSwitched.bind(this)),
         ];
 
         // this._createWorkspacesSection();
         this._updateThumbnails();
+    }
+
+    // Add this method from the reference code
+    _getCurrentWorkspaceName() {
+        const workspaceManager = global.workspace_manager;
+        const currentWorkspace = workspaceManager.get_active_workspace_index();
+        return Meta.prefs_get_workspace_name(currentWorkspace);
+    }
+
+    // Add this method from the reference code
+    _onWorkspaceSwitched() {
+        this._workspaceName.set_text(this._getCurrentWorkspaceName());
+        this._updateActiveThumbnail(); // Keep existing functionality
+    }
+
+    _updateActiveThumbnail() {
+        let thumbs = this._thumbnailsBox.get_children();
+        for (let i = 0; i < thumbs.length; i++) {
+            if (i === WorkspaceManager.get_active_workspace_index())
+                thumbs[i].add_style_class_name('active');
+            else
+                thumbs[i].remove_style_class_name('active');
+        }
     }
 
     destroy() {
@@ -574,7 +618,7 @@ export default class TopNotchWorkspaces extends Extension {
 
         // Workspace indicator in top bar
         this._indicator = new WorkspaceIndicator();
-        Main.panel.addToStatusArea('workspace-indicator', this._indicator, 0, 'center');
+        Main.panel.addToStatusArea('workspace-indicator', this._indicator, 0, 'left');
     }
 
     disable() {
