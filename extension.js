@@ -70,16 +70,16 @@ class WindowPreview extends St.Button {
                 manager.addMenu(menu);
                 Main.uiGroup.add_child(menu.actor);
 
-                let closeItem = new PopupMenu.PopupMenuItem(`Close ${this._window.title}`);
-                closeItem.connect('activate', () => this._window.delete(0));
-                menu.addMenuItem(closeItem);
-
                 let activateItem = new PopupMenu.PopupMenuItem(`Activate ${this._window.title}`);
                 activateItem.connect('activate', () => {
                     let win_workspace = this._window.get_workspace();
                     win_workspace.activate_with_focus(this._window, 0);
                 });
                 menu.addMenuItem(activateItem);
+
+                let closeItem = new PopupMenu.PopupMenuItem(`Close ${this._window.title}`);
+                closeItem.connect('activate', () => this._window.delete(0));
+                menu.addMenuItem(closeItem);
 
                 let closeAllItem = new PopupMenu.PopupMenuItem(`Close all windows on workspace ${this._window.get_workspace().index()}`);
                 closeAllItem.connect('activate', () => {
