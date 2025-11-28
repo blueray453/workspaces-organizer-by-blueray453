@@ -628,31 +628,12 @@ export default class TopNotchWorkspaces extends Extension {
         // journalctl -f -o cat SYSLOG_IDENTIFIER=workspaces-organizer-by-blueray453
         journal(`Enabled`);
 
-        // // Increase panel height
-        // this._originalHeight = Main.panel.height;
-        // Main.panel.set_height(160); // Set to desired height (default is usually 30-40)
-
-        // // Move panel to bottom
-        // const monitor = Main.layoutManager.primaryMonitor;
-        // const panelHeight = Main.panel.height;
-        // Main.layoutManager.panelBox.set_position(
-        //     monitor.x,
-        //     monitor.y + monitor.height - panelHeight
-        // );
-
         // Workspace indicator in top bar
         this._indicator = new WorkspaceIndicator();
         Main.panel.addToStatusArea('workspace-indicator', this._indicator, 0, 'left');
     }
 
     disable() {
-        // // Restore original panel height
-        // Main.panel.set_height(this._originalHeight);
-
-        // // Move panel back to top
-        // const monitor = Main.layoutManager.primaryMonitor;
-        // Main.layoutManager.panelBox.set_position(monitor.x, monitor.y);
-
         // Destroy workspace indicator
         if (this._indicator) {
             this._indicator.destroy();
