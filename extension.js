@@ -93,6 +93,16 @@ class WindowPreview extends St.Button {
                 });
                 menu.addMenuItem(closeAllItem);
 
+                // ADD THESE 6 LINES FOR DESKTOP ACTIONS
+                const app = Shell.WindowTracker.get_default().get_window_app(this._window);
+                const appInfo = app?.get_app_info();
+                appInfo?.list_actions().forEach(action => {
+                    let item = new PopupMenu.PopupMenuItem(appInfo.get_action_name(action));
+                    item.connect('activate', () => app.launch_action(action, 0, -1));
+                    menu.addMenuItem(item);
+                });
+                // END OF ADDED CODE
+
                 menu.open(true);
                 return Clutter.EVENT_STOP;
             }
