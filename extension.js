@@ -131,11 +131,16 @@ class WindowPreview extends St.Button {
         const windowHeight = windowFrame.height;
 
         const aspectRatio = windowWidth / windowHeight;
-        const previewHeight = 600;
+        const previewHeight = 800;
         const previewWidth = previewHeight * aspectRatio;
 
-        const previewX = actorX + (actorWidth - previewWidth) / 2;
+        let previewX = actorX + (actorWidth - previewWidth) / 2;
         const previewY = actorY - previewHeight - 40;
+
+        previewX = Math.max(0, previewX);
+
+        journal(`previewX: ${previewX}`);
+        journal(`previewY: ${previewY}`);
 
         // Create wrapper with hover tracking
         const wrapper = new St.BoxLayout({
