@@ -250,12 +250,11 @@ class WindowPreview extends St.Button {
         // The full buffer (including shadows)
         const bufferFrame = this._window.get_buffer_rect();
         const scale = previewHeight / windowFrame.height;
-        const [scaledLeftShadow, scaledTopShadow, scaledRightShadow, scaledBottomShadow] = [
-            (windowFrame.x - bufferFrame.x) * scale,
-            (windowFrame.y - bufferFrame.y) * scale,
-            ((bufferFrame.x + bufferFrame.width) - (windowFrame.x + windowFrame.width)) * scale,
-            ((bufferFrame.y + bufferFrame.height) - (windowFrame.y + windowFrame.height)) * scale
-        ];
+
+        const scaledLeftShadow = (windowFrame.x - bufferFrame.x) * scale;
+        const scaledTopShadow = (windowFrame.y - bufferFrame.y) * scale;
+        const scaledRightShadow = ((bufferFrame.x + bufferFrame.width) - (windowFrame.x + windowFrame.width)) * scale;
+        const scaledBottomShadow = ((bufferFrame.y + bufferFrame.height) - (windowFrame.y + windowFrame.height)) * scale;
 
         // Create preview hierarchy
         const outerWrapper = new St.BoxLayout({
