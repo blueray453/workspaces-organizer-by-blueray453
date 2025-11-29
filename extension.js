@@ -230,57 +230,79 @@ class WindowPreview extends St.Button {
     // }
 
     _showHoverPreview() {
+        // If there is no window or a preview is already visible → stop
         if (!this._window || this._hoverPreview) return;
 
-        const windowActor = this._window.get_compositor_private();
-        if (!windowActor) return;
-
+        // Width of the preview button (thumbnail in overview)
         const windowPreviewWidth = this.get_width();
+
+        // Screen position of the preview button
         const [windowPreviewX, windowPreviewY] = this.get_transformed_position();
 
+        // The visible frame rectangle of the window
         const windowFrame = this._window.get_frame_rect();
-        const bufferFrame = this._window.get_buffer_rect();
 
+        // Actual size of the window (not including shadows)
         const windowActorWidth = windowFrame.width;
         const windowActorHeight = windowFrame.height;
 
+        // Used to compute preview size with correct proportions
         const windowActorAspectRatio = windowActorWidth / windowActorHeight;
+
+        // Hardcoded preview height (800px tall)
         const previewHeight = 800;
+
+        // Width is computed based on original aspect ratio
         const previewWidth = previewHeight * windowActorAspectRatio;
 
+        // Center the preview horizontally above the thumbnail
         let previewX = windowPreviewX + (windowPreviewWidth - previewWidth) / 2;
+
+        // Vertical position = above the thumbnail
         const previewY = windowPreviewY - previewHeight - 40;
 
+        // Do not allow the preview to go off the left edge of screen
         previewX = Math.max(0, previewX);
 
-        journal(`previewX: ${previewX}`);
-        journal(`previewY: ${previewY}`);
-
         //
-        // OUTER WRAPPER (border is drawn here)
+        // ============================
+        // OUTER WRAPPER (Has Border)
+        // ============================
+        //
+        // This actor uses your CSS class:
+        // .hover-preview-wrapper { border: 4px solid ... }
         //
         const outerWrapper = new St.BoxLayout({
             style_class: 'hover-preview-wrapper',
             x: previewX,
             y: previewY,
-            reactive: true,
+            reactive: true,      // needed for click + hover
             track_hover: true,
         });
 
         //
-        // INNER CONTAINER (clips the clone)
+        // ====================================
+        // INNER CONTAINER (Clips the Clone)
+        // ====================================
+        //
+        // This prevents the window shadow from overflowing.
         //
         const innerContainer = new St.BoxLayout({
             style_class: 'hover-preview-inner',
             width: previewWidth,
             height: previewHeight,
-            clip_to_allocation: true,
+            clip_to_allocation: true, // cut overflow (window shadows)
         });
 
+        // Inner container goes inside outer wrapper
         outerWrapper.add_child(innerContainer);
 
         //
-        // Hover logic
+        // ==============================
+        // HOVER LOGIC (auto hide)
+        // ==============================
+        //
+        // If the wrapper loses hover AND the thumbnail loses hover → hide preview
         //
         outerWrapper.connect('notify::hover', () => {
             if (!outerWrapper.hover && !this.hover) {
@@ -289,7 +311,9 @@ class WindowPreview extends St.Button {
         });
 
         //
-        // Click → activate window
+        // ==============================
+        // CLICK LOGIC (activate window)
+        // ==============================
         //
         outerWrapper.connect('button-press-event', (actor, event) => {
             if (event.get_button() === Clutter.BUTTON_PRIMARY) {
@@ -302,21 +326,32 @@ class WindowPreview extends St.Button {
         });
 
         //
-        // SHADOW LOGIC
+        // ==============================
+        // SHADOW CALCULATIONS
+        // ==============================
         //
-        const frame = windowFrame;
-        const buffer = bufferFrame;
+        // Shadows in GNOME are NOT included in frameRect.
+        // They ONLY exist in bufferRect.
+        //
 
-        const leftShadow = frame.x - buffer.x;
-        const topShadow = frame.y - buffer.y;
-        const rightShadow = (buffer.x + buffer.width) - (frame.x + frame.width);
-        const bottomShadow = (buffer.y + buffer.height) - (frame.y + frame.height);
+        // The full buffer including shadows
+        const bufferFrame = this._window.get_buffer_rect();
+
+        // How much shadow exists on each side
+        const leftShadow = windowFrame.x - bufferFrame.x;
+        const topShadow = windowFrame.y - bufferFrame.y;
+        const rightShadow = (bufferFrame.x + bufferFrame.width) - (windowFrame.x + windowFrame.width);
+        const bottomShadow = (bufferFrame.y + bufferFrame.height) - (windowFrame.y + windowFrame.height);
 
         journal(`leftShadow: ${leftShadow}`);
         journal(`topShadow: ${topShadow}`);
 
         //
-        // SCALE FACTOR (needed to avoid title-bar cutting)
+        // ==============================
+        // SCALE FACTOR
+        // ==============================
+        //
+        // We scale the shadows so they fit properly when preview is resized.
         //
         const scale = previewHeight / windowFrame.height;
 
@@ -326,15 +361,26 @@ class WindowPreview extends St.Button {
         const scaledBottomShadow = bottomShadow * scale;
 
         //
-        // Container that holds the clone (can offset position)
+        // ========================================================
+        // Clone Container (same size as preview → holds the clone)
+        // ========================================================
         //
         const cloneContainer = new Clutter.Actor({
             width: previewWidth,
             height: previewHeight,
         });
 
+        // Get the window's compositor actor (the thing we can clone)
+        const windowActor = this._window.get_compositor_private();
+
         //
-        // Clone (scaled + full buffer shadow area)
+        // ===============================================
+        // CLONE OF THE REAL WINDOW
+        // ===============================================
+        //
+        // IMPORTANT:
+        // The clone is made *bigger* to include shadow.
+        // Then shifted upward/left so the real frame stays centered.
         //
         const clone = new Clutter.Clone({
             source: windowActor,
@@ -343,21 +389,33 @@ class WindowPreview extends St.Button {
         });
 
         //
-        // Shift the clone so the shadow lies outside clipped region
+        // ==================================================
+        // OFFSET CLONE SO SHADOW IS OUTSIDE CLIP AREA
+        // ==================================================
+        //
+        // Example:
+        // If shadow is 20px left → shift clone -20px left
         //
         clone.set_position(-scaledLeftShadow, -scaledTopShadow);
 
+        // Add clone to container
         cloneContainer.add_child(clone);
+
+        // Add container into inner clipped box
         innerContainer.add_child(cloneContainer);
 
         //
+        // ====================
         // SHOW PREVIEW
+        // ====================
         //
         this._hoverPreview = outerWrapper;
         this._hoverPreview.opacity = 0;
 
+        // Add to screen as "chrome" (always above windows)
         Main.layoutManager.addChrome(this._hoverPreview);
 
+        // Fade-in animation
         this._hoverPreview.ease({
             opacity: 255,
             duration: 600,
