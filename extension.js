@@ -37,7 +37,7 @@ class WindowPreview extends St.Button {
         DND.makeDraggable(this, { restoreOnSuccess: true });
 
         this._window = window;
-        this.icon_size = 64;
+        this.icon_size = 96;
 
         this._updateIcon();
 
@@ -249,6 +249,7 @@ class WindowPreview extends St.Button {
         // Calculate scaled shadows
         // The full buffer (including shadows)
         const bufferFrame = this._window.get_buffer_rect();
+
         const scale = previewHeight / windowFrame.height;
 
         const scaledLeftShadow = (windowFrame.x - bufferFrame.x) * scale;
