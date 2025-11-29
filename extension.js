@@ -330,6 +330,10 @@ class WindowPreview extends St.Button {
         // Inner container goes inside outer wrapper
         outerWrapper.add_child(innerContainer);
 
+        // The cloneContainer might seem redundant at first
+        // The cloneContainer acts as a positioning canvas
+        // Gives you a reliable coordinate system for precise positioning
+        // Keeps the clone's negative positioning from affecting the clipped container
         const cloneContainer = new Clutter.Actor();
 
         // Add container into inner clipped box
