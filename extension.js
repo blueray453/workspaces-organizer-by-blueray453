@@ -118,6 +118,42 @@ class WindowPreview extends St.Button {
     }
 
     // _showHoverPreview() {
+    //     if (!this._window) return;
+
+    //     const windowActor = this._window.get_compositor_private();
+    //     if (!windowActor) return;
+
+    //     // const allocation = this.get_allocation_box();
+    //     // const actorWidth = allocation.get_width();
+    //     const actorWidth = this.get_width();
+    //     journal(`actorWidth : ${actorWidth}`);
+    //     const [actorX, actorY] = this.get_transformed_position();
+
+    //     const windowFrame = this._window.get_frame_rect();
+    //     const windowWidth = windowFrame.width;
+    //     const windowHeight = windowFrame.height;
+
+    //     const aspectRatio = windowWidth / windowHeight;
+
+    //     const previewHeight = 600; // fixed
+    //     const previewWidth = previewHeight * aspectRatio;
+
+    //     // Directly above the actor (no gap)
+    //     const previewX = actorX + (actorWidth - previewWidth) / 2;
+    //     const previewY = actorY - previewHeight - 20; // 20px gap above window
+
+    //     this._hoverPreview = new Clutter.Clone({
+    //         source: windowActor,
+    //         x: previewX,
+    //         y: previewY,
+    //         width: previewWidth,
+    //         height: previewHeight
+    //     });
+
+    //     Main.layoutManager.addChrome(this._hoverPreview);
+    // }
+
+    // _showHoverPreview() {
     //     if (!this._window || this._hoverPreview) return;
 
     //     const windowActor = this._window.get_compositor_private();
