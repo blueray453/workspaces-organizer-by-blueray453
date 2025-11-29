@@ -126,8 +126,12 @@ class WindowPreview extends St.Button {
         const windowPreviewWidth = this.get_width();
         const [windowPreviewX, windowPreviewY] = this.get_transformed_position();
 
-        const windowActorWidth = windowActor.width;
-        const windowActorHeight = windowActor.height;
+        // const windowActorWidth = windowActor.width;
+        // const windowActorHeight = windowActor.height;
+
+        const windowFrame = this._window.get_frame_rect();
+        const windowActorWidth = windowFrame.width;
+        const windowActorHeight = windowFrame.height;
 
         const windowActorAspectRatio = windowActorWidth / windowActorHeight;
         const previewHeight = 800;
