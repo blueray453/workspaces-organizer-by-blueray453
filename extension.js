@@ -264,6 +264,15 @@ class WindowPreview extends St.Button {
             track_hover: true,
         });
 
+        // `clip_to_allocation: true` makes the container act like a mask.
+        // anything outside innerContainer is cut off.
+        // Shadows are cropped correctly
+        // Think of it like a photo frame:
+        // outerWrapper → the frame(border, visible around the picture)
+        // innerContainer → the glass / mask inside the frame
+        // clone → the photo inside, which may have a little overhang(shadows)
+        // The glass cuts off anything sticking out, but the frame is always visible.
+        //
         const innerContainer = new St.BoxLayout({
             style_class: 'hover-preview-inner',
             width: previewWidth,
@@ -280,7 +289,11 @@ class WindowPreview extends St.Button {
 
         clone.set_position(-scaledLeftShadow, -scaledTopShadow);
 
-        // Build hierarchy
+        // BUILD HIERARCHY
+        // The cloneContainer might seem redundant at first
+        // The cloneContainer acts as a positioning canvas
+        // Gives you a reliable coordinate system for precise positioning
+        // Keeps the clone's negative positioning from affecting the clipped container
         const cloneContainer = new Clutter.Actor();
         cloneContainer.add_child(clone);
         innerContainer.add_child(cloneContainer);
