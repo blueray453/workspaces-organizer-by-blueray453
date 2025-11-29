@@ -123,18 +123,18 @@ class WindowPreview extends St.Button {
         const windowActor = this._window.get_compositor_private();
         if (!windowActor) return;
 
-        const actorWidth = this.get_width();
-        const [actorX, actorY] = this.get_transformed_position();
+        const windowPreviewWidth = this.get_width();
+        const [windowPreviewX, windowPreviewY] = this.get_transformed_position();
 
-        const windowWidth = windowActor.width;
-        const windowHeight = windowActor.height;
+        const windowActorWidth = windowActor.width;
+        const windowActorHeight = windowActor.height;
 
-        const aspectRatio = windowWidth / windowHeight;
+        const windowActorAspectRatio = windowActorWidth / windowActorHeight;
         const previewHeight = 800;
-        const previewWidth = previewHeight * aspectRatio;
+        const previewWidth = previewHeight * windowActorAspectRatio;
 
-        let previewX = actorX + (actorWidth - previewWidth) / 2;
-        const previewY = actorY - previewHeight - 40;
+        let previewX = windowPreviewX + (windowPreviewWidth - previewWidth) / 2;
+        const previewY = windowPreviewY - previewHeight - 40;
 
         previewX = Math.max(0, previewX);
 
