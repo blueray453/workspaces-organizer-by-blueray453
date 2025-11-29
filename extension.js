@@ -126,10 +126,9 @@ class WindowPreview extends St.Button {
         const windowPreviewWidth = this.get_width();
         const [windowPreviewX, windowPreviewY] = this.get_transformed_position();
 
-        // const windowActorWidth = windowActor.width;
-        // const windowActorHeight = windowActor.height;
-
         const windowFrame = this._window.get_frame_rect();
+        const bufferFrame = this._window.get_buffer_rect();
+
         const windowActorWidth = windowFrame.width;
         const windowActorHeight = windowFrame.height;
 
@@ -145,27 +144,38 @@ class WindowPreview extends St.Button {
         journal(`previewX: ${previewX}`);
         journal(`previewY: ${previewY}`);
 
-        // Create wrapper with hover tracking
-        const wrapper = new St.BoxLayout({
+        //
+        // OUTER WRAPPER (shows border)
+        //
+        const outerWrapper = new St.BoxLayout({
             style_class: 'hover-preview-wrapper',
             x: previewX,
             y: previewY,
-            width: previewWidth + 8,
-            height: previewHeight,
             reactive: true,
-            track_hover: true,  // Track hover on preview too
+            track_hover: true,
         });
 
-        // Connect preview's hover signal
-        wrapper.connect('notify::hover', () => {
-            if (!wrapper.hover && !this.hover) {
-                // Neither button nor preview is hovered - hide the preview
+        //
+        // INNER CONTAINER (clips clone content)
+        //
+        const innerContainer = new St.BoxLayout({
+            style_class: 'hover-preview-inner',
+            width: previewWidth,
+            height: previewHeight,
+            clip_to_allocation: true,
+        });
+
+        outerWrapper.add_child(innerContainer);
+
+        // Hover logic
+        outerWrapper.connect('notify::hover', () => {
+            if (!outerWrapper.hover && !this.hover) {
                 this._hideHoverPreview();
             }
         });
 
-        // Add click handler
-        wrapper.connect('button-press-event', (actor, event) => {
+        // Click → activate window
+        outerWrapper.connect('button-press-event', (actor, event) => {
             if (event.get_button() === Clutter.BUTTON_PRIMARY) {
                 let win_workspace = this._window.get_workspace();
                 win_workspace.activate_with_focus(this._window, 0);
@@ -175,19 +185,37 @@ class WindowPreview extends St.Button {
             return Clutter.EVENT_PROPAGATE;
         });
 
-        // Create the clone
-        const clone = new Clutter.Clone({
-            source: windowActor,
+        //
+        // SHADOW CROPPING LOGIC
+        //
+        const frame = windowFrame;
+        const buffer = bufferFrame;
+
+        const leftShadow = frame.x - buffer.x;
+        const topShadow = frame.y - buffer.y;
+        const rightShadow = (buffer.x + buffer.width) - (frame.x + frame.width);
+        const bottomShadow = (buffer.y + buffer.height) - (frame.y + frame.height);
+
+        // Actor that can shift the clone
+        const cloneContainer = new Clutter.Actor({
             width: previewWidth,
             height: previewHeight,
-            reactive: false,
         });
 
-        // Pack clone inside wrapper
-        wrapper.add_child(clone);
-        this._hoverPreview = wrapper;
+        const clone = new Clutter.Clone({
+            source: windowActor,
+            width: previewWidth + leftShadow + rightShadow,
+            height: previewHeight + topShadow + bottomShadow,
+        });
 
+        clone.set_position(-leftShadow, -topShadow);
+
+        cloneContainer.add_child(clone);
+        innerContainer.add_child(cloneContainer);
+
+        this._hoverPreview = outerWrapper;
         this._hoverPreview.opacity = 0;
+
         Main.layoutManager.addChrome(this._hoverPreview);
 
         this._hoverPreview.ease({
