@@ -235,6 +235,7 @@ class WindowPreview extends St.Button {
 
         const windowPreviewWidth = this.get_width();
         const [windowPreviewX, windowPreviewY] = this.get_transformed_position();
+        // The visible frame rectangle of the window (excluding shadows)
         const windowFrame = this._window.get_frame_rect();
 
         // Calculate preview dimensions
@@ -246,6 +247,7 @@ class WindowPreview extends St.Button {
         const previewY = windowPreviewY - previewHeight - 64;
 
         // Calculate scaled shadows
+        // The full buffer (including shadows)
         const bufferFrame = this._window.get_buffer_rect();
         const scale = previewHeight / windowFrame.height;
         const [scaledLeftShadow, scaledTopShadow, scaledRightShadow, scaledBottomShadow] = [
