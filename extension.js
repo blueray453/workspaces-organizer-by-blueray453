@@ -310,27 +310,12 @@ class WindowPreview extends St.Button {
             clip_to_allocation: true, // cut overflow (window shadows)
         });
 
-        //
-        // ========================================================
-        // Clone Container (same size as preview → holds the clone)
-        // ========================================================
-        // Your cloned window includes shadows
-        // You can’t shift the clone directly inside innerContainer
-        // I was allowed to run `clone.set_position` because of this
-        const cloneContainer = new Clutter.Actor();
-
         // Get the window's compositor actor (the thing we can clone)
         const windowActor = this._window.get_compositor_private();
 
-        //
         // ===============================================
         // CLONE OF THE REAL WINDOW
         // ===============================================
-        //
-        // IMPORTANT:
-        // The clone is made *bigger* to include shadow.
-        // Then shifted upward/left so the real frame stays centered.
-        //
         const clone = new Clutter.Clone({
             source: windowActor,
             width: previewWidth + scaledLeftShadow + scaledRightShadow,
@@ -344,6 +329,8 @@ class WindowPreview extends St.Button {
 
         // Inner container goes inside outer wrapper
         outerWrapper.add_child(innerContainer);
+
+        const cloneContainer = new Clutter.Actor();
 
         // Add container into inner clipped box
         innerContainer.add_child(cloneContainer);
@@ -369,6 +356,11 @@ class WindowPreview extends St.Button {
             mode: Clutter.AnimationMode.EASE_OUT_QUAD,
         });
 
+        //
+        // ====================
+        // ADD Signal Listeners
+        // ====================
+        //
         // If the wrapper loses hover AND the thumbnail loses hover → hide preview
         outerWrapper.connect('notify::hover', () => {
             if (!outerWrapper.hover && !this.hover) {
