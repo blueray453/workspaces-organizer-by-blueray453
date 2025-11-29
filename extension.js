@@ -239,7 +239,7 @@ class WindowPreview extends St.Button {
         // Screen position of the preview button
         const [windowPreviewX, windowPreviewY] = this.get_transformed_position();
 
-        // The visible frame rectangle of the window
+        // The visible frame rectangle of the window (excluding shadows)
         const windowFrame = this._window.get_frame_rect();
 
         // Actual size of the window (not including shadows)
@@ -269,8 +269,9 @@ class WindowPreview extends St.Button {
         // OUTER WRAPPER (Has Border)
         // ============================
         //
-        // This actor uses your CSS class:
-        // .hover-preview-wrapper { border: 4px solid ... }
+        // The border and background are drawn on outerWrapper.
+        // The outerWrapper is never clipped, so your border always shows,
+        // even when the cloned window inside has shadows.
         //
         const outerWrapper = new St.BoxLayout({
             style_class: 'hover-preview-wrapper',
@@ -285,7 +286,14 @@ class WindowPreview extends St.Button {
         // INNER CONTAINER (Clips the Clone)
         // ====================================
         //
-        // This prevents the window shadow from overflowing.
+        // `clip_to_allocation: true` makes the container act like a mask.
+        // anything outside innerContainer is cut off.
+        // Shadows are cropped correctly
+        // Think of it like a photo frame:
+        // outerWrapper → the frame(border, visible around the picture)
+        // innerContainer → the glass / mask inside the frame
+        // clone → the photo inside, which may have a little overhang(shadows)
+        // The glass cuts off anything sticking out, but the frame is always visible.
         //
         const innerContainer = new St.BoxLayout({
             style_class: 'hover-preview-inner',
@@ -334,7 +342,7 @@ class WindowPreview extends St.Button {
         // They ONLY exist in bufferRect.
         //
 
-        // The full buffer including shadows
+        // The full buffer (including shadows)
         const bufferFrame = this._window.get_buffer_rect();
 
         // How much shadow exists on each side
