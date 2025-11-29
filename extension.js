@@ -117,6 +117,82 @@ class WindowPreview extends St.Button {
         );
     }
 
+    // _showHoverPreview() {
+    //     if (!this._window || this._hoverPreview) return;
+
+    //     const windowActor = this._window.get_compositor_private();
+    //     if (!windowActor) return;
+
+    //     const windowPreviewWidth = this.get_width();
+    //     const [windowPreviewX, windowPreviewY] = this.get_transformed_position();
+
+    //     const windowActorWidth = windowActor.width;
+    //     const windowActorHeight = windowActor.height;
+
+    //     const windowActorAspectRatio = windowActorWidth / windowActorHeight;
+    //     const previewHeight = 800;
+    //     const previewWidth = previewHeight * windowActorAspectRatio;
+
+    //     let previewX = windowPreviewX + (windowPreviewWidth - previewWidth) / 2;
+    //     const previewY = windowPreviewY - previewHeight - 40;
+
+    //     previewX = Math.max(0, previewX);
+
+    //     journal(`previewX: ${previewX}`);
+    //     journal(`previewY: ${previewY}`);
+
+    //     // Create wrapper with hover tracking
+    //     const wrapper = new St.BoxLayout({
+    //         style_class: 'hover-preview-wrapper',
+    //         x: previewX,
+    //         y: previewY,
+    //         width: previewWidth + 8,
+    //         height: previewHeight,
+    //         reactive: true,
+    //         track_hover: true,  // Track hover on preview too
+    //     });
+
+    //     // Connect preview's hover signal
+    //     wrapper.connect('notify::hover', () => {
+    //         if (!wrapper.hover && !this.hover) {
+    //             // Neither button nor preview is hovered - hide the preview
+    //             this._hideHoverPreview();
+    //         }
+    //     });
+
+    //     // Add click handler
+    //     wrapper.connect('button-press-event', (actor, event) => {
+    //         if (event.get_button() === Clutter.BUTTON_PRIMARY) {
+    //             let win_workspace = this._window.get_workspace();
+    //             win_workspace.activate_with_focus(this._window, 0);
+    //             this._hideHoverPreview();
+    //             return Clutter.EVENT_STOP;
+    //         }
+    //         return Clutter.EVENT_PROPAGATE;
+    //     });
+
+    //     // Create the clone
+    //     const clone = new Clutter.Clone({
+    //         source: windowActor,
+    //         width: previewWidth,
+    //         height: previewHeight,
+    //         reactive: false,
+    //     });
+
+    //     // Pack clone inside wrapper
+    //     wrapper.add_child(clone);
+    //     this._hoverPreview = wrapper;
+
+    //     this._hoverPreview.opacity = 0;
+    //     Main.layoutManager.addChrome(this._hoverPreview);
+
+    //     this._hoverPreview.ease({
+    //         opacity: 255,
+    //         duration: 600,
+    //         mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+    //     });
+    // }
+
     _showHoverPreview() {
         if (!this._window || this._hoverPreview) return;
 
