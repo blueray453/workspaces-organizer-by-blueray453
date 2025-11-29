@@ -259,16 +259,29 @@ class WindowPreview extends St.Button {
         let previewX = windowPreviewX + (windowPreviewWidth - previewWidth) / 2;
 
         // Vertical position = above the thumbnail
-        const previewY = windowPreviewY - previewHeight - 40;
+        const previewY = windowPreviewY - previewHeight - 64;
 
         // Do not allow the preview to go off the left edge of screen
         previewX = Math.max(0, previewX);
 
+        // The full buffer (including shadows)
+        const bufferFrame = this._window.get_buffer_rect();
+
+        // How much shadow exists on each side
+        const leftShadow = windowFrame.x - bufferFrame.x;
+        const topShadow = windowFrame.y - bufferFrame.y;
+        const rightShadow = (bufferFrame.x + bufferFrame.width) - (windowFrame.x + windowFrame.width);
+        const bottomShadow = (bufferFrame.y + bufferFrame.height) - (windowFrame.y + windowFrame.height);
+
+        // We scale the shadows so they fit properly when preview is resized.
         //
-        // ============================
-        // OUTER WRAPPER (Has Border)
-        // ============================
-        //
+        const scale = previewHeight / windowFrame.height;
+
+        const scaledLeftShadow = leftShadow * scale;
+        const scaledTopShadow = topShadow * scale;
+        const scaledRightShadow = rightShadow * scale;
+        const scaledBottomShadow = bottomShadow * scale;
+
         // The border and background are drawn on outerWrapper.
         // The outerWrapper is never clipped, so your border always shows,
         // even when the cloned window inside has shadows.
@@ -281,11 +294,6 @@ class WindowPreview extends St.Button {
             track_hover: true,
         });
 
-        //
-        // ====================================
-        // INNER CONTAINER (Clips the Clone)
-        // ====================================
-        //
         // `clip_to_allocation: true` makes the container act like a mask.
         // anything outside innerContainer is cut off.
         // Shadows are cropped correctly
@@ -302,81 +310,14 @@ class WindowPreview extends St.Button {
             clip_to_allocation: true, // cut overflow (window shadows)
         });
 
-        // Inner container goes inside outer wrapper
-        outerWrapper.add_child(innerContainer);
-
-        //
-        // ==============================
-        // HOVER LOGIC (auto hide)
-        // ==============================
-        //
-        // If the wrapper loses hover AND the thumbnail loses hover → hide preview
-        //
-        outerWrapper.connect('notify::hover', () => {
-            if (!outerWrapper.hover && !this.hover) {
-                this._hideHoverPreview();
-            }
-        });
-
-        //
-        // ==============================
-        // CLICK LOGIC (activate window)
-        // ==============================
-        //
-        outerWrapper.connect('button-press-event', (actor, event) => {
-            if (event.get_button() === Clutter.BUTTON_PRIMARY) {
-                let win_workspace = this._window.get_workspace();
-                win_workspace.activate_with_focus(this._window, 0);
-                this._hideHoverPreview();
-                return Clutter.EVENT_STOP;
-            }
-            return Clutter.EVENT_PROPAGATE;
-        });
-
-        //
-        // ==============================
-        // SHADOW CALCULATIONS
-        // ==============================
-        //
-        // Shadows in GNOME are NOT included in frameRect.
-        // They ONLY exist in bufferRect.
-        //
-
-        // The full buffer (including shadows)
-        const bufferFrame = this._window.get_buffer_rect();
-
-        // How much shadow exists on each side
-        const leftShadow = windowFrame.x - bufferFrame.x;
-        const topShadow = windowFrame.y - bufferFrame.y;
-        const rightShadow = (bufferFrame.x + bufferFrame.width) - (windowFrame.x + windowFrame.width);
-        const bottomShadow = (bufferFrame.y + bufferFrame.height) - (windowFrame.y + windowFrame.height);
-
-        journal(`leftShadow: ${leftShadow}`);
-        journal(`topShadow: ${topShadow}`);
-
-        //
-        // ==============================
-        // SCALE FACTOR
-        // ==============================
-        //
-        // We scale the shadows so they fit properly when preview is resized.
-        //
-        const scale = previewHeight / windowFrame.height;
-
-        const scaledLeftShadow = leftShadow * scale;
-        const scaledTopShadow = topShadow * scale;
-        const scaledRightShadow = rightShadow * scale;
-        const scaledBottomShadow = bottomShadow * scale;
-
         //
         // ========================================================
         // Clone Container (same size as preview → holds the clone)
         // ========================================================
-        //
-        const cloneContainer = new Clutter.Actor({
-            width: previewWidth,
-            height: previewHeight,
-        });
+        // Your cloned window includes shadows
+        // You can’t shift the clone directly inside innerContainer
+        // I was allowed to run `clone.set_position` because of this
+        const cloneContainer = new Clutter.Actor();
 
         // Get the window's compositor actor (the thing we can clone)
         const windowActor = this._window.get_compositor_private();
@@ -396,21 +337,19 @@ class WindowPreview extends St.Button {
             height: previewHeight + scaledTopShadow + scaledBottomShadow,
         });
 
-        //
-        // ==================================================
-        // OFFSET CLONE SO SHADOW IS OUTSIDE CLIP AREA
-        // ==================================================
-        //
         // Example:
         // If shadow is 20px left → shift clone -20px left
         //
         clone.set_position(-scaledLeftShadow, -scaledTopShadow);
 
-        // Add clone to container
-        cloneContainer.add_child(clone);
+        // Inner container goes inside outer wrapper
+        outerWrapper.add_child(innerContainer);
 
         // Add container into inner clipped box
         innerContainer.add_child(cloneContainer);
+
+        // Add clone to container
+        cloneContainer.add_child(clone);
 
         //
         // ====================
@@ -428,6 +367,24 @@ class WindowPreview extends St.Button {
             opacity: 255,
             duration: 600,
             mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        });
+
+        // If the wrapper loses hover AND the thumbnail loses hover → hide preview
+        outerWrapper.connect('notify::hover', () => {
+            if (!outerWrapper.hover && !this.hover) {
+                this._hideHoverPreview();
+            }
+        });
+
+        // CLICK LOGIC (activate window)
+        outerWrapper.connect('button-press-event', (actor, event) => {
+            if (event.get_button() === Clutter.BUTTON_PRIMARY) {
+                let win_workspace = this._window.get_workspace();
+                win_workspace.activate_with_focus(this._window, 0);
+                this._hideHoverPreview();
+                return Clutter.EVENT_STOP;
+            }
+            return Clutter.EVENT_PROPAGATE;
         });
     }
 
