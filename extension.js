@@ -145,7 +145,7 @@ class WindowPreview extends St.Button {
         journal(`previewY: ${previewY}`);
 
         //
-        // OUTER WRAPPER (shows border)
+        // OUTER WRAPPER (border is drawn here)
         //
         const outerWrapper = new St.BoxLayout({
             style_class: 'hover-preview-wrapper',
@@ -156,7 +156,7 @@ class WindowPreview extends St.Button {
         });
 
         //
-        // INNER CONTAINER (clips clone content)
+        // INNER CONTAINER (clips the clone)
         //
         const innerContainer = new St.BoxLayout({
             style_class: 'hover-preview-inner',
@@ -167,14 +167,18 @@ class WindowPreview extends St.Button {
 
         outerWrapper.add_child(innerContainer);
 
+        //
         // Hover logic
+        //
         outerWrapper.connect('notify::hover', () => {
             if (!outerWrapper.hover && !this.hover) {
                 this._hideHoverPreview();
             }
         });
 
+        //
         // Click → activate window
+        //
         outerWrapper.connect('button-press-event', (actor, event) => {
             if (event.get_button() === Clutter.BUTTON_PRIMARY) {
                 let win_workspace = this._window.get_workspace();
@@ -186,7 +190,7 @@ class WindowPreview extends St.Button {
         });
 
         //
-        // SHADOW CROPPING LOGIC
+        // SHADOW LOGIC
         //
         const frame = windowFrame;
         const buffer = bufferFrame;
@@ -196,23 +200,47 @@ class WindowPreview extends St.Button {
         const rightShadow = (buffer.x + buffer.width) - (frame.x + frame.width);
         const bottomShadow = (buffer.y + buffer.height) - (frame.y + frame.height);
 
-        // Actor that can shift the clone
+        journal(`leftShadow: ${leftShadow}`);
+        journal(`topShadow: ${topShadow}`);
+
+        //
+        // SCALE FACTOR (needed to avoid title-bar cutting)
+        //
+        const scale = previewHeight / windowFrame.height;
+
+        const scaledLeftShadow = leftShadow * scale;
+        const scaledTopShadow = topShadow * scale;
+        const scaledRightShadow = rightShadow * scale;
+        const scaledBottomShadow = bottomShadow * scale;
+
+        //
+        // Container that holds the clone (can offset position)
+        //
         const cloneContainer = new Clutter.Actor({
             width: previewWidth,
             height: previewHeight,
         });
 
+        //
+        // Clone (scaled + full buffer shadow area)
+        //
         const clone = new Clutter.Clone({
             source: windowActor,
-            width: previewWidth + leftShadow + rightShadow,
-            height: previewHeight + topShadow + bottomShadow,
+            width: previewWidth + scaledLeftShadow + scaledRightShadow,
+            height: previewHeight + scaledTopShadow + scaledBottomShadow,
         });
 
-        clone.set_position(-leftShadow, -topShadow);
+        //
+        // Shift the clone so the shadow lies outside clipped region
+        //
+        clone.set_position(-scaledLeftShadow, -scaledTopShadow);
 
         cloneContainer.add_child(clone);
         innerContainer.add_child(cloneContainer);
 
+        //
+        // SHOW PREVIEW
+        //
         this._hoverPreview = outerWrapper;
         this._hoverPreview.opacity = 0;
 
