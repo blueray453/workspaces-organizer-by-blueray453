@@ -110,6 +110,11 @@ class WindowPreview extends St.Button {
                 }
 
                 menu.open(true);
+
+                if (menu._boxPointer) {
+                    menu._boxPointer.translation_y = -35;
+                }
+
                 return Clutter.EVENT_STOP;
             }
             return Clutter.EVENT_PROPAGATE;
