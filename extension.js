@@ -70,6 +70,8 @@ class WindowPreview extends St.Button {
                 let manager = new PopupMenu.PopupMenuManager(this);
                 manager.addMenu(menu);
                 Main.uiGroup.add_child(menu.actor);
+                // journal(`Main.uiGroup: ${Main.uiGroup.get_compositor_private()}`);
+                // Main.panel._menus.addMenu(menu);
 
                 let activateItem = new PopupMenu.PopupMenuItem(`Activate ${this._window.title}`);
                 activateItem.connect('activate', () => {
@@ -94,18 +96,21 @@ class WindowPreview extends St.Button {
                 });
                 menu.addMenuItem(closeAllItem);
 
-                // menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-
-                // ADD THESE 6 LINES FOR DESKTOP ACTIONS
+                // ADD THESE LINES FOR DESKTOP ACTIONS
                 const app = WindowTracker.get_window_app(this._window);
                 const appInfo = app?.get_app_info();
-                appInfo?.list_actions().forEach(action => {
-                    let item = new PopupMenu.PopupMenuItem(appInfo.get_action_name(action));
-                    // https://gjs-docs.gnome.org/shell16~16/shell.app#method-launch_action
-                    item.connect('activate', () => app.launch_action(action, 0, -1));
-                    menu.addMenuItem(item);
-                });
-                // END OF ADDED CODE
+                const actions = appInfo?.list_actions();
+
+                // Only add desktop actions if there are more than 0 actions
+                if (actions && actions.length > 0) {
+                    menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+                    actions.forEach(action => {
+                        let item = new PopupMenu.PopupMenuItem(appInfo.get_action_name(action));
+                        // https://gjs-docs.gnome.org/shell16~16/shell.app#method-launch_action
+                        item.connect('activate', () => app.launch_action(action, 0, -1));
+                        menu.addMenuItem(item);
+                    });
+                }
 
                 menu.open(true);
                 return Clutter.EVENT_STOP;
