@@ -94,6 +94,8 @@ class WindowPreview extends St.Button {
                 });
                 menu.addMenuItem(closeAllItem);
 
+                // menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
                 // ADD THESE 6 LINES FOR DESKTOP ACTIONS
                 const app = WindowTracker.get_window_app(this._window);
                 const appInfo = app?.get_app_info();
