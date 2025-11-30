@@ -73,19 +73,16 @@ class WindowPreview extends St.Button {
                 // journal(`Main.uiGroup: ${Main.uiGroup.get_compositor_private()}`);
                 // Main.panel._menus.addMenu(menu);
 
-                let activateItem = new PopupMenu.PopupMenuItem(`Activate ${this._window.title}`);
-                activateItem.connect('activate', () => {
+                menu.addAction(`Activate ${this._window.title}`, () => {
                     let win_workspace = this._window.get_workspace();
                     win_workspace.activate_with_focus(this._window, 0);
                 });
-                menu.addMenuItem(activateItem);
 
-                let closeItem = new PopupMenu.PopupMenuItem(`Close ${this._window.title}`);
-                closeItem.connect('activate', () => this._window.delete(0));
-                menu.addMenuItem(closeItem);
+                menu.addAction(`Close ${this._window.title}`, () => {
+                    this._window.delete(0);
+                });
 
-                let closeAllItem = new PopupMenu.PopupMenuItem(`Close all windows on workspace ${this._window.get_workspace().index()}`);
-                closeAllItem.connect('activate', () => {
+                menu.addAction(`Close all windows on workspace ${this._window.get_workspace().index()}`, () => {
                     let windows = this._window.get_workspace().list_windows();
                     windows.forEach(window => {
                         if (window.get_window_type() === 0) {
@@ -94,7 +91,6 @@ class WindowPreview extends St.Button {
                         }
                     });
                 });
-                menu.addMenuItem(closeAllItem);
 
                 // ADD THESE LINES FOR DESKTOP ACTIONS
                 const app = WindowTracker.get_window_app(this._window);
@@ -105,10 +101,11 @@ class WindowPreview extends St.Button {
                 if (actions && actions.length > 0) {
                     menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
                     actions.forEach(action => {
-                        let item = new PopupMenu.PopupMenuItem(appInfo.get_action_name(action));
-                        // https://gjs-docs.gnome.org/shell16~16/shell.app#method-launch_action
-                        item.connect('activate', () => app.launch_action(action, 0, -1));
-                        menu.addMenuItem(item);
+
+                        menu.addAction(`${appInfo.get_action_name(action)}`, () => {
+                            // https://gjs-docs.gnome.org/shell16~16/shell.app#method-launch_action
+                            app.launch_action(action, 0, -1)
+                        });
                     });
                 }
 
@@ -461,10 +458,7 @@ class WorkspaceThumbnail extends St.Button {
                 manager.addMenu(menu);
                 Main.uiGroup.add_child(menu.actor);
 
-                let closeAllItem = new PopupMenu.PopupMenuItem(`Close all windows on workspace ${this._workspace.index()}`);
-                menu.addMenuItem(closeAllItem);
-
-                closeAllItem.connect('activate', () => {
+                menu.addAction(`Close all windows on workspace ${this._workspace.index()}`, () => {
                     windows.forEach(window => {
                         journal(`Closing window: ${window.get_title()}`);
                         window.delete(0);
