@@ -66,7 +66,7 @@ class WindowPreview extends St.Button {
 
         this._buttonPressedId = this.connect('button-press-event', (actor, event) => {
             if (event.get_button() === Clutter.BUTTON_SECONDARY) {
-                let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP, 0);
+                let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP);
                 let manager = new PopupMenu.PopupMenuManager(this);
                 manager.addMenu(menu);
                 Main.uiGroup.add_child(menu.actor);
@@ -453,7 +453,7 @@ class WorkspaceThumbnail extends St.Button {
                     return Clutter.EVENT_STOP; // Fix: Return STOP to prevent menu creation
                 }
 
-                let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP, 0);
+                let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP);
 
                 // menu.removeAll();
 
