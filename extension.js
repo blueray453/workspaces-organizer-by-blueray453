@@ -351,8 +351,7 @@ class WindowPreview extends St.Button {
     _showTitlePopup() {
         if (this._hoverPreview) return;
 
-        const previewWidth = this.get_width();
-        const [x, y] = this.get_transformed_position();
+        let [labelX, labelY] = this.get_transformed_position();
 
         const title = this._window.get_title() || "Untitled Window";
 
@@ -363,9 +362,8 @@ class WindowPreview extends St.Button {
             track_hover: true,
         });
 
-        // Center above icon
-        const labelX = x + previewWidth / 2 - 150; // 300px width
-        const labelY = y - 40;
+        labelX = Math.max(0, labelX);
+        labelY = labelY - 105;
 
         label.set_position(labelX, labelY);
 
