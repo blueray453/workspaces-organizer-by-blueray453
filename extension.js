@@ -82,15 +82,15 @@ class WindowPreview extends St.Button {
                     this._window.delete(0);
                 });
 
-                menu.addAction(`Close all windows on workspace ${this._window.get_workspace().index()}`, () => {
-                    let windows = this._window.get_workspace().list_windows();
-                    windows.forEach(window => {
-                        if (window.get_window_type() === 0) {
-                            journal(`Closing window: ${window.get_title()}`);
-                            window.delete(0);
-                        }
-                    });
-                });
+                // menu.addAction(`Close all windows on workspace ${this._window.get_workspace().index()}`, () => {
+                //     let windows = this._window.get_workspace().list_windows();
+                //     windows.forEach(window => {
+                //         if (window.get_window_type() === 0) {
+                //             journal(`Closing window: ${window.get_title()}`);
+                //             window.delete(0);
+                //         }
+                //     });
+                // });
 
                 // ADD THESE LINES FOR DESKTOP ACTIONS
                 const app = WindowTracker.get_window_app(this._window);
