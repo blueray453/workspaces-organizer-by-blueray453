@@ -346,6 +346,23 @@ class WindowPreview extends St.Button {
             }
             return Clutter.EVENT_PROPAGATE;
         });
+
+        this.set_can_focus(true);
+        this.grab_key_focus();
+
+        this.connect('key-press-event', (actor, event) => {
+            const key = event.get_key_symbol();
+
+            if ((key === Clutter.KEY_Control_L || key === Clutter.KEY_Control_R) && this._hoverPreview) {
+                // Hide current thumbnail
+                this._hideHoverPreview();
+                // Show title popup instead
+                this._showTitlePopup();
+                return Clutter.EVENT_STOP;
+            }
+
+            return Clutter.EVENT_PROPAGATE;
+        });
     }
 
     _showTitlePopup() {
@@ -386,7 +403,7 @@ class WindowPreview extends St.Button {
             }
         });
 
-        label.set_can_focus(true);
+        // label.set_can_focus(true);
         label.grab_key_focus();
 
         label.connect('key-release-event', (actor, event) => {
