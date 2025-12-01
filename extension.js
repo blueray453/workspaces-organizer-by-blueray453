@@ -385,10 +385,31 @@ class WindowPreview extends St.Button {
                 this._hideHoverPreview();
             }
         });
+
+        label.set_can_focus(true);
+        label.grab_key_focus();
+
+        this._ctrlMonitorId = label.connect('key-release-event', (actor, event) => {
+            journal(`key release det ${event}`);
+            // `mods` will no longer include CTRL here
+            const [, , mods] = global.get_pointer();
+            const ctrlDown = (mods & Clutter.ModifierType.CONTROL_MASK) !== 0;
+
+            if (!ctrlDown) {
+                this._hideHoverPreview();
+            }
+
+            return Clutter.EVENT_PROPAGATE;
+        });
     }
 
     _hideHoverPreview() {
         if (!this._hoverPreview) return;
+
+        if (this._ctrlMonitorId) {
+            global.stage.disconnect(this._ctrlMonitorId);
+            this._ctrlMonitorId = null;
+        }
 
         // Remove the hover signal from preview before destroying
         const wrapper = this._hoverPreview;
