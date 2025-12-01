@@ -242,6 +242,16 @@ class WindowPreview extends St.Button {
         // Early exit conditions
         if (!this._window || this._hoverPreview) return;
 
+        // === NEW: Detect CTRL key ===
+        const [, , mods] = global.get_pointer();
+        const ctrlDown = (mods & Clutter.ModifierType.CONTROL_MASK) !== 0;
+
+        if (ctrlDown) {
+            return this._showTitlePopup();
+        }
+
+        // === Clone Code ===
+
         const windowPreviewWidth = this.get_width();
         const [windowPreviewX, windowPreviewY] = this.get_transformed_position();
         // The visible frame rectangle of the window (excluding shadows)
@@ -335,6 +345,47 @@ class WindowPreview extends St.Button {
                 return Clutter.EVENT_STOP;
             }
             return Clutter.EVENT_PROPAGATE;
+        });
+    }
+
+    _showTitlePopup() {
+        if (this._hoverPreview) return;
+
+        const previewWidth = this.get_width();
+        const [x, y] = this.get_transformed_position();
+
+        const title = this._window.get_title() || "Untitled Window";
+
+        const label = new St.Label({
+            text: title,
+            style_class: "hover-title-popup",
+            reactive: true,
+            track_hover: true,
+        });
+
+        // Center above icon
+        const labelX = x + previewWidth / 2 - 150; // 300px width
+        const labelY = y - 40;
+
+        label.set_position(labelX, labelY);
+
+        // For consistency with your API:
+        this._hoverPreview = label;
+
+        Main.layoutManager.addChrome(label);
+
+        label.opacity = 0;
+        label.ease({
+            opacity: 255,
+            duration: 200,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        });
+
+        // Hide when mouse leaves both icon and label
+        label.connect("notify::hover", () => {
+            if (!label.hover && !this.hover) {
+                this._hideHoverPreview();
+            }
         });
     }
 
