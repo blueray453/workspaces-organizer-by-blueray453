@@ -70,6 +70,24 @@ class WindowPreview extends St.Button {
 
             if (button === Clutter.BUTTON_PRIMARY) { // left click
                 this._hideHoverPreview();
+
+                const win = this._window;
+                const ts = global.get_current_time();
+                const currentWs = WorkspaceManager.get_active_workspace();
+                const winWs = win.get_workspace();
+
+                if (winWs === currentWs) {
+                    journal(`Window is on current workspace`);
+                    journal(`Window min state ${win.minimized}`);
+                    // window is on current workspace → toggle minimize
+                    if (win.minimized) {
+                        win.unminimize();
+                        // win.activate(ts);
+                    } else {
+                        win.minimize();
+                    }
+                }
+
                 return Clutter.EVENT_PROPAGATE; // prevent default
             }
 
