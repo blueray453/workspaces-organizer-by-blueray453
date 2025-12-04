@@ -77,18 +77,19 @@ class WindowPreview extends St.Button {
                 const winWs = win.get_workspace();
 
                 if (winWs === currentWs) {
-                    journal(`Window is on current workspace`);
-                    journal(`Window min state ${win.minimized}`);
                     // window is on current workspace → toggle minimize
                     if (win.minimized) {
                         win.unminimize();
-                        // win.activate(ts);
+                        win.activate(ts);
                     } else {
                         win.minimize();
                     }
+                    return Clutter.EVENT_STOP;
+                } else {
+                    return Clutter.EVENT_PROPAGATE; // prevent default
                 }
 
-                return Clutter.EVENT_PROPAGATE; // prevent default
+
             }
 
             if (button === Clutter.BUTTON_SECONDARY) {
