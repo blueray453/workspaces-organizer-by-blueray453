@@ -65,13 +65,17 @@ class WindowPreview extends St.Button {
         });
 
         this._buttonPressedId = this.connect('button-press-event', (actor, event) => {
-            if (event.get_button() === Clutter.BUTTON_PRIMARY) { // left click
+
+            let button = event.get_button();
+
+            if (button === Clutter.BUTTON_PRIMARY) { // left click
                 this._hideHoverPreview();
                 return Clutter.EVENT_PROPAGATE; // prevent default
             }
 
-            if (event.get_button() === Clutter.BUTTON_SECONDARY) {
+            if (button === Clutter.BUTTON_SECONDARY) {
                 let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP);
+                this._contextMenu = menu; // keep a reference
                 let manager = new PopupMenu.PopupMenuManager(this);
                 manager.addMenu(menu);
                 Main.uiGroup.add_child(menu.actor);
@@ -125,10 +129,13 @@ class WindowPreview extends St.Button {
             return Clutter.EVENT_PROPAGATE;
         });
 
-        this._wsChangedId = WorkspaceManager.connect(
-            'workspace-switched',
-            () => this._hideHoverPreview()
-        );
+        this._wsChangedId = WorkspaceManager.connect('workspace-switched', () => {
+            this._hideHoverPreview();
+            if (this._contextMenu) {
+                this._contextMenu.close();
+                this._contextMenu = null;
+            }
+        });
     }
 
     // _showHoverPreview() {
@@ -519,6 +526,13 @@ class WorkspaceThumbnail extends St.Button {
 
         this._workspace = workspace;
 
+        this._wsChangedId = WorkspaceManager.connect('workspace-switched', () => {
+            if (this._contextMenu) {
+                this._contextMenu.close();
+                this._contextMenu = null;
+            }
+        });
+
         this.connect('button-press-event', (actor, event) => {
             let button = event.get_button();
 
@@ -539,6 +553,7 @@ class WorkspaceThumbnail extends St.Button {
                 }
 
                 let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP);
+                this._contextMenu = menu; // keep reference
 
                 // menu.removeAll();
 
