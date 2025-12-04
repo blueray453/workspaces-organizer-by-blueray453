@@ -78,13 +78,25 @@ class WindowPreview extends St.Button {
 
                 if (winWs === currentWs) {
                     // window is on current workspace → toggle minimize
-                    if (win.minimized && !this.is_covered(win)) {
-                        win.unminimize();
-                        win.activate(ts);
+                    if (winWs === currentWs) {
+                        // window is on current workspace → toggle minimize
+                        if (win.minimized) {
+                            // Case 1: minimized → unminimize + activate
+                            win.unminimize();
+                            win.activate(ts);
+
+                        } else if (this.is_covered(win)) {
+                            // Case 2: visible but covered → raise/activate
+                            win.activate(ts);
+
+                        } else {
+                            // Case 3: visible and not covered → minimize
+                            win.minimize();
+                        }
+                        return Clutter.EVENT_STOP;
                     } else {
-                        win.minimize();
+                        return Clutter.EVENT_PROPAGATE; // prevent default
                     }
-                    return Clutter.EVENT_STOP;
                 } else {
                     return Clutter.EVENT_PROPAGATE; // prevent default
                 }
