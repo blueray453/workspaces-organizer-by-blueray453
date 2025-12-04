@@ -65,6 +65,11 @@ class WindowPreview extends St.Button {
         });
 
         this._buttonPressedId = this.connect('button-press-event', (actor, event) => {
+            if (event.get_button() === Clutter.BUTTON_PRIMARY) { // left click
+                this._hideHoverPreview();
+                return Clutter.EVENT_PROPAGATE; // prevent default
+            }
+
             if (event.get_button() === Clutter.BUTTON_SECONDARY) {
                 let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP);
                 let manager = new PopupMenu.PopupMenuManager(this);
