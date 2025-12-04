@@ -78,7 +78,7 @@ class WindowPreview extends St.Button {
 
                 if (winWs === currentWs) {
                     // window is on current workspace → toggle minimize
-                    if (win.minimized) {
+                    if (win.minimized && !this.is_covered(win)) {
                         win.unminimize();
                         win.activate(ts);
                     } else {
@@ -88,8 +88,6 @@ class WindowPreview extends St.Button {
                 } else {
                     return Clutter.EVENT_PROPAGATE; // prevent default
                 }
-
-
             }
 
             if (button === Clutter.BUTTON_SECONDARY) {
@@ -154,6 +152,41 @@ class WindowPreview extends St.Button {
                 this._contextMenu = null;
             }
         });
+    }
+
+    is_covered(window) {
+        if (window.minimized) { return false; }
+        let current_workspace = WorkspaceManager.get_active_workspace();
+
+        // Get windows on the current workspace in stacking order
+        let windows_by_stacking = Display.sort_windows_by_stacking(global.get_window_actors().map(actor => actor.meta_window).filter(win => win.get_window_type() === Meta.WindowType.NORMAL)).filter(win =>
+            win.get_workspace() === current_workspace
+        );
+
+        // // Find the target window
+        // let targetWin = windows_by_stacking.find(win => win.get_id() === window.get_id());
+        // if (!targetWin) return false;
+        let targetRect = window.get_frame_rect();
+        let targetIndex = windows_by_stacking.indexOf(window);
+        journal(`${targetIndex}`);
+
+        // Check only windows above the target in stacking order
+        for (let i = targetIndex + 1; i < windows_by_stacking.length; i++) {
+            let topWin = windows_by_stacking[i];
+            let topRect = topWin.get_frame_rect();
+
+            // Check if topWin fully covers window
+            if (
+                topRect.x <= targetRect.x &&
+                topRect.y <= targetRect.y &&
+                topRect.x + topRect.width >= targetRect.x + targetRect.width &&
+                topRect.y + topRect.height >= targetRect.y + targetRect.height
+            ) {
+                return true;
+            }
+        }
+
+        return false; // no window fully covers it
     }
 
     // _showHoverPreview() {
