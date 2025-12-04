@@ -85,7 +85,7 @@ class WindowPreview extends St.Button {
                             win.unminimize();
                             win.activate(ts);
 
-                        } else if (this.is_covered(win)) {
+                        } else if (this._is_covered(win)) {
                             // Case 2: visible but covered → raise/activate
                             win.activate(ts);
 
@@ -166,7 +166,7 @@ class WindowPreview extends St.Button {
         });
     }
 
-    is_covered(window) {
+    _is_covered(window) {
         if (window.minimized) { return false; }
         let current_workspace = WorkspaceManager.get_active_workspace();
 
