@@ -145,7 +145,6 @@ class WindowPreview extends St.Button {
 
                 return Clutter.EVENT_STOP;
             }
-            return Clutter.EVENT_PROPAGATE;
         });
 
         this._wsChangedId = WorkspaceManager.connect('workspace-switched', () => {
@@ -556,7 +555,6 @@ class WorkspaceThumbnail extends St.Button {
 
             if (button === Clutter.BUTTON_PRIMARY) { // left click
                 this._workspace.activate(0);
-                return Clutter.EVENT_STOP; // prevent default
             }
 
             if (button === Clutter.BUTTON_SECONDARY) { // right click
@@ -587,8 +585,9 @@ class WorkspaceThumbnail extends St.Button {
                 });
 
                 menu.open(true);
-                return Clutter.EVENT_STOP; // prevent default
             }
+
+            return Clutter.EVENT_STOP; // prevent default
 
             // For left click, let the default handler work
             // return Clutter.EVENT_PROPAGATE;
