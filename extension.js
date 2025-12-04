@@ -83,11 +83,11 @@ class WindowPreview extends St.Button {
                         if (win.minimized) {
                             // Case 1: minimized → unminimize + activate
                             win.unminimize();
-                            win.activate(ts);
+                            win.activate_with_workspace(ts, winWs);
 
                         } else if (this._is_covered(win)) {
                             // Case 2: visible but covered → raise/activate
-                            win.activate(ts);
+                            win.activate_with_workspace(ts, winWs);
 
                         } else {
                             // Case 3: visible and not covered → minimize
@@ -698,6 +698,7 @@ class WorkspaceThumbnail extends St.Button {
 
             let preview = new WindowPreview(window);
             preview.connect('clicked', () => {
+                // window.activate_with_workspace(global.get_current_time(), window.get_workspace());
                 this._workspace.activate(0);
                 window.activate(0);
             });
