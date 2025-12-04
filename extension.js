@@ -490,7 +490,6 @@ class WindowPreview extends St.Button {
             this._mappedId = null;
         }
 
-        /* disconnect workspace-changed */
         if (this._wsChangedId && WorkspaceManager) {
             WorkspaceManager.disconnect(this._wsChangedId);
             this._wsChangedId = null;
@@ -704,6 +703,12 @@ class WorkspaceThumbnail extends St.Button {
             GLib.Source.remove(id);
         }
         this._addWindowTimeoutIds.clear();
+
+        if (this._wsChangedId && WorkspaceManager) {
+            WorkspaceManager.disconnect(this._wsChangedId);
+            this._wsChangedId = null;
+        }
+
         super.destroy();
     }
 }
