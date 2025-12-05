@@ -385,6 +385,28 @@ class WindowPreview extends St.Button {
 
         clone.set_position(-scaledLeftShadow, -scaledTopShadow);
 
+        // === ADD CLOSE BUTTON ===
+        const closeButton = new St.Button({
+            style_class: 'window-close-button',
+            child: new St.Icon({
+                icon_name: 'window-close-symbolic',
+                icon_size: 48,
+            }),
+            x_align: Clutter.ActorAlign.END,
+            y_align: Clutter.ActorAlign.START,
+            reactive: true,
+        });
+
+        // Position close button at top-right corner
+        closeButton.set_position(previewWidth - 60, 10);
+
+        closeButton.connect('clicked', () => {
+            this._window.delete(global.get_current_time());
+            this._hideHoverPreview();
+            return Clutter.EVENT_STOP;
+        });
+        // === END CLOSE BUTTON ===
+
         // BUILD HIERARCHY
         // The cloneContainer might seem redundant at first
         // The cloneContainer acts as a positioning canvas
@@ -392,6 +414,7 @@ class WindowPreview extends St.Button {
         // Keeps the clone's negative positioning from affecting the clipped container
         const cloneContainer = new Clutter.Actor();
         cloneContainer.add_child(clone);
+        cloneContainer.add_child(closeButton);
         innerContainer.add_child(cloneContainer);
         outerWrapper.add_child(innerContainer);
 
