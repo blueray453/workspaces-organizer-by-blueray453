@@ -19,6 +19,7 @@ import { setLogging, setLogFn, journal } from './utils.js'
 const WorkspaceManager = global.get_workspace_manager();
 const WindowTracker = global.get_window_tracker();
 const Display = global.get_display();
+const TimeoutDelay = 200;
 
 // Represents a single window icon inside a workspace thumbnail.
 class WindowPreview extends St.Button {
@@ -48,7 +49,7 @@ class WindowPreview extends St.Button {
 
         // Single hover signal handler
         this._hoverSignalId = this.connect('notify::hover', () => {
-            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, TimeoutDelay, () => {
                 if (this.hover) {
                     // Show preview immediately when hovered
                     this._showHoverPreview();
@@ -432,7 +433,12 @@ class WindowPreview extends St.Button {
         // Event handlers
         outerWrapper.connect('notify::hover', () => {
             if (!outerWrapper.hover && !this.hover) {
-                this._hideHoverPreview();
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, TimeoutDelay, () => {
+                    if (!outerWrapper.hover && !this.hover) {
+                        this._hideHoverPreview();
+                    }
+                    return GLib.SOURCE_REMOVE;
+                });
             }
         });
 
@@ -490,7 +496,7 @@ class WindowPreview extends St.Button {
         label.opacity = 0;
         label.ease({
             opacity: 255,
-            duration: 200,
+            duration: TimeoutDelay,
             mode: Clutter.AnimationMode.EASE_OUT_QUAD,
         });
 
