@@ -734,13 +734,31 @@ class WorkspaceThumbnail extends St.Button {
             else
                 preview.destroy();
 
-            this._addWindowTimeoutIds.delete(window);
-
             this._windowCount++;
             this._updateThumbnailSize();
+
+            this._addWindowTimeoutIds.delete(window);
             return GLib.SOURCE_REMOVE;
         });
         this._addWindowTimeoutIds.set(window, sourceId);
+    }
+
+    _removeWindow(window) {
+        let preview = this._windowPreviews.get(window);
+        if (!preview)
+            return;
+
+        // Remove any pending timeout for this window
+        if (this._addWindowTimeoutIds.has(window)) {
+            GLib.Source.remove(this._addWindowTimeoutIds.get(window));
+            this._addWindowTimeoutIds.delete(window);
+        }
+
+        this._windowPreviews.delete(window);
+        preview.destroy();
+
+        this._windowCount--;
+        this._updateThumbnailSize();
     }
 
     _updateThumbnailSize() {
@@ -761,24 +779,6 @@ class WorkspaceThumbnail extends St.Button {
                 preview._updateIcon(); // Force icon refresh
             }
         }
-    }
-
-    _removeWindow(window) {
-        let preview = this._windowPreviews.get(window);
-        if (!preview)
-            return;
-
-        // Remove any pending timeout for this window
-        if (this._addWindowTimeoutIds.has(window)) {
-            GLib.Source.remove(this._addWindowTimeoutIds.get(window));
-            this._addWindowTimeoutIds.delete(window);
-        }
-
-        this._windowPreviews.delete(window);
-        preview.destroy();
-
-        this._windowCount--;
-        this._updateThumbnailSize();
     }
 
     _onRestacked() {
