@@ -747,10 +747,10 @@ class WorkspaceThumbnail extends St.Button {
         // Adjust icon sizes in window previews based on thumbnail size
         let iconSize = 96; // Default size for large
 
-        if (this._windowCount > 5) {
+        if (this._windowCount >= 7) {
             iconSize = 48; // Smallest icons for many windows
-        } else if (this._windowCount > 3) {
-            iconSize = 64; // Medium icons
+        } else if (this._windowCount >= 5) {
+            iconSize = 72; // Medium icons
         }
         // For 0-3 windows, keep default 96px
 
