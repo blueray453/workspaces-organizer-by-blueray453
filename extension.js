@@ -69,38 +69,28 @@ class WindowPreview extends St.Button {
 
             let button = event.get_button();
 
-            if (button === Clutter.BUTTON_PRIMARY) { // left click
+            if (button === Clutter.BUTTON_PRIMARY) {
                 this._hideHoverPreview();
 
                 const win = this._window;
-                const ts = global.get_current_time();
                 const currentWs = WorkspaceManager.get_active_workspace();
                 const winWs = win.get_workspace();
 
                 if (winWs === currentWs) {
                     // window is on current workspace → toggle minimize
-                    if (winWs === currentWs) {
-                        // window is on current workspace → toggle minimize
-                        if (win.minimized) {
-                            // Case 1: minimized → unminimize + activate
-                            win.unminimize();
-                            win.activate_with_workspace(ts, winWs);
-
-                        } else if (this._is_covered(win)) {
-                            // Case 2: visible but covered → raise/activate
-                            win.activate_with_workspace(ts, winWs);
-
-                        } else {
-                            // Case 3: visible and not covered → minimize
-                            win.minimize();
-                        }
-                        return Clutter.EVENT_STOP;
+                    if (win.minimized) {
+                        win.unminimize();
+                        win.activate_with_workspace(0, winWs);
+                    } else if (this._is_covered(win)) {
+                        win.activate_with_workspace(0, winWs);
                     } else {
-                        return Clutter.EVENT_PROPAGATE; // prevent default
+                        win.minimize();
                     }
-                } else {
-                    return Clutter.EVENT_PROPAGATE; // prevent default
+                    return Clutter.EVENT_STOP;
                 }
+                // Window is on different workspace - switch to it
+                winWs.activate_with_focus(win, 0);
+                return Clutter.EVENT_STOP;
             }
 
             if (button === Clutter.BUTTON_SECONDARY) {
