@@ -1,6 +1,6 @@
 .workspace-indicator-class .workspace-thumbnail {
     /* make workspace thumbnails slightly smaller so more previews fit */
-    min-width: 70px;
+    min-width: 50px;
     height: 100%;
     padding: 20px;
     background-color: rgba(10, 10, 10, 0.504);
@@ -41,23 +41,30 @@
     font-size: 40px;
 }
 
-.workspace-thumbnail.few-windows {
-    min-width: 180px;
-    min-height: 60px;
+/* .workspace-thumbnail.large-thumbnail {
+    min-width: 70px;
 }
 
-.workspace-thumbnail.many-windows {
-    min-width: 120px;
-    min-height: 40px;
-}
-
-/* Adjust window previews inside thumbnails */
-.workspace-thumbnail.many-windows .window-preview {
-    min-width: 32px;
-    min-height: 32px;
-}
-
-.workspace-thumbnail.few-windows .window-preview {
+.workspace-thumbnail.medium-thumbnail {
     min-width: 50px;
-    min-height: 50px;
 }
+
+.workspace-thumbnail.small-thumbnail {
+    min-width: 30px;
+}
+
+.workspace-thumbnail.small-thumbnail .window-preview {
+    min-width: 32px;
+}
+
+.workspace-thumbnail.medium-thumbnail .window-preview {
+    min-width: 40px;
+}
+
+.workspace-thumbnail.large-thumbnail .window-preview {
+    min-width: 50px;
+}
+
+.workspace-thumbnail.active {
+    background-color: rgba(255, 255, 255, 0.15);
+} */

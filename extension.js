@@ -744,29 +744,15 @@ class WorkspaceThumbnail extends St.Button {
     }
 
     _updateThumbnailSize() {
-        // Remove any existing size classes
-        this.remove_style_class_name('many-windows');
-        this.remove_style_class_name('few-windows');
-
-        // Apply appropriate size class based on window count
-        if (this._windowCount > 3) {
-            this.add_style_class_name('many-windows');
-        } else {
-            this.add_style_class_name('few-windows');
-        }
-
-        // Also update window preview icon sizes if needed
-        this._updateWindowPreviewSizes();
-    }
-
-    // ADDED: New method to update window preview sizes
-    _updateWindowPreviewSizes() {
         // Adjust icon sizes in window previews based on thumbnail size
-        let iconSize = 96; // Default size
+        let iconSize = 96; // Default size for large
 
-        if (this._windowCount > 3) {
-            iconSize = 48; // Smaller icons for many windows
+        if (this._windowCount > 5) {
+            iconSize = 48; // Smallest icons for many windows
+        } else if (this._windowCount > 3) {
+            iconSize = 64; // Medium icons
         }
+        // For 0-3 windows, keep default 96px
 
         // Update all window previews
         for (let preview of this._windowPreviews.values()) {
