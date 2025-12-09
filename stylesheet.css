@@ -40,3 +40,24 @@
     border-radius: 12px;
     font-size: 40px;
 }
+
+.workspace-thumbnail.few-windows {
+    min-width: 180px;
+    min-height: 60px;
+}
+
+.workspace-thumbnail.many-windows {
+    min-width: 120px;
+    min-height: 40px;
+}
+
+/* Adjust window previews inside thumbnails */
+.workspace-thumbnail.many-windows .window-preview {
+    min-width: 32px;
+    min-height: 32px;
+}
+
+.workspace-thumbnail.few-windows .window-preview {
+    min-width: 50px;
+    min-height: 50px;
+}

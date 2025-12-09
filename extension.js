@@ -598,6 +598,8 @@ class WorkspaceThumbnail extends St.Button {
 
         this._windowsBox = new St.BoxLayout();
 
+        this._windowCount = 0;
+
         this.set_child(this._windowsBox);
 
         this._delegate = this; // needed for DND
@@ -698,6 +700,10 @@ class WorkspaceThumbnail extends St.Button {
         if (this._windowPreviews.has(window))
             return;
 
+        // // Add immediate check for window validity
+        // if (!window || window.is_override_redirect())
+        //     return;
+
         // Skip uninteresting windows
         if (window.skip_taskbar)
             return;
@@ -729,9 +735,46 @@ class WorkspaceThumbnail extends St.Button {
                 preview.destroy();
 
             this._addWindowTimeoutIds.delete(window);
+
+            this._windowCount++;
+            this._updateThumbnailSize();
             return GLib.SOURCE_REMOVE;
         });
         this._addWindowTimeoutIds.set(window, sourceId);
+    }
+
+    _updateThumbnailSize() {
+        // Remove any existing size classes
+        this.remove_style_class_name('many-windows');
+        this.remove_style_class_name('few-windows');
+
+        // Apply appropriate size class based on window count
+        if (this._windowCount > 3) {
+            this.add_style_class_name('many-windows');
+        } else {
+            this.add_style_class_name('few-windows');
+        }
+
+        // Also update window preview icon sizes if needed
+        this._updateWindowPreviewSizes();
+    }
+
+    // ADDED: New method to update window preview sizes
+    _updateWindowPreviewSizes() {
+        // Adjust icon sizes in window previews based on thumbnail size
+        let iconSize = 96; // Default size
+
+        if (this._windowCount > 3) {
+            iconSize = 48; // Smaller icons for many windows
+        }
+
+        // Update all window previews
+        for (let preview of this._windowPreviews.values()) {
+            if (preview.icon_size !== iconSize) {
+                preview.icon_size = iconSize;
+                preview._updateIcon(); // Force icon refresh
+            }
+        }
     }
 
     _removeWindow(window) {
@@ -747,6 +790,9 @@ class WorkspaceThumbnail extends St.Button {
 
         this._windowPreviews.delete(window);
         preview.destroy();
+
+        this._windowCount--;
+        this._updateThumbnailSize();
     }
 
     _onRestacked() {
