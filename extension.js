@@ -4,6 +4,7 @@ import GObject from 'gi://GObject';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
 import Meta from 'gi://Meta';
+import Mtk from 'gi://Mtk';
 import Shell from 'gi://Shell';
 
 import { Extension, gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
@@ -529,8 +530,12 @@ class WindowPreview extends St.Button {
     _updateIcon() {
         const app = Shell.WindowTracker.get_default().get_window_app(this._window) ||
             Shell.AppSystem.get_default().lookup_app(this._window.get_wm_class());
+
+        let iconActor = null;
+
         if (app && app.get_app_info().get_icon()) {
-            this.set_child(app.create_icon_texture(this.icon_size));
+            iconActor = app.create_icon_texture(this.icon_size);
+            this.set_child(iconActor);
         } else {
             let gicon = this._window.get_gicon();
             if (!gicon) {
@@ -541,6 +546,26 @@ class WindowPreview extends St.Button {
                 style_class: 'popup-menu-icon'
             });
             this.set_child(St.TextureCache.get_default().load_gicon(null, icon, this.icon_size));
+        }
+
+        // let rect = new Mtk.Rectangle();
+        // [rect.x, rect.y] = [0, global.screen_height];
+        // [rect.width, rect.height] = [0,0];
+        // this._window.set_icon_geometry(rect);
+
+        if (this._window && iconActor) {
+            // Wait for the next tick to ensure icon is properly positioned
+            GLib.idle_add(GLib.PRIORITY_LOW, () => {
+                if (!iconActor.get_stage()) {
+                    return GLib.SOURCE_REMOVE;
+                }
+
+                const rect = new Mtk.Rectangle();
+                [rect.x, rect.y] = iconActor.get_transformed_position();
+                [rect.width, rect.height] = iconActor.get_transformed_size();
+                this._window.set_icon_geometry(rect);
+                return GLib.SOURCE_REMOVE;
+            });
         }
     }
 
