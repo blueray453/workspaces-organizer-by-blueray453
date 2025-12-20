@@ -550,25 +550,35 @@ class WindowPreview extends St.Button {
             this.set_child(iconActor);
         }
 
-        let rect = new Mtk.Rectangle();
-        [rect.x, rect.y] = [0, global.screen_height];
-        [rect.width, rect.height] = [0,0];
-        this._window.set_icon_geometry(rect);
+        // let rect = new Mtk.Rectangle();
+        // [rect.x, rect.y] = [0, global.screen_height];
+        // [rect.width, rect.height] = [0,0];
+        // this._window.set_icon_geometry(rect);
 
-        // // Wait for the next tick to ensure icon is properly positioned
-        // GLib.idle_add(GLib.PRIORITY_LOW, () => {
-        //     if (!iconActor) {
-        //         return GLib.SOURCE_REMOVE; // exit early, nothing to do
-        //     }
+    //     // Wait for the next tick to ensure icon is properly positioned
+    //     this._updateIconIdleId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
+    //         if (!iconActor) {
+    //             return GLib.SOURCE_REMOVE; // exit early, nothing to do
+    //         }
 
-        //     if (!iconActor.get_stage()) return GLib.SOURCE_CONTINUE;
+    //         if (!iconActor.get_stage()) return GLib.SOURCE_CONTINUE;
 
-        //     const rect = new Mtk.Rectangle();
-        //     [rect.x, rect.y] = iconActor.get_transformed_position();
-        //     [rect.width, rect.height] = iconActor.get_transformed_size();
-        //     this._window.set_icon_geometry(rect);
-        //     return GLib.SOURCE_REMOVE;
-        // });
+    //         const rect = new Mtk.Rectangle();
+    //         [rect.x, rect.y] = iconActor.get_transformed_position();
+    //         [rect.width, rect.height] = iconActor.get_transformed_size();
+    //         this._window.set_icon_geometry(rect);
+    //         return GLib.SOURCE_REMOVE;
+    //     });
+
+
+        iconActor.connect('stage-views-changed', (actor) => {
+            const rect = new Mtk.Rectangle();
+            [rect.x, rect.y] = iconActor.get_transformed_position();
+            [rect.width, rect.height] = iconActor.get_transformed_size();
+            this._window.set_icon_geometry(rect);
+
+            iconActor.disconnect(id);
+        });
     }
 
     destroy() {
