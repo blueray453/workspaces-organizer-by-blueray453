@@ -309,13 +309,13 @@ class WindowPreview extends St.Button {
         // Early exit conditions
         if (!this._window || this._hoverPreview) return;
 
-        // === NEW: Detect CTRL key ===
-        const [, , mods] = global.get_pointer();
-        const ctrlDown = (mods & Clutter.ModifierType.CONTROL_MASK) !== 0;
+        // // === NEW: Detect CTRL key ===
+        // const [, , mods] = global.get_pointer();
+        // const ctrlDown = (mods & Clutter.ModifierType.CONTROL_MASK) !== 0;
 
-        if (ctrlDown) {
-            return this._showTitlePopup();
-        }
+        // if (ctrlDown) {
+        //     return this._showTitlePopup();
+        // }
 
         // === Clone Code ===
 
@@ -442,74 +442,84 @@ class WindowPreview extends St.Button {
             return Clutter.EVENT_PROPAGATE;
         });
 
-        this.set_can_focus(true);
-        this.grab_key_focus();
+        // this.set_can_focus(true);
+        // this.grab_key_focus();
 
-        this.connect('key-press-event', (actor, event) => {
-            const key = event.get_key_symbol();
+        // this.connect('key-press-event', (actor, event) => {
+        //     const key = event.get_key_symbol();
 
-            if ((key === Clutter.KEY_Control_L || key === Clutter.KEY_Control_R) && this._hoverPreview) {
-                // Hide current thumbnail
-                this._hideHoverPreview();
-                // Show title popup instead
-                this._showTitlePopup();
-                return Clutter.EVENT_STOP;
-            }
+        //     if ((key === Clutter.KEY_Control_L || key === Clutter.KEY_Control_R) && this._hoverPreview) {
+        //         // Hide current thumbnail
+        //         this._hideHoverPreview();
+        //         // Show title popup instead
+        //         this._showTitlePopup();
+        //         return Clutter.EVENT_STOP;
+        //     }
 
-            return Clutter.EVENT_PROPAGATE;
-        });
+        //     return Clutter.EVENT_PROPAGATE;
+        // });
     }
 
-    _showTitlePopup() {
-        if (this._hoverPreview) return;
+    // // _showTitlePopup() is a fallback hover UI.
 
-        let [labelX, labelY] = this.get_transformed_position();
+    // // When you hover a window preview while holding Ctrl,
+    // // instead of showing the big live window preview,
+    // // this function shows a small text label with the window title.
 
-        const title = this._window.get_title() || "Untitled Window";
+    // // However it creates a bug due to the use of grab_key_focus
+    // // Some keybindings stop working.
+    // // This is why removing this feature
 
-        const label = new St.Label({
-            text: title,
-            style_class: "hover-title-popup",
-            reactive: true,
-            track_hover: true,
-        });
+    // _showTitlePopup() {
+    //     if (this._hoverPreview) return;
 
-        labelX = Math.max(0, labelX);
-        labelY = labelY - 105;
+    //     let [labelX, labelY] = this.get_transformed_position();
 
-        label.set_position(labelX, labelY);
+    //     const title = this._window.get_title() || "Untitled Window";
 
-        // For consistency with your API:
-        this._hoverPreview = label;
+    //     const label = new St.Label({
+    //         text: title,
+    //         style_class: "hover-title-popup",
+    //         reactive: true,
+    //         track_hover: true,
+    //     });
 
-        Main.layoutManager.addChrome(label);
+    //     labelX = Math.max(0, labelX);
+    //     labelY = labelY - 105;
 
-        label.opacity = 0;
-        label.ease({
-            opacity: 255,
-            duration: TimeoutDelay,
-            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-        });
+    //     label.set_position(labelX, labelY);
 
-        // Hide when mouse leaves both icon and label
-        label.connect("notify::hover", () => {
-            if (!label.hover && !this.hover) {
-                this._hideHoverPreview();
-            }
-        });
+    //     // For consistency with your API:
+    //     this._hoverPreview = label;
 
-        // label.set_can_focus(true);
-        label.grab_key_focus();
+    //     Main.layoutManager.addChrome(label);
 
-        label.connect('key-release-event', (actor, event) => {
-            const key = event.get_key_symbol();
-            if (key === Clutter.KEY_Control_L || key === Clutter.KEY_Control_R) {
-                this._hideHoverPreview();
-                this._showHoverPreview();
-            }
-            return Clutter.EVENT_PROPAGATE;
-        });
-    }
+    //     label.opacity = 0;
+    //     label.ease({
+    //         opacity: 255,
+    //         duration: TimeoutDelay,
+    //         mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+    //     });
+
+    //     // Hide when mouse leaves both icon and label
+    //     label.connect("notify::hover", () => {
+    //         if (!label.hover && !this.hover) {
+    //             this._hideHoverPreview();
+    //         }
+    //     });
+
+    //     // label.set_can_focus(true);
+    //     label.grab_key_focus();
+
+    //     label.connect('key-release-event', (actor, event) => {
+    //         const key = event.get_key_symbol();
+    //         if (key === Clutter.KEY_Control_L || key === Clutter.KEY_Control_R) {
+    //             this._hideHoverPreview();
+    //             this._showHoverPreview();
+    //         }
+    //         return Clutter.EVENT_PROPAGATE;
+    //     });
+    // }
 
     _hideHoverPreview() {
         if (!this._hoverPreview) return;
