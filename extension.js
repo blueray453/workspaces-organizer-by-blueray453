@@ -52,8 +52,17 @@ class WindowPreview extends St.Button {
         this._hoverSignalId = this.connect('notify::hover', () => {
             GLib.timeout_add(GLib.PRIORITY_DEFAULT, TimeoutDelay, () => {
                 if (this.hover) {
-                    // Show preview immediately when hovered
-                    this._showHoverPreview();
+                    // Check for Ctrl key when hovered
+                    const [, , mods] = global.get_pointer();
+                    const ctrlDown = (mods & Clutter.ModifierType.CONTROL_MASK) !== 0;
+
+                    if (ctrlDown) {
+                        // Show title popup when Ctrl is held
+                        this._showTitlePopup();
+                    } else {
+                        // Show regular preview when no Ctrl key
+                        this._showHoverPreview();
+                    }
                 } else {
                     // When unhovered, check if we're hovering over the preview
                     if (!this._hoverPreview || !this._hoverPreview.hover) {
@@ -309,16 +318,7 @@ class WindowPreview extends St.Button {
         // Early exit conditions
         if (!this._window || this._hoverPreview) return;
 
-        // === NEW: Detect CTRL key ===
-        const [, , mods] = global.get_pointer();
-        const ctrlDown = (mods & Clutter.ModifierType.CONTROL_MASK) !== 0;
-
-        if (ctrlDown) {
-            return this._showTitlePopup();
-        }
-
         // === Clone Code ===
-
         const windowPreviewWidth = this.get_width();
         const [windowPreviewX, windowPreviewY] = this.get_transformed_position();
         // The visible frame rectangle of the window (excluding shadows)
