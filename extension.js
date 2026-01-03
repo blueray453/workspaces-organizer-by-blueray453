@@ -309,13 +309,13 @@ class WindowPreview extends St.Button {
         // Early exit conditions
         if (!this._window || this._hoverPreview) return;
 
-        // // === NEW: Detect CTRL key ===
-        // const [, , mods] = global.get_pointer();
-        // const ctrlDown = (mods & Clutter.ModifierType.CONTROL_MASK) !== 0;
+        // === NEW: Detect CTRL key ===
+        const [, , mods] = global.get_pointer();
+        const ctrlDown = (mods & Clutter.ModifierType.CONTROL_MASK) !== 0;
 
-        // if (ctrlDown) {
-        //     return this._showTitlePopup();
-        // }
+        if (ctrlDown) {
+            return this._showTitlePopup();
+        }
 
         // === Clone Code ===
 
@@ -460,66 +460,66 @@ class WindowPreview extends St.Button {
         // });
     }
 
-    // // _showTitlePopup() is a fallback hover UI.
+    // _showTitlePopup() is a fallback hover UI.
 
-    // // When you hover a window preview while holding Ctrl,
-    // // instead of showing the big live window preview,
-    // // this function shows a small text label with the window title.
+    // When you hover a window preview while holding Ctrl,
+    // instead of showing the big live window preview,
+    // this function shows a small text label with the window title.
 
-    // // However it creates a bug due to the use of grab_key_focus
-    // // Some keybindings stop working.
-    // // This is why removing this feature
+    // However it creates a bug due to the use of grab_key_focus
+    // Some keybindings stop working.
+    // This is why removing this feature
 
-    // _showTitlePopup() {
-    //     if (this._hoverPreview) return;
+    _showTitlePopup() {
+        if (this._hoverPreview) return;
 
-    //     let [labelX, labelY] = this.get_transformed_position();
+        let [labelX, labelY] = this.get_transformed_position();
 
-    //     const title = this._window.get_title() || "Untitled Window";
+        const title = this._window.get_title() || "Untitled Window";
 
-    //     const label = new St.Label({
-    //         text: title,
-    //         style_class: "hover-title-popup",
-    //         reactive: true,
-    //         track_hover: true,
-    //     });
+        const label = new St.Label({
+            text: title,
+            style_class: "hover-title-popup",
+            reactive: true,
+            track_hover: true,
+        });
 
-    //     labelX = Math.max(0, labelX);
-    //     labelY = labelY - 105;
+        labelX = Math.max(0, labelX);
+        labelY = labelY - 105;
 
-    //     label.set_position(labelX, labelY);
+        label.set_position(labelX, labelY);
 
-    //     // For consistency with your API:
-    //     this._hoverPreview = label;
+        // For consistency with your API:
+        this._hoverPreview = label;
 
-    //     Main.layoutManager.addChrome(label);
+        Main.layoutManager.addChrome(label);
 
-    //     label.opacity = 0;
-    //     label.ease({
-    //         opacity: 255,
-    //         duration: TimeoutDelay,
-    //         mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-    //     });
+        label.opacity = 0;
+        label.ease({
+            opacity: 255,
+            duration: TimeoutDelay,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        });
 
-    //     // Hide when mouse leaves both icon and label
-    //     label.connect("notify::hover", () => {
-    //         if (!label.hover && !this.hover) {
-    //             this._hideHoverPreview();
-    //         }
-    //     });
+        // Hide when mouse leaves both icon and label
+        label.connect("notify::hover", () => {
+            if (!label.hover && !this.hover) {
+                this._hideHoverPreview();
+            }
+        });
 
-    //     // label.set_can_focus(true);
-    //     label.grab_key_focus();
+        // // label.set_can_focus(true);
+        // label.grab_key_focus();
 
-    //     label.connect('key-release-event', (actor, event) => {
-    //         const key = event.get_key_symbol();
-    //         if (key === Clutter.KEY_Control_L || key === Clutter.KEY_Control_R) {
-    //             this._hideHoverPreview();
-    //             this._showHoverPreview();
-    //         }
-    //         return Clutter.EVENT_PROPAGATE;
-    //     });
-    // }
+        // label.connect('key-release-event', (actor, event) => {
+        //     const key = event.get_key_symbol();
+        //     if (key === Clutter.KEY_Control_L || key === Clutter.KEY_Control_R) {
+        //         this._hideHoverPreview();
+        //         this._showHoverPreview();
+        //     }
+        //     return Clutter.EVENT_PROPAGATE;
+        // });
+    }
 
     _hideHoverPreview() {
         if (!this._hoverPreview) return;
