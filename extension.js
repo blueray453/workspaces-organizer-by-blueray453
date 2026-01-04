@@ -35,6 +35,7 @@ class WindowPreview extends St.Button {
         });
 
         this._hoverPreview = null;
+        this._titlePopup = null;
         this._delegate = this;
         DND.makeDraggable(this, { restoreOnSuccess: true });
 
@@ -57,16 +58,23 @@ class WindowPreview extends St.Button {
                     const ctrlDown = (mods & Clutter.ModifierType.CONTROL_MASK) !== 0;
 
                     if (ctrlDown) {
+                        // Hide hover preview if it exists
+                        this._hideHoverPreview();
                         // Show title popup when Ctrl is held
                         this._showTitlePopup();
                     } else {
+                        // Hide title popup if it exists
+                        this._hideTitlePopup();
                         // Show regular preview when no Ctrl key
                         this._showHoverPreview();
                     }
                 } else {
                     // When unhovered, check if we're hovering over the preview
-                    if (!this._hoverPreview || !this._hoverPreview.hover) {
+                    if (this._hoverPreview && !this._hoverPreview.hover) {
                         this._hideHoverPreview();
+                    }
+                    if (this._titlePopup && !this._titlePopup.hover) {
+                        this._hideTitlePopup();
                     }
                     // If we are hovering over the preview, don't hide - wait for preview's hover signal
                 }
@@ -81,6 +89,7 @@ class WindowPreview extends St.Button {
 
             if (button === Clutter.BUTTON_PRIMARY) {
                 this._hideHoverPreview();
+                this._hideTitlePopup();
 
                 const win = this._window;
                 const currentWs = WorkspaceManager.get_active_workspace();
@@ -160,6 +169,7 @@ class WindowPreview extends St.Button {
 
         this._wsChangedId = WorkspaceManager.connect('workspace-switched', () => {
             this._hideHoverPreview();
+            this._hideTitlePopup();
             if (this._contextMenu) {
                 this._contextMenu.close();
                 this._contextMenu = null;
@@ -318,6 +328,9 @@ class WindowPreview extends St.Button {
         // Early exit conditions
         if (!this._window || this._hoverPreview) return;
 
+        // Hide title popup if it exists
+        this._hideTitlePopup();
+
         // === Clone Code ===
         const windowPreviewWidth = this.get_width();
         const [windowPreviewX, windowPreviewY] = this.get_transformed_position();
@@ -471,7 +484,11 @@ class WindowPreview extends St.Button {
     // This is why removing this feature
 
     _showTitlePopup() {
-        if (this._hoverPreview) return;
+        // Don't show if already showing or no window
+        if (!this._window || this._titlePopup) return;
+
+        // Hide hover preview if it exists
+        this._hideHoverPreview();
 
         let [labelX, labelY] = this.get_transformed_position();
 
@@ -530,6 +547,21 @@ class WindowPreview extends St.Button {
 
         Main.layoutManager.removeChrome(wrapper);
         wrapper.destroy();
+    }
+
+    _hideTitlePopup() {
+        if (!this._titlePopup) return;
+
+        const popup = this._titlePopup;
+        this._titlePopup = null;
+
+        Main.layoutManager.removeChrome(popup);
+        popup.destroy();
+    }
+
+    _hideAllPreviews() {
+        this._hideHoverPreview();
+        this._hideTitlePopup();
     }
 
     // needed for DND
@@ -623,6 +655,8 @@ class WindowPreview extends St.Button {
             WorkspaceManager.disconnect(this._wsChangedId);
             this._wsChangedId = null;
         }
+
+        this._hideAllPreviews();
 
         super.destroy();
     }
