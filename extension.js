@@ -36,6 +36,10 @@ class WindowPreview extends St.Button {
 
         this._hoverPreview = null;
         this._titlePopup = null;
+
+        this._hoverTimeoutId = null;
+        this._previewHoverTimeoutId = null;
+
         this._delegate = this;
         DND.makeDraggable(this, { restoreOnSuccess: true });
 
@@ -51,7 +55,13 @@ class WindowPreview extends St.Button {
 
         // Single hover signal handler
         this._hoverSignalId = this.connect('notify::hover', () => {
-            GLib.timeout_add(GLib.PRIORITY_DEFAULT, TimeoutDelay, () => {
+            if (this._hoverTimeoutId) {
+                GLib.source_remove(this._hoverTimeoutId);
+                this._hoverTimeoutId = null;
+            }
+
+            this._hoverTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, TimeoutDelay, () => {
+                this._hoverTimeoutId = null;
                 if (this.hover) {
                     // Check for Ctrl key when hovered
                     const [, , mods] = global.get_pointer();
@@ -341,9 +351,6 @@ class WindowPreview extends St.Button {
 
         journal(`[WindowPreview] _showHoverPreview: Starting - titlePopup exists: ${!!this._titlePopup}`);
 
-        // Hide title popup if it exists
-        this._hideTitlePopup();
-
         // === Clone Code ===
         const windowPreviewWidth = this.get_width();
         const [windowPreviewX, windowPreviewY] = this.get_transformed_position();
@@ -447,11 +454,22 @@ class WindowPreview extends St.Button {
             mode: Clutter.AnimationMode.EASE_OUT_QUAD,
         });
 
+        // Track wrapper hover timeout
+        let wrapperHoverTimeoutId = null;
+
         // Event handlers
         outerWrapper.connect('notify::hover', () => {
             journal(`[WindowPreview] HoverPreview hover changed: ${outerWrapper.hover}, button hover: ${this.hover}`);
+
+            // Clear any existing timeout
+            if (wrapperHoverTimeoutId) {
+                GLib.source_remove(wrapperHoverTimeoutId);
+                wrapperHoverTimeoutId = null;
+            }
+
             if (!outerWrapper.hover && !this.hover) {
-                GLib.timeout_add(GLib.PRIORITY_DEFAULT, TimeoutDelay, () => {
+                wrapperHoverTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, TimeoutDelay, () => {
+                    wrapperHoverTimeoutId = null;
                     if (!outerWrapper.hover && !this.hover) {
                         journal(`[WindowPreview] HoverPreview timeout - hiding preview`);
                         this._hideHoverPreview();
@@ -508,9 +526,6 @@ class WindowPreview extends St.Button {
 
         journal(`[WindowPreview] _showTitlePopup: Starting - hoverPreview exists: ${!!this._hoverPreview}`);
 
-        // Hide hover preview if it exists
-        this._hideHoverPreview();
-
         let [labelX, labelY] = this.get_transformed_position();
 
         const title = this._window.get_title() || "Untitled Window";
@@ -528,7 +543,7 @@ class WindowPreview extends St.Button {
         label.set_position(labelX, labelY);
 
         // For consistency with your API:
-        this._hoverPreview = label;
+        this._titlePopup = label;
 
         Main.layoutManager.addChrome(label);
 
@@ -543,7 +558,7 @@ class WindowPreview extends St.Button {
         label.connect("notify::hover", () => {
             if (!label.hover && !this.hover) {
                 journal(`[WindowPreview] TitlePopup not hovered, hiding it`);
-                this._hideHoverPreview();
+                this._hideTitlePopup();
             }
         });
 
@@ -688,6 +703,11 @@ class WindowPreview extends St.Button {
         if (this._wsChangedId && WorkspaceManager) {
             WorkspaceManager.disconnect(this._wsChangedId);
             this._wsChangedId = null;
+        }
+
+        if (this._hoverTimeoutId) {
+            GLib.source_remove(this._hoverTimeoutId);
+            this._hoverTimeoutId = null;
         }
 
         this._hideAllPreviews();
