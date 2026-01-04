@@ -504,6 +504,7 @@ class WindowPreview extends St.Button {
 
         //     return Clutter.EVENT_PROPAGATE;
         // });
+
         // journal(`[WindowPreview] _showHoverPreview: Completed successfully`);
     }
 
@@ -562,18 +563,19 @@ class WindowPreview extends St.Button {
             }
         });
 
-        // // label.set_can_focus(true);
+        // label.set_can_focus(true);
         // label.grab_key_focus();
 
         // label.connect('key-release-event', (actor, event) => {
         //     const key = event.get_key_symbol();
         //     if (key === Clutter.KEY_Control_L || key === Clutter.KEY_Control_R) {
-        //         this._hideHoverPreview();
+        //         this._hideTitlePopup();
         //         this._showHoverPreview();
         //     }
         //     return Clutter.EVENT_PROPAGATE;
         // });
-        // journal(`[WindowPreview] _showTitlePopup: Completed successfully`);
+
+        journal(`[WindowPreview] _showTitlePopup: Completed successfully`);
     }
 
     _hideHoverPreview() {
