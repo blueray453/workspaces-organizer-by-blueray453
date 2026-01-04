@@ -38,7 +38,6 @@ class WindowPreview extends St.Button {
         this._titlePopup = null;
 
         this._hoverTimeoutId = null;
-        this._previewHoverTimeoutId = null;
 
         this._delegate = this;
         DND.makeDraggable(this, { restoreOnSuccess: true });
