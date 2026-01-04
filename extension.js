@@ -67,7 +67,7 @@ class WindowPreview extends St.Button {
                     const [, , mods] = global.get_pointer();
                     const ctrlDown = (mods & Clutter.ModifierType.CONTROL_MASK) !== 0;
 
-                    journal(`[WindowPreview] Hover started with Ctrl: ${ctrlDown}, hoverPreview: ${!!this._hoverPreview}, titlePopup: ${!!this._titlePopup}`);
+                    // journal(`[WindowPreview] Hover started with Ctrl: ${ctrlDown}, hoverPreview: ${!!this._hoverPreview}, titlePopup: ${!!this._titlePopup}`);
 
                     if (ctrlDown) {
                         // Hide hover preview if it exists
@@ -81,14 +81,14 @@ class WindowPreview extends St.Button {
                         this._showHoverPreview();
                     }
                 } else {
-                    journal(`[WindowPreview] Hover ended, hoverPreview: ${!!this._hoverPreview}, titlePopup: ${!!this._titlePopup}`);
+                    // journal(`[WindowPreview] Hover ended, hoverPreview: ${!!this._hoverPreview}, titlePopup: ${!!this._titlePopup}`);
                     // When unhovered, check if we're hovering over the preview
                     if (this._hoverPreview && !this._hoverPreview.hover) {
-                        journal(`[WindowPreview] HoverPreview not hovered, hiding it`);
+                        // journal(`[WindowPreview] HoverPreview not hovered, hiding it`);
                         this._hideHoverPreview();
                     }
                     if (this._titlePopup && !this._titlePopup.hover) {
-                        journal(`[WindowPreview] TitlePopup not hovered, hiding it`);
+                        // journal(`[WindowPreview] TitlePopup not hovered, hiding it`);
                         this._hideTitlePopup();
                     }
                     // If we are hovering over the preview, don't hide - wait for preview's hover signal
@@ -128,7 +128,7 @@ class WindowPreview extends St.Button {
             }
 
             if (button === Clutter.BUTTON_SECONDARY) {
-                journal(`[WindowPreview] Right click detected, hiding all previews`);
+                // journal(`[WindowPreview] Right click detected, hiding all previews`);
                 let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP);
                 this._contextMenu = menu; // keep a reference
                 let manager = new PopupMenu.PopupMenuManager(this);
@@ -184,7 +184,7 @@ class WindowPreview extends St.Button {
         });
 
         this._wsChangedId = WorkspaceManager.connect('workspace-switched', () => {
-            journal(`[WindowPreview] Workspace switched, hiding all previews`);
+            // journal(`[WindowPreview] Workspace switched, hiding all previews`);
             this._hideAllPreviews();
             // this._hideHoverPreview();
             // this._hideTitlePopup();
@@ -345,11 +345,11 @@ class WindowPreview extends St.Button {
     _showHoverPreview() {
         // Early exit conditions
         if (!this._window || this._hoverPreview) {
-            journal(`[WindowPreview] _showHoverPreview: Cannot show - window: ${!!this._window}, hoverPreview: ${!!this._hoverPreview}`);
+            // journal(`[WindowPreview] _showHoverPreview: Cannot show - window: ${!!this._window}, hoverPreview: ${!!this._hoverPreview}`);
             return;
         }
 
-        journal(`[WindowPreview] _showHoverPreview: Starting - titlePopup exists: ${!!this._titlePopup}`);
+        // journal(`[WindowPreview] _showHoverPreview: Starting - titlePopup exists: ${!!this._titlePopup}`);
 
         // === Clone Code ===
         const windowPreviewWidth = this.get_width();
@@ -459,7 +459,7 @@ class WindowPreview extends St.Button {
 
         // Event handlers
         outerWrapper.connect('notify::hover', () => {
-            journal(`[WindowPreview] HoverPreview hover changed: ${outerWrapper.hover}, button hover: ${this.hover}`);
+            // journal(`[WindowPreview] HoverPreview hover changed: ${outerWrapper.hover}, button hover: ${this.hover}`);
 
             // Clear any existing timeout
             if (wrapperHoverTimeoutId) {
@@ -471,7 +471,7 @@ class WindowPreview extends St.Button {
                 wrapperHoverTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, TimeoutDelay, () => {
                     wrapperHoverTimeoutId = null;
                     if (!outerWrapper.hover && !this.hover) {
-                        journal(`[WindowPreview] HoverPreview timeout - hiding preview`);
+                        // journal(`[WindowPreview] HoverPreview timeout - hiding preview`);
                         this._hideHoverPreview();
                     }
                     return GLib.SOURCE_REMOVE;
@@ -504,7 +504,7 @@ class WindowPreview extends St.Button {
 
         //     return Clutter.EVENT_PROPAGATE;
         // });
-        journal(`[WindowPreview] _showHoverPreview: Completed successfully`);
+        // journal(`[WindowPreview] _showHoverPreview: Completed successfully`);
     }
 
     // _showTitlePopup() is a fallback hover UI.
@@ -520,11 +520,11 @@ class WindowPreview extends St.Button {
     _showTitlePopup() {
         // Don't show if already showing or no window
         if (!this._window || this._titlePopup) {
-            journal(`[WindowPreview] _showTitlePopup: Cannot show - window: ${!!this._window}, titlePopup: ${!!this._titlePopup}`);
+            // journal(`[WindowPreview] _showTitlePopup: Cannot show - window: ${!!this._window}, titlePopup: ${!!this._titlePopup}`);
             return;
         }
 
-        journal(`[WindowPreview] _showTitlePopup: Starting - hoverPreview exists: ${!!this._hoverPreview}`);
+        // journal(`[WindowPreview] _showTitlePopup: Starting - hoverPreview exists: ${!!this._hoverPreview}`);
 
         let [labelX, labelY] = this.get_transformed_position();
 
@@ -557,7 +557,7 @@ class WindowPreview extends St.Button {
         // Hide when mouse leaves both icon and label
         label.connect("notify::hover", () => {
             if (!label.hover && !this.hover) {
-                journal(`[WindowPreview] TitlePopup not hovered, hiding it`);
+                // journal(`[WindowPreview] TitlePopup not hovered, hiding it`);
                 this._hideTitlePopup();
             }
         });
@@ -573,16 +573,16 @@ class WindowPreview extends St.Button {
         //     }
         //     return Clutter.EVENT_PROPAGATE;
         // });
-        journal(`[WindowPreview] _showTitlePopup: Completed successfully`);
+        // journal(`[WindowPreview] _showTitlePopup: Completed successfully`);
     }
 
     _hideHoverPreview() {
         if (!this._hoverPreview) {
-            journal(`[WindowPreview] _hideHoverPreview: No hoverPreview to hide`);
+            // journal(`[WindowPreview] _hideHoverPreview: No hoverPreview to hide`);
             return;
         }
 
-        journal(`[WindowPreview] _hideHoverPreview: Hiding hoverPreview`);
+        // journal(`[WindowPreview] _hideHoverPreview: Hiding hoverPreview`);
 
         // Remove the hover signal from preview before destroying
         const wrapper = this._hoverPreview;
@@ -594,11 +594,11 @@ class WindowPreview extends St.Button {
 
     _hideTitlePopup() {
         if (!this._titlePopup) {
-            journal(`[WindowPreview] _hideTitlePopup: No titlePopup to hide`);
+            // journal(`[WindowPreview] _hideTitlePopup: No titlePopup to hide`);
             return;
         }
 
-        journal(`[WindowPreview] _hideTitlePopup: Hiding titlePopup`);
+        // journal(`[WindowPreview] _hideTitlePopup: Hiding titlePopup`);
 
         const popup = this._titlePopup;
         this._titlePopup = null;
@@ -608,7 +608,7 @@ class WindowPreview extends St.Button {
     }
 
     _hideAllPreviews() {
-        journal(`[WindowPreview] _hideAllPreviews: Hiding all previews`);
+        // journal(`[WindowPreview] _hideAllPreviews: Hiding all previews`);
         this._hideHoverPreview();
         this._hideTitlePopup();
     }
