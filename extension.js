@@ -488,7 +488,7 @@ class WindowPreview extends St.Button {
             return Clutter.EVENT_PROPAGATE;
         });
 
-        // this.set_can_focus(true);
+        // // this.set_can_focus(true);
         // this.grab_key_focus();
 
         // this.connect('key-press-event', (actor, event) => {
@@ -563,7 +563,7 @@ class WindowPreview extends St.Button {
             }
         });
 
-        // label.set_can_focus(true);
+        // // label.set_can_focus(true);
         // label.grab_key_focus();
 
         // label.connect('key-release-event', (actor, event) => {
