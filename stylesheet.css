@@ -69,10 +69,10 @@
     background-color: rgba(255, 255, 255, 0.15);
 } */
 
-.workspace-context-menu .popup-menu-item {
+/* .workspace-context-menu .popup-menu-item {
   font-size: 16pt !important;
   padding: 10px 15px !important;
-}
+} */
 
 .workspace-context-menu .popup-menu-item StLabel {
   font-size: 16pt !important;

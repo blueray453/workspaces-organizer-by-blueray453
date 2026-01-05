@@ -132,6 +132,17 @@ class WindowPreview extends St.Button {
             if (button === Clutter.BUTTON_SECONDARY) {
                 // journal(`[WindowPreview] Right click detected, hiding all previews`);
                 let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP);
+
+                // menu - This is the PopupMenu JavaScript object.
+                // It's not a visual actor itself
+                // menu.box - This is the actual St.BoxLayout actor
+                // PopupMenu(JavaScript object)
+                // ├─ actor(St.Widget - the outer container)
+                // └─ box(St.BoxLayout - contains the menu items)
+                //     ├─ PopupMenuItem 1
+                //     ├─ PopupMenuItem 2
+                //     └─ ...
+
                 menu.box.add_style_class_name('workspace-context-menu');
                 this._contextMenu = menu; // keep a reference
                 let manager = new PopupMenu.PopupMenuManager(this);
