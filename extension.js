@@ -57,13 +57,18 @@ class WindowPreview extends St.Button {
         this._hoverSignalId = this.connect('notify::hover', () => {
             journal(`[WindowPreview] notify::hover: hover=${this.hover}, ctrlPollId=${this._ctrlPollId}`);
 
-
             if (this.hover) {
+                // CANCEL any pending cleanup timeout
+                // You need to track this timeout ID
+                if (this._cleanupTimeoutId) {
+                    GLib.source_remove(this._cleanupTimeoutId);
+                    this._cleanupTimeoutId = null;
+                }
                 // Check for Ctrl key when hovered
                 const [, , mods] = global.get_pointer();
                 const ctrlDown = (mods & Clutter.ModifierType.CONTROL_MASK) !== 0;
 
-                journal(`[WindowPreview] Hover started with Ctrl: ${ctrlDown}, hoverPreview: ${!!this._hoverPreview}, titlePopup: ${!!this._titlePopup}`);
+                journal(`[WindowPreview] Hover started with Ctrl: ${ctrlDown}, ACTUAL hoverPreview: ${!!this._hoverPreview}, titlePopup: ${!!this._titlePopup}`);
 
                 if (ctrlDown) {
                     // Hide hover preview if it exists
@@ -78,7 +83,7 @@ class WindowPreview extends St.Button {
                 }
             } else {
                 this._stopCtrlPoll();
-                GLib.timeout_add(GLib.PRIORITY_DEFAULT, TimeoutDelay, () => {
+                this._cleanupTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, TimeoutDelay, () => {
                     journal(`[WindowPreview] Hover ended, hoverPreview: ${!!this._hoverPreview}, titlePopup: ${!!this._titlePopup}`);
                     // When unhovered, check if we're hovering over the preview
                     if (this._hoverPreview && !this._hoverPreview.hover) {
@@ -86,6 +91,7 @@ class WindowPreview extends St.Button {
                         this._hideHoverPreview();
                     }
                     // If we are hovering over the preview, don't hide - wait for preview's hover signal
+                    this._cleanupTimeoutId = null;
                     return GLib.SOURCE_REMOVE;
                 });
 
@@ -241,7 +247,6 @@ class WindowPreview extends St.Button {
 
     _showHoverPreview() {
         if (!this.hover) {
-            journal(`[WindowPreview] Mouse left icon, aborting _showHoverPreview`);
             return;
         }
 
