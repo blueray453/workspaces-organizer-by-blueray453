@@ -34,17 +34,16 @@ class WindowPreview extends St.Button {
             track_hover: true,  // Enable built-in hover tracking
         });
 
+        this._window = window;
+
         this._hoverPreview = null;
         this._titlePopup = null;
-
-        this._hoverTimeoutId = null;
 
         this._ctrlPollId = null;
 
         this._delegate = this;
         DND.makeDraggable(this, { restoreOnSuccess: true });
 
-        this._window = window;
         this.icon_size = 96;
 
         this._updateIcon();
@@ -57,32 +56,28 @@ class WindowPreview extends St.Button {
         // Single hover signal handler
         this._hoverSignalId = this.connect('notify::hover', () => {
             // journal(`[WindowPreview] notify::hover: hover=${this.hover}, ctrlPollId=${this._ctrlPollId}`);
-            if (this._hoverTimeoutId) {
-                GLib.source_remove(this._hoverTimeoutId);
-                this._hoverTimeoutId = null;
-            }
 
-            this._hoverTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, TimeoutDelay, () => {
-                this._hoverTimeoutId = null;
-                if (this.hover) {
-                    // Check for Ctrl key when hovered
-                    const [, , mods] = global.get_pointer();
-                    const ctrlDown = (mods & Clutter.ModifierType.CONTROL_MASK) !== 0;
 
-                    // journal(`[WindowPreview] Hover started with Ctrl: ${ctrlDown}, hoverPreview: ${!!this._hoverPreview}, titlePopup: ${!!this._titlePopup}`);
+            if (this.hover) {
+                // Check for Ctrl key when hovered
+                const [, , mods] = global.get_pointer();
+                const ctrlDown = (mods & Clutter.ModifierType.CONTROL_MASK) !== 0;
 
-                    if (ctrlDown) {
-                        // Hide hover preview if it exists
-                        this._hideHoverPreview();
-                        // Show title popup when Ctrl is held
-                        this._showTitlePopup();
-                    } else {
-                        // Hide title popup if it exists
-                        this._hideTitlePopup();
-                        // Show regular preview when no Ctrl key
-                        this._showHoverPreview();
-                    }
+                // journal(`[WindowPreview] Hover started with Ctrl: ${ctrlDown}, hoverPreview: ${!!this._hoverPreview}, titlePopup: ${!!this._titlePopup}`);
+
+                if (ctrlDown) {
+                    // Hide hover preview if it exists
+                    this._hideHoverPreview();
+                    // Show title popup when Ctrl is held
+                    this._showTitlePopup();
                 } else {
+                    // Hide title popup if it exists
+                    this._hideTitlePopup();
+                    // Show regular preview when no Ctrl key
+                    this._showHoverPreview();
+                }
+            } else {
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, TimeoutDelay, () => {
                     // journal(`[WindowPreview] Hover ended, hoverPreview: ${!!this._hoverPreview}, titlePopup: ${!!this._titlePopup}`);
                     // When unhovered, check if we're hovering over the preview
                     if (this._hoverPreview && !this._hoverPreview.hover) {
@@ -94,10 +89,9 @@ class WindowPreview extends St.Button {
                         this._hideTitlePopup();
                     }
                     // If we are hovering over the preview, don't hide - wait for preview's hover signal
-                }
-
-                return GLib.SOURCE_REMOVE;
-            });
+                    return GLib.SOURCE_REMOVE;
+                });
+            }
         });
 
         this._buttonPressedId = this.connect('button-press-event', (actor, event) => {
@@ -460,38 +454,26 @@ class WindowPreview extends St.Button {
 
         // Show and animate preview
         this._hoverPreview = outerWrapper;
-        this._hoverPreview.opacity = 0;
         Main.layoutManager.addChrome(this._hoverPreview);
 
-        this._hoverPreview.ease({
-            opacity: 255,
-            duration: 600,
-            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-        });
+        // this._hoverPreview.opacity = 0;
 
-        // Track wrapper hover timeout
-        let wrapperHoverTimeoutId = null;
+        // this._hoverPreview.ease({
+        //     opacity: 255,
+        //     duration: 600,
+        //     mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        // });
 
         // Event handlers
         outerWrapper.connect('notify::hover', () => {
             // journal(`[WindowPreview] HoverPreview hover changed: ${outerWrapper.hover}, button hover: ${this.hover}`);
 
-            // Clear any existing timeout
-            if (wrapperHoverTimeoutId) {
-                GLib.source_remove(wrapperHoverTimeoutId);
-                wrapperHoverTimeoutId = null;
-            }
-
-            if (!outerWrapper.hover && !this.hover) {
-                wrapperHoverTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, TimeoutDelay, () => {
-                    wrapperHoverTimeoutId = null;
-                    if (!outerWrapper.hover && !this.hover) {
-                        // journal(`[WindowPreview] HoverPreview timeout - hiding preview`);
-                        this._hideHoverPreview();
-                    }
-                    return GLib.SOURCE_REMOVE;
-                });
-            }
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, TimeoutDelay, () => {
+                if (!outerWrapper.hover && !this.hover) {
+                    this._hideHoverPreview();
+                }
+                return GLib.SOURCE_REMOVE;
+            });
         });
 
         outerWrapper.connect('button-press-event', (actor, event) => {
@@ -572,12 +554,12 @@ class WindowPreview extends St.Button {
 
         Main.layoutManager.addChrome(label);
 
-        label.opacity = 0;
-        label.ease({
-            opacity: 255,
-            duration: TimeoutDelay,
-            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-        });
+        // label.opacity = 0;
+        // label.ease({
+        //     opacity: 255,
+        //     duration: TimeoutDelay,
+        //     mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        // });
 
         // Hide when mouse leaves both icon and label
         label.connect("notify::hover", () => {
@@ -814,11 +796,6 @@ class WindowPreview extends St.Button {
         if (this._wsChangedId && WorkspaceManager) {
             WorkspaceManager.disconnect(this._wsChangedId);
             this._wsChangedId = null;
-        }
-
-        if (this._hoverTimeoutId) {
-            GLib.source_remove(this._hoverTimeoutId);
-            this._hoverTimeoutId = null;
         }
 
         this._hideAllPreviews();
