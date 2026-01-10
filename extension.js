@@ -808,7 +808,7 @@ class WindowPreview extends St.Button {
 
         if (this._buttonPressedId) {
             this.disconnect(this._buttonPressedId);
-            this._mappedId = null;
+            this._buttonPressedId = null;
         }
 
         if (this._wsChangedId && WorkspaceManager) {
