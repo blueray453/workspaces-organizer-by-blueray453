@@ -516,14 +516,10 @@ class WindowPreview extends St.Button {
         const [, , mods] = global.get_pointer();
         const ctrlDown = (mods & Clutter.ModifierType.CONTROL_MASK) !== 0;
 
-        // Determine current state
-        const showingHoverPreview = !!this._hoverPreview;
-        const showingTitlePopup = !!this._titlePopup;
-
         // journal(`[WindowPreview] _checkCtrlKey: Timer ${this._ctrlPollId} - hoverPreview: ${showingHoverPreview}, titlePopup: ${showingTitlePopup}, ctrlDown: ${ctrlDown}`);
 
         // Switch if needed
-        if (showingHoverPreview && ctrlDown) {
+        if (this._hoverPreview && ctrlDown) {
             // journal(`[WindowPreview] _checkCtrlKey: Switching from hoverPreview to titlePopup`);
             // Switch from hover preview to title popup
             this._hideHoverPreview();
@@ -531,7 +527,7 @@ class WindowPreview extends St.Button {
             return GLib.SOURCE_REMOVE;
         }
 
-        if (showingTitlePopup && !ctrlDown) {
+        if (this._titlePopup && !ctrlDown) {
             // journal(`[WindowPreview] _checkCtrlKey: Switching from titlePopup to hoverPreview`);
             // Switch from title popup to hover preview
             this._hideTitlePopup();
