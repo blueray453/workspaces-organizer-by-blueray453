@@ -456,13 +456,13 @@ class WindowPreview extends St.Button {
         this._hoverPreview = outerWrapper;
         Main.layoutManager.addChrome(this._hoverPreview);
 
-        // this._hoverPreview.opacity = 0;
+        this._hoverPreview.opacity = 0;
 
-        // this._hoverPreview.ease({
-        //     opacity: 255,
-        //     duration: 600,
-        //     mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-        // });
+        this._hoverPreview.ease({
+            opacity: 255,
+            duration: TimeoutDelay,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        });
 
         // Event handlers
         outerWrapper.connect('notify::hover', () => {
@@ -602,7 +602,7 @@ class WindowPreview extends St.Button {
 
         this._ctrlPollId = GLib.timeout_add(
             GLib.PRIORITY_DEFAULT,
-            100,  // Poll every 100ms
+            TimeoutDelay,
             this._checkCtrlKey.bind(this)
         );
 
