@@ -84,13 +84,14 @@ class WindowPreview extends St.Button {
                         // journal(`[WindowPreview] HoverPreview not hovered, hiding it`);
                         this._hideHoverPreview();
                     }
-                    if (this._titlePopup && !this._titlePopup.hover) {
-                        // journal(`[WindowPreview] TitlePopup not hovered, hiding it`);
-                        this._hideTitlePopup();
-                    }
                     // If we are hovering over the preview, don't hide - wait for preview's hover signal
                     return GLib.SOURCE_REMOVE;
                 });
+
+                if (this._titlePopup && !this._titlePopup.hover) {
+                    // journal(`[WindowPreview] TitlePopup not hovered, hiding it`);
+                    this._hideTitlePopup();
+                }
             }
         });
 
@@ -442,12 +443,12 @@ class WindowPreview extends St.Button {
 
         Main.layoutManager.addChrome(label);
 
-        // label.opacity = 0;
-        // label.ease({
-        //     opacity: 255,
-        //     duration: TimeoutDelay,
-        //     mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-        // });
+        label.opacity = 0;
+        label.ease({
+            opacity: 255,
+            duration: TimeoutDelay,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        });
 
         // Hide when mouse leaves both icon and label
         label.connect("notify::hover", () => {
