@@ -218,7 +218,6 @@ class WindowPreview extends St.Button {
         // if (!targetWin) return false;
         let targetRect = window.get_frame_rect();
         let targetIndex = windows_by_stacking.indexOf(window);
-        journal(`${targetIndex}`);
 
         // Check only windows above the target in stacking order
         for (let i = targetIndex + 1; i < windows_by_stacking.length; i++) {
