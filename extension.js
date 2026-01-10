@@ -545,6 +545,12 @@ class WindowPreview extends St.Button {
         // journal(`[WindowPreview] _showTitlePopup: Starting...`);
         // journal(`[WindowPreview] _showTitlePopup: Starting - hoverPreview exists: ${!!this._hoverPreview}`);
 
+        // Double-check that mouse is still hovering over this icon
+        if (!this.hover) {
+            journal(`[WindowPreview] Mouse no longer on icon, aborting hover enter`);
+            return;
+        }
+
         let [labelX, labelY] = this.get_transformed_position();
 
         const title = this._window.get_title() || "Untitled Window";
