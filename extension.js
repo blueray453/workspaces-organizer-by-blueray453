@@ -516,8 +516,14 @@ class WindowPreview extends St.Button {
     }
 
     _checkCtrlKey() {
+        // If not hovering, stop immediately
+        if (!this.hover) {
+            this._stopCtrlPoll();
+            return GLib.SOURCE_REMOVE;
+        }
+
         // If no previews, stop polling
-        if ((!this._hoverPreview && !this._titlePopup) || !this.hover) {
+        if (!this._hoverPreview && !this._titlePopup) {
             journal(`[WindowPreview] _checkCtrlKey: No previews exist, stopping poll`);
             this._stopCtrlPoll();
             return GLib.SOURCE_REMOVE;
@@ -557,7 +563,6 @@ class WindowPreview extends St.Button {
             return;
         }
 
-        journal(`[WindowPreview] _hideHoverPreview: Hiding hoverPreview, stopping poll`);
         this._stopCtrlPoll();
 
         journal(`[WindowPreview] _hideHoverPreview: Hiding hoverPreview`);
