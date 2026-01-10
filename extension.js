@@ -77,6 +77,7 @@ class WindowPreview extends St.Button {
                     this._showHoverPreview();
                 }
             } else {
+                this._stopCtrlPoll();
                 GLib.timeout_add(GLib.PRIORITY_DEFAULT, TimeoutDelay, () => {
                     journal(`[WindowPreview] Hover ended, hoverPreview: ${!!this._hoverPreview}, titlePopup: ${!!this._titlePopup}`);
                     // When unhovered, check if we're hovering over the preview
@@ -239,6 +240,11 @@ class WindowPreview extends St.Button {
     }
 
     _showHoverPreview() {
+        if (!this.hover) {
+            journal(`[WindowPreview] Mouse left icon, aborting _showHoverPreview`);
+            return;
+        }
+
         // Early exit conditions
         if (!this._window || this._hoverPreview) {
             journal(`[WindowPreview] _showHoverPreview: Cannot show - window: ${!!this._window}, hoverPreview: ${!!this._hoverPreview}`);
@@ -407,6 +413,11 @@ class WindowPreview extends St.Button {
 
     _showTitlePopup() {
         // Don't show if already showing or no window
+        if (!this.hover) {
+            journal(`[WindowPreview] Mouse left icon, aborting _showTitlePopup`);
+            return;
+        }
+
         if (!this._window || this._titlePopup) {
             journal(`[WindowPreview] _showTitlePopup: Cannot show - window: ${!!this._window}, titlePopup: ${!!this._titlePopup}`);
             return;
@@ -490,8 +501,8 @@ class WindowPreview extends St.Button {
         this._stopCtrlPoll();
 
         // Don't start if no preview is showing
-        if (!this._hoverPreview && !this._titlePopup) {
-            journal(`[WindowPreview] _startCtrlPoll: No previews to monitor`);
+        if ((!this._hoverPreview && !this._titlePopup) || !this.hover) {
+            journal(`[WindowPreview] _startCtrlPoll: No previews or not hovering`);
             return;
         }
 
@@ -506,7 +517,7 @@ class WindowPreview extends St.Button {
 
     _checkCtrlKey() {
         // If no previews, stop polling
-        if (!this._hoverPreview && !this._titlePopup) {
+        if ((!this._hoverPreview && !this._titlePopup) || !this.hover) {
             journal(`[WindowPreview] _checkCtrlKey: No previews exist, stopping poll`);
             this._stopCtrlPoll();
             return GLib.SOURCE_REMOVE;
