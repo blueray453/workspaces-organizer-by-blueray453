@@ -587,6 +587,16 @@ class WindowPreview extends St.Button {
     }
 
     // SIMPLE POLLING METHODS
+    _stopCtrlPoll() {
+        if (this._ctrlPollId) {
+            // journal(`[WindowPreview] _stopCtrlPoll: Stopping timer ID ${this._ctrlPollId}`);
+            GLib.source_remove(this._ctrlPollId);
+            this._ctrlPollId = null;
+        } else {
+            // journal(`[WindowPreview] _stopCtrlPoll: No timer to stop`);
+        }
+    }
+
     _startCtrlPoll() {
         // Stop any existing poll
         this._stopCtrlPoll();
@@ -596,9 +606,6 @@ class WindowPreview extends St.Button {
             // journal(`[WindowPreview] _startCtrlPoll: No previews to monitor`);
             return;
         }
-
-        const previewType = this._hoverPreview ? 'hoverPreview' : 'titlePopup';
-        // journal(`[WindowPreview] _startCtrlPoll: Starting poll for ${previewType}`);
 
         this._ctrlPollId = GLib.timeout_add(
             GLib.PRIORITY_DEFAULT,
@@ -647,16 +654,6 @@ class WindowPreview extends St.Button {
         // journal(`[WindowPreview] _checkCtrlKey: No switch needed, continuing poll`);
         // No change needed, continue polling
         return GLib.SOURCE_CONTINUE;
-    }
-
-    _stopCtrlPoll() {
-        if (this._ctrlPollId) {
-            // journal(`[WindowPreview] _stopCtrlPoll: Stopping timer ID ${this._ctrlPollId}`);
-            GLib.source_remove(this._ctrlPollId);
-            this._ctrlPollId = null;
-        } else {
-            // journal(`[WindowPreview] _stopCtrlPoll: No timer to stop`);
-        }
     }
 
     _hideHoverPreview() {
