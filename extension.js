@@ -417,7 +417,7 @@ class WindowPreview extends St.Button {
 
         // Double-check that mouse is still hovering over this icon
         if (!this.hover) {
-            journal(`[WindowPreview] Mouse no longer on icon, aborting hover enter`);
+            // journal(`[WindowPreview] Mouse no longer on icon, aborting hover enter`);
             return;
         }
 
