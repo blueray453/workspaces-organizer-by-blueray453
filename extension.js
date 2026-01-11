@@ -15,14 +15,343 @@ import * as DND from 'resource:///org/gnome/shell/ui/dnd.js';
 
 import { setLogging, setLogFn, journal } from './utils.js'
 
-// gettext is provided via the Extension module import above
-
 const WorkspaceManager = global.get_workspace_manager();
 const WindowTracker = global.get_window_tracker();
 const Display = global.get_display();
 const TimeoutDelay = 200;
 
-// Represents a single window icon inside a workspace thumbnail.
+const States = {
+    IDLE: 'idle',                    // No hover, no previews
+    SHOWING_PREVIEW: 'showing_preview',  // Live window preview visible
+    SHOWING_TITLE: 'showing_title',      // Title popup visible
+    CLEANUP_DELAY: 'cleanup_delay',      // Waiting before cleanup
+};
+
+const PreviewRegistry = {
+    activePreview: null,
+
+    registerPreview(preview) {
+        if (this.activePreview && this.activePreview !== preview) {
+            // Another preview is active, hide it
+            this.activePreview._stateMachine.forceIdle('another preview activated');
+        }
+        this.activePreview = preview;
+    },
+
+    unregisterPreview(preview) {
+        if (this.activePreview === preview) {
+            this.activePreview = null;
+        }
+    }
+};
+
+// ==================== PREVIEW STATE MACHINE CLASS ====================
+
+class PreviewStateMachine {
+    constructor(callbacks) {
+        this._state = States.IDLE;
+        this._callbacks = callbacks;
+
+        // Timers
+        this._ctrlPollId = null;
+        this._cleanupTimeoutId = null;
+
+        // Ctrl key state
+        this._ctrlPressed = false;
+
+        journal(`[StateMachine] Initialized`);
+    }
+
+    get state() {
+        return this._state;
+    }
+
+    get isShowingPreview() {
+        return this._state === States.SHOWING_PREVIEW || this._state === States.SHOWING_TITLE;
+    }
+
+    /**
+     * Main transition method
+     */
+    transition(newState, reason = '') {
+        const oldState = this._state;
+
+        if (oldState === newState) {
+            journal(`[StateMachine] Already in state ${newState}, no transition needed`);
+            return;
+        }
+
+        journal(`[StateMachine] Transition: ${oldState} → ${newState}${reason ? ` (${reason})` : ''}`);
+
+        // Exit old state
+        this._exitState(oldState);
+
+        // Update state
+        this._state = newState;
+
+        // Enter new state
+        this._enterState(newState);
+
+        journal(`[StateMachine] Transition complete, now in ${this._state}`);
+    }
+
+    /**
+     * Exit state cleanup
+     */
+    _exitState(state) {
+        journal(`[StateMachine] Exiting state: ${state}`);
+
+        switch (state) {
+            case States.CLEANUP_DELAY:
+                this._stopCleanupTimer();
+                break;
+
+            case States.SHOWING_PREVIEW:
+            case States.SHOWING_TITLE:
+                // Stop Ctrl polling when leaving preview states
+                this._stopCtrlPoll();
+                break;
+        }
+    }
+
+    /**
+     * Enter state setup
+     */
+    _enterState(state) {
+        journal(`[StateMachine] Entering state: ${state}, ctrlPressed=${this._ctrlPressed}`);
+
+        this._stopCleanupTimer();
+
+        switch (state) {
+            case States.SHOWING_PREVIEW:
+                this._callbacks.onShowPreview();
+                this._startCtrlPoll();
+                break;
+
+            case States.SHOWING_TITLE:
+                this._callbacks.onShowTitle();
+                this._startCtrlPoll();
+                break;
+
+            case States.CLEANUP_DELAY:
+                this._startCleanupTimer();
+                break;
+
+            case States.IDLE:
+                this._callbacks.onHideAll();
+                break;
+        }
+    }
+
+    /**
+     * Handle hover enter on the icon
+     */
+    onIconHoverEnter() {
+        journal(`[StateMachine] Icon hover enter, current state: ${this._state}`);
+
+        if (this._state === States.CLEANUP_DELAY) {
+            // Cancel cleanup and return to preview
+            journal(`[StateMachine] Cancelling cleanup, returning to preview`);
+            this._checkCtrlKeyState();
+            this.transition(
+                this._ctrlPressed ? States.SHOWING_TITLE : States.SHOWING_PREVIEW,
+                'hover re-entered during cleanup'
+            );
+        } else if (this._state === States.IDLE) {
+            // Start showing preview
+            this._checkCtrlKeyState();
+            this.transition(
+                this._ctrlPressed ? States.SHOWING_TITLE : States.SHOWING_PREVIEW,
+                'initial hover'
+            );
+        }
+    }
+
+    /**
+     * Handle hover leave on the icon
+     */
+    onIconHoverLeave() {
+        journal(`[StateMachine] Icon hover leave, current state: ${this._state}`);
+
+        if (this._state === States.SHOWING_PREVIEW || this._state === States.SHOWING_TITLE) {
+            // Start cleanup delay
+            this.transition(States.CLEANUP_DELAY, 'icon hover left');
+        }
+    }
+
+    /**
+     * Handle preview hover enter
+     */
+    onPreviewHoverEnter() {
+        journal(`[StateMachine] Preview hover enter, current state: ${this._state}`);
+
+        if (this._state === States.CLEANUP_DELAY) {
+            // Cancel cleanup and return to preview
+            journal(`[StateMachine] Preview hovered, cancelling cleanup`);
+            this._checkCtrlKeyState();
+            this.transition(
+                this._ctrlPressed ? States.SHOWING_TITLE : States.SHOWING_PREVIEW,
+                'preview hovered during cleanup'
+            );
+        }
+    }
+
+    /**
+     * Handle preview hover leave
+     */
+    onPreviewHoverLeave(iconHovered) {
+        journal(`[StateMachine] Preview hover leave, iconHovered: ${iconHovered}, current state: ${this._state}`);
+
+        // Don't check iconHovered - always trigger cleanup when preview is left
+        // This ensures cleanup happens even when moving directly to another icon
+        if (this.isShowingPreview) {
+            this.transition(States.CLEANUP_DELAY, 'preview hover left');
+        }
+    }
+
+    /**
+     * Force transition to IDLE (e.g., on click or workspace change)
+     */
+    forceIdle(reason = '') {
+        journal(`[StateMachine] Forcing IDLE state${reason ? `: ${reason}` : ''}`);
+        this.transition(States.IDLE, reason);
+    }
+
+    // ==================== CTRL KEY POLLING ====================
+
+    /**
+     * Check current Ctrl key state
+     */
+    _checkCtrlKeyState() {
+        const [, , mods] = global.get_pointer();
+        this._ctrlPressed = (mods & Clutter.ModifierType.CONTROL_MASK) !== 0;
+        journal(`[StateMachine] Checked Ctrl state: ${this._ctrlPressed}`);
+    }
+
+    /**
+     * Start polling for Ctrl key changes
+     */
+    _startCtrlPoll() {
+        this._stopCtrlPoll();
+
+        journal(`[StateMachine] Starting Ctrl poll`);
+
+        this._ctrlPollId = GLib.timeout_add(
+            GLib.PRIORITY_DEFAULT,
+            100, // Poll every 100ms
+            this._onCtrlPollTick.bind(this)
+        );
+    }
+
+    /**
+     * Stop polling for Ctrl key changes
+     */
+    _stopCtrlPoll() {
+        if (this._ctrlPollId) {
+            journal(`[StateMachine] Stopping Ctrl poll ID ${this._ctrlPollId}`);
+            GLib.source_remove(this._ctrlPollId);
+            this._ctrlPollId = null;
+        }
+    }
+
+    /**
+     * Ctrl poll tick handler
+     */
+    _onCtrlPollTick() {
+        const hasPreview = (this._state === States.SHOWING_PREVIEW && this._callbacks.hasPreview()) ||
+            (this._state === States.SHOWING_TITLE && this._callbacks.hasTitle());
+
+        if (!hasPreview) {
+            journal(`[StateMachine] Poll check: Preview/title missing, forcing IDLE`);
+            this.forceIdle('preview missing during poll');
+            return GLib.SOURCE_REMOVE;
+        }
+
+        // Check if we should still be polling
+        if (!this.isShowingPreview) {
+            journal(`[StateMachine] Not showing preview, stopping Ctrl poll`);
+            this._stopCtrlPoll();
+            return GLib.SOURCE_REMOVE;
+        }
+
+        // Check for Ctrl key state change
+        const [, , mods] = global.get_pointer();
+        const ctrlDown = (mods & Clutter.ModifierType.CONTROL_MASK) !== 0;
+
+        if (ctrlDown !== this._ctrlPressed) {
+            this._ctrlPressed = ctrlDown;
+            journal(`[StateMachine] Ctrl state changed: ${this._ctrlPressed}`);
+
+            // Switch preview type
+            if (this._state === States.SHOWING_PREVIEW && ctrlDown) {
+                this.transition(States.SHOWING_TITLE, 'Ctrl pressed');
+            } else if (this._state === States.SHOWING_TITLE && !ctrlDown) {
+                this.transition(States.SHOWING_PREVIEW, 'Ctrl released');
+            }
+        }
+
+        return GLib.SOURCE_CONTINUE;
+    }
+
+    // ==================== CLEANUP TIMER ====================
+
+    /**
+     * Start cleanup delay timer
+     */
+    _startCleanupTimer() {
+        this._stopCleanupTimer();
+
+        journal(`[StateMachine] Starting cleanup timer`);
+
+        this._cleanupTimeoutId = GLib.timeout_add(
+            GLib.PRIORITY_DEFAULT,
+            TimeoutDelay,
+            () => {
+                journal(`[StateMachine] Cleanup timer fired, checking hover states`);
+
+                // Check if callback says we should abort
+                if (this._callbacks.shouldAbortCleanup()) {
+                    journal(`[StateMachine] Cleanup aborted - still hovering`);
+                    this._cleanupTimeoutId = null;
+                    return GLib.SOURCE_REMOVE;
+                }
+
+                // Proceed with cleanup
+                this.transition(States.IDLE, 'cleanup timer completed');
+                this._cleanupTimeoutId = null;
+                return GLib.SOURCE_REMOVE;
+            }
+        );
+    }
+
+    /**
+     * Stop cleanup timer
+     */
+    _stopCleanupTimer() {
+        if (this._cleanupTimeoutId) {
+            journal(`[StateMachine] Stopping cleanup timer ID ${this._cleanupTimeoutId}`);
+            GLib.source_remove(this._cleanupTimeoutId);
+            this._cleanupTimeoutId = null;
+        }
+    }
+
+    /**
+     * Cleanup all resources
+     */
+    destroy() {
+        journal(`[StateMachine] Destroying, current state: ${this._state}`);
+
+        this._stopCtrlPoll();
+        this._stopCleanupTimer();
+
+        this._callbacks = null;
+
+        journal(`[StateMachine] Destroyed`);
+    }
+}
+
+// ==================== WINDOW PREVIEW CLASS ====================
+
 class WindowPreview extends St.Button {
     static {
         GObject.registerClass(this);
@@ -31,179 +360,80 @@ class WindowPreview extends St.Button {
     constructor(window) {
         super({
             reactive: true,
-            track_hover: true,  // Enable built-in hover tracking
+            track_hover: true,
         });
 
         this._window = window;
+        this.icon_size = 96;
 
+        // UI elements
         this._hoverPreview = null;
         this._titlePopup = null;
+        this._contextMenu = null;
 
-        this._ctrlPollId = null;
-
+        // DND setup
         this._delegate = this;
         DND.makeDraggable(this, { restoreOnSuccess: true });
 
-        this.icon_size = 96;
+        // Initialize state machine
+        this._stateMachine = new PreviewStateMachine({
+            onShowPreview: this._showHoverPreview.bind(this),
+            onShowTitle: this._showTitlePopup.bind(this),
+            onHideAll: this._hideAllPreviews.bind(this),
+            shouldAbortCleanup: this._shouldAbortCleanup.bind(this),
+            hasPreview: () => !!this._hoverPreview,
+            hasTitle: () => !!this._titlePopup,
+        });
 
+        // Initialize icon
         this._updateIcon();
 
+        // Connect window signals
         this._wmClassChangedId = this._window.connect('notify::wm-class',
             this._updateIcon.bind(this));
         this._mappedId = this._window.connect('notify::mapped',
             this._updateIcon.bind(this));
 
-        // Single hover signal handler
+        // Connect hover signal with debounce
+        this._hoverTimeoutId = null;
         this._hoverSignalId = this.connect('notify::hover', () => {
-            journal(`[WindowPreview] notify::hover: hover=${this.hover}, ctrlPollId=${this._ctrlPollId}`);
+            journal(`[WindowPreview] notify::hover: hover=${this.hover}, state=${this._stateMachine.state}`);
 
-            if (this.hover) {
-                // CANCEL any pending cleanup timeout
-                // You need to track this timeout ID
-                if (this._cleanupTimeoutId) {
-                    GLib.source_remove(this._cleanupTimeoutId);
-                    this._cleanupTimeoutId = null;
-                }
-                // Check for Ctrl key when hovered
-                const [, , mods] = global.get_pointer();
-                const ctrlDown = (mods & Clutter.ModifierType.CONTROL_MASK) !== 0;
-
-                journal(`[WindowPreview] Hover started with Ctrl: ${ctrlDown}, ACTUAL hoverPreview: ${!!this._hoverPreview}, titlePopup: ${!!this._titlePopup}`);
-
-                if (ctrlDown) {
-                    // Hide hover preview if it exists
-                    this._hideHoverPreview();
-                    // Show title popup when Ctrl is held
-                    this._showTitlePopup();
-                } else {
-                    // Hide title popup if it exists
-                    this._hideTitlePopup();
-                    // Show regular preview when no Ctrl key
-                    this._showHoverPreview();
-                }
-            } else {
-                this._stopCtrlPoll();
-                this._cleanupTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, TimeoutDelay, () => {
-                    journal(`[WindowPreview] Hover ended, hoverPreview: ${!!this._hoverPreview}, titlePopup: ${!!this._titlePopup}`);
-                    // When unhovered, check if we're hovering over the preview
-                    if (this._hoverPreview && !this._hoverPreview.hover) {
-                        journal(`[WindowPreview] HoverPreview not hovered, hiding it`);
-                        this._hideHoverPreview();
-                    }
-                    // If we are hovering over the preview, don't hide - wait for preview's hover signal
-                    this._cleanupTimeoutId = null;
-                    return GLib.SOURCE_REMOVE;
-                });
-
-                if (this._titlePopup && !this._titlePopup.hover) {
-                    journal(`[WindowPreview] TitlePopup not hovered, hiding it`);
-                    this._hideTitlePopup();
-                }
+            // Clear existing timeout
+            if (this._hoverTimeoutId) {
+                GLib.source_remove(this._hoverTimeoutId);
+                this._hoverTimeoutId = null;
             }
-        });
 
-        this._buttonPressedId = this.connect('button-press-event', (actor, event) => {
+            // Debounce hover changes
+            this._hoverTimeoutId = GLib.timeout_add(
+                GLib.PRIORITY_DEFAULT,
+                50, // Reduced from 200ms for faster response
+                () => {
+                    this._hoverTimeoutId = null;
 
-            let button = event.get_button();
-
-            if (button === Clutter.BUTTON_PRIMARY) {
-                this._hideHoverPreview();
-                this._hideTitlePopup();
-
-                const win = this._window;
-                const currentWs = WorkspaceManager.get_active_workspace();
-                const winWs = win.get_workspace();
-
-                if (winWs === currentWs) {
-                    // window is on current workspace → toggle minimize
-                    if (win.minimized) {
-                        win.unminimize();
-                        win.activate_with_workspace(0, winWs);
-                    } else if (this._is_covered(win)) {
-                        win.activate_with_workspace(0, winWs);
+                    if (this.hover) {
+                        // Register this preview as active
+                        PreviewRegistry.registerPreview(this);
+                        this._stateMachine.onIconHoverEnter();
                     } else {
-                        win.minimize();
+                        this._stateMachine.onIconHoverLeave();
                     }
-                    return Clutter.EVENT_STOP;
+
+                    return GLib.SOURCE_REMOVE;
                 }
-                // Window is on different workspace - switch to it
-                winWs.activate_with_focus(win, 0);
-                return Clutter.EVENT_STOP;
-            }
-
-            if (button === Clutter.BUTTON_SECONDARY) {
-                journal(`[WindowPreview] Right click detected, hiding all previews`);
-                let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP);
-
-                // menu - This is the PopupMenu JavaScript object.
-                // It's not a visual actor itself
-                // menu.box - This is the actual St.BoxLayout actor
-                // PopupMenu(JavaScript object)
-                // ├─ actor(St.Widget - the outer container)
-                // └─ box(St.BoxLayout - contains the menu items)
-                //     ├─ PopupMenuItem 1
-                //     ├─ PopupMenuItem 2
-                //     └─ ...
-
-                menu.box.add_style_class_name('workspace-context-menu');
-                this._contextMenu = menu; // keep a reference
-                let manager = new PopupMenu.PopupMenuManager(this);
-                manager.addMenu(menu);
-                Main.uiGroup.add_child(menu.actor);
-                // journal(`Main.uiGroup: ${Main.uiGroup.get_compositor_private()}`);
-                // Main.panel._menus.addMenu(menu);
-
-                menu.addAction(`Activate ${this._window.title}`, () => {
-                    let win_workspace = this._window.get_workspace();
-                    win_workspace.activate_with_focus(this._window, 0);
-                });
-
-                menu.addAction(`Close ${this._window.title}`, () => {
-                    this._window.delete(0);
-                });
-
-                // menu.addAction(`Close all windows on workspace ${this._window.get_workspace().index()}`, () => {
-                //     let windows = this._window.get_workspace().list_windows();
-                //     windows.forEach(window => {
-                //         if (window.get_window_type() === 0) {
-                //             journal(`Closing window: ${window.get_title()}`);
-                //             window.delete(0);
-                //         }
-                //     });
-                // });
-
-                // ADD THESE LINES FOR DESKTOP ACTIONS
-                const app = WindowTracker.get_window_app(this._window);
-                const appInfo = app?.get_app_info();
-                const actions = appInfo?.list_actions();
-
-                // Only add desktop actions if there are more than 0 actions
-                if (actions && actions.length > 0) {
-                    menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-                    actions.forEach(action => {
-
-                        menu.addAction(`${appInfo.get_action_name(action)}`, () => {
-                            // https://gjs-docs.gnome.org/shell16~16/shell.app#method-launch_action
-                            app.launch_action(action, 0, -1)
-                        });
-                    });
-                }
-
-                menu.open(true);
-
-                if (menu._boxPointer) {
-                    menu._boxPointer.translation_y = -35;
-                }
-
-                return Clutter.EVENT_STOP;
-            }
+            );
         });
 
+        // Connect button press signal
+        this._buttonPressedId = this.connect('button-press-event',
+            this._onButtonPressed.bind(this));
+
+        // Connect workspace change signal
         this._wsChangedId = WorkspaceManager.connect('workspace-switched', () => {
-            journal(`[WindowPreview] Workspace switched, hiding all previews`);
-            this._hideAllPreviews();
-            // this._hideHoverPreview();
-            // this._hideTitlePopup();
+            journal(`[WindowPreview] Workspace switched`);
+            this._stateMachine.forceIdle('workspace switched');
+
             if (this._contextMenu) {
                 this._contextMenu.close();
                 this._contextMenu = null;
@@ -211,72 +441,92 @@ class WindowPreview extends St.Button {
         });
     }
 
-    _is_covered(window) {
-        if (window.minimized) { return false; }
-        let current_workspace = WorkspaceManager.get_active_workspace();
+    // ==================== EVENT HANDLERS ====================
 
-        // Get windows on the current workspace in stacking order
-        let windows_by_stacking = Display.sort_windows_by_stacking(global.get_window_actors().map(actor => actor.meta_window).filter(win => win.get_window_type() === Meta.WindowType.NORMAL)).filter(win =>
-            win.get_workspace() === current_workspace
-        );
+    _onButtonPressed(actor, event) {
+        let button = event.get_button();
 
-        // // Find the target window
-        // let targetWin = windows_by_stacking.find(win => win.get_id() === window.get_id());
-        // if (!targetWin) return false;
-        let targetRect = window.get_frame_rect();
-        let targetIndex = windows_by_stacking.indexOf(window);
+        if (button === Clutter.BUTTON_PRIMARY) {
+            journal(`[WindowPreview] Left click detected`);
+            this._stateMachine.forceIdle('left click');
 
-        // Check only windows above the target in stacking order
-        for (let i = targetIndex + 1; i < windows_by_stacking.length; i++) {
-            let topWin = windows_by_stacking[i];
-            let topRect = topWin.get_frame_rect();
+            const win = this._window;
+            const currentWs = WorkspaceManager.get_active_workspace();
+            const winWs = win.get_workspace();
 
-            // Check if topWin fully covers window
-            if (
-                topRect.x <= targetRect.x &&
-                topRect.y <= targetRect.y &&
-                topRect.x + topRect.width >= targetRect.x + targetRect.width &&
-                topRect.y + topRect.height >= targetRect.y + targetRect.height
-            ) {
-                return true;
+            if (winWs === currentWs) {
+                if (win.minimized) {
+                    win.unminimize();
+                    win.activate_with_workspace(0, winWs);
+                } else if (this._is_covered(win)) {
+                    win.activate_with_workspace(0, winWs);
+                } else {
+                    win.minimize();
+                }
+                return Clutter.EVENT_STOP;
             }
+            winWs.activate_with_focus(win, 0);
+            return Clutter.EVENT_STOP;
         }
 
-        return false; // no window fully covers it
+        if (button === Clutter.BUTTON_SECONDARY) {
+            journal(`[WindowPreview] Right click detected`);
+            this._stateMachine.forceIdle('right click');
+            this._showContextMenu();
+            return Clutter.EVENT_STOP;
+        }
     }
 
+    _shouldAbortCleanup() {
+        const iconHovered = this.hover;
+        const previewHovered = this._hoverPreview?.hover || false;
+        const titleHovered = this._titlePopup?.hover || false;
+
+        const shouldAbort = iconHovered || previewHovered || titleHovered;
+
+        journal(`[WindowPreview] shouldAbortCleanup: icon=${iconHovered}, preview=${previewHovered}, title=${titleHovered} → ${shouldAbort}`);
+
+        return shouldAbort;
+    }
+
+    // ==================== PREVIEW METHODS ====================
+
     _showHoverPreview() {
-        if (!this.hover) {
+        journal(`[WindowPreview] _showHoverPreview: Starting`);
+
+        if (!this._window) {
+            journal(`[WindowPreview] _showHoverPreview: No window`);
             return;
         }
 
-        // Early exit conditions
-        if (!this._window || this._hoverPreview) {
-            journal(`[WindowPreview] _showHoverPreview: Cannot show - window: ${!!this._window}, hoverPreview: ${!!this._hoverPreview}`);
+        // Hide title popup if it exists
+        this._hideTitlePopup();
+
+        // Don't recreate if already exists
+        if (this._hoverPreview) {
+            journal(`[WindowPreview] _showHoverPreview: Preview already exists`);
             return;
         }
 
-        journal(`[WindowPreview] _showHoverPreview: Starting...`);
-        journal(`[WindowPreview] _showHoverPreview: Starting - titlePopup exists: ${!!this._titlePopup}`);
+        // Abort if mouse left before we could create preview
+        if (!this.hover && (!this._hoverPreview || !this._hoverPreview.hover)) {
+            journal(`[WindowPreview] _showHoverPreview: Mouse no longer hovering, aborting`);
+            this._stateMachine._stopCtrlPoll();
+            return;
+        }
 
-        // === Clone Code ===
+        // Clone window for preview
         const windowPreviewWidth = this.get_width();
         const [windowPreviewX, windowPreviewY] = this.get_transformed_position();
-        // The visible frame rectangle of the window (excluding shadows)
         const windowFrame = this._window.get_frame_rect();
 
-        // Calculate preview dimensions
         const previewHeight = 800;
         const previewWidth = previewHeight * (windowFrame.width / windowFrame.height);
 
-        // Calculate preview position
         let previewX = Math.max(0, windowPreviewX + (windowPreviewWidth - previewWidth) / 2);
         const previewY = windowPreviewY - previewHeight - 64;
 
-        // Calculate scaled shadows
-        // The full buffer (including shadows)
         const bufferFrame = this._window.get_buffer_rect();
-
         const scale = previewHeight / windowFrame.height;
 
         const scaledLeftShadow = (windowFrame.x - bufferFrame.x) * scale;
@@ -301,7 +551,6 @@ class WindowPreview extends St.Button {
         // innerContainer → the glass / mask inside the frame
         // clone → the photo inside, which may have a little overhang(shadows)
         // The glass cuts off anything sticking out, but the frame is always visible.
-        //
         const innerContainer = new St.BoxLayout({
             style_class: 'hover-preview-inner',
             width: previewWidth,
@@ -318,7 +567,7 @@ class WindowPreview extends St.Button {
 
         clone.set_position(-scaledLeftShadow, -scaledTopShadow);
 
-        // === ADD CLOSE BUTTON ===
+        // Close button
         const closeButton = new St.Button({
             style_class: 'window-close-button',
             child: new St.Icon({
@@ -330,17 +579,14 @@ class WindowPreview extends St.Button {
             reactive: true,
         });
 
-        // Position close button at top-right corner
         closeButton.set_position(previewWidth - 60, 10);
-
         closeButton.connect('clicked', () => {
             this._window.delete(global.get_current_time());
-            this._hideHoverPreview();
+            this._stateMachine.forceIdle('close button clicked');
             return Clutter.EVENT_STOP;
         });
-        // === END CLOSE BUTTON ===
 
-        // BUILD HIERARCHY
+        // Build hierarchy
         // The cloneContainer might seem redundant at first
         // The cloneContainer acts as a positioning canvas
         // Gives you a reliable coordinate system for precise positioning
@@ -351,12 +597,10 @@ class WindowPreview extends St.Button {
         innerContainer.add_child(cloneContainer);
         outerWrapper.add_child(innerContainer);
 
-        // Show and animate preview
         this._hoverPreview = outerWrapper;
         Main.layoutManager.addChrome(this._hoverPreview);
 
         this._hoverPreview.opacity = 0;
-
         this._hoverPreview.ease({
             opacity: 255,
             duration: TimeoutDelay,
@@ -367,78 +611,52 @@ class WindowPreview extends St.Button {
         outerWrapper.connect('notify::hover', () => {
             journal(`[WindowPreview] HoverPreview hover changed: ${outerWrapper.hover}, button hover: ${this.hover}`);
 
-            GLib.timeout_add(GLib.PRIORITY_DEFAULT, TimeoutDelay, () => {
-                if (!outerWrapper.hover && !this.hover) {
-                    this._hideHoverPreview();
-                }
-                return GLib.SOURCE_REMOVE;
-            });
+            if (outerWrapper.hover) {
+                // Mouse entered preview
+                this._stateMachine.onPreviewHoverEnter();
+            } else {
+                // Mouse left preview
+                this._stateMachine.onPreviewHoverLeave();
+            }
         });
 
         outerWrapper.connect('button-press-event', (actor, event) => {
             if (event.get_button() === Clutter.BUTTON_PRIMARY) {
                 this._window.get_workspace().activate_with_focus(this._window, 0);
-                this._hideHoverPreview();
+                this._stateMachine.forceIdle('preview clicked');
                 return Clutter.EVENT_STOP;
             }
             return Clutter.EVENT_PROPAGATE;
         });
 
-        // // this.set_can_focus(true);
-        // this.grab_key_focus();
-
-        // this.connect('key-press-event', (actor, event) => {
-        //     const key = event.get_key_symbol();
-
-        //     if ((key === Clutter.KEY_Control_L || key === Clutter.KEY_Control_R) && this._hoverPreview) {
-        //         // Hide current thumbnail
-        //         this._hideHoverPreview();
-        //         // Show title popup instead
-        //         this._showTitlePopup();
-        //         return Clutter.EVENT_STOP;
-        //     }
-
-        //     return Clutter.EVENT_PROPAGATE;
-        // });
-
-        journal(`[WindowPreview] _showHoverPreview: Completed successfully`);
-        journal(`[WindowPreview] _showHoverPreview: Completed, starting poll`);
-        this._startCtrlPoll();
+        journal(`[WindowPreview] _showHoverPreview: Completed`);
     }
 
-    // _showTitlePopup() is a fallback hover UI.
-
-    // When you hover a window preview while holding Ctrl,
-    // instead of showing the big live window preview,
-    // this function shows a small text label with the window title.
-
-    // However it creates a bug due to the use of grab_key_focus
-    // Some keybindings stop working.
-    // This is why removing this feature
-
     _showTitlePopup() {
-        // Don't show if already showing or no window
-        if (!this.hover) {
-            journal(`[WindowPreview] Mouse left icon, aborting _showTitlePopup`);
+        journal(`[WindowPreview] _showTitlePopup: Starting`);
+
+        if (!this._window) {
+            journal(`[WindowPreview] _showTitlePopup: No window`);
             return;
         }
 
-        if (!this._window || this._titlePopup) {
-            journal(`[WindowPreview] _showTitlePopup: Cannot show - window: ${!!this._window}, titlePopup: ${!!this._titlePopup}`);
+        // Hide hover preview if it exists
+        this._hideHoverPreview();
+
+        // Don't recreate if already exists
+        if (this._titlePopup) {
+            journal(`[WindowPreview] _showTitlePopup: Popup already exists`);
             return;
         }
 
-        journal(`[WindowPreview] _showTitlePopup: Starting...`);
-        journal(`[WindowPreview] _showTitlePopup: Starting - hoverPreview exists: ${!!this._hoverPreview}`);
-
-        // Double-check that mouse is still hovering over this icon
+        // Abort if mouse left before we could create popup
         if (!this.hover) {
-            journal(`[WindowPreview] Mouse no longer on icon, aborting hover enter`);
+            journal(`[WindowPreview] _showTitlePopup: Mouse no longer hovering, aborting`);
+            this._stateMachine._stopCtrlPoll();
             return;
         }
 
         let [labelX, labelY] = this.get_transformed_position();
-
         const title = this._window.get_title() || "Untitled Window";
 
         const label = new St.Label({
@@ -450,12 +668,9 @@ class WindowPreview extends St.Button {
 
         labelX = Math.max(0, labelX);
         labelY = labelY - 105;
-
         label.set_position(labelX, labelY);
 
-        // For consistency with your API:
         this._titlePopup = label;
-
         Main.layoutManager.addChrome(label);
 
         label.opacity = 0;
@@ -465,133 +680,45 @@ class WindowPreview extends St.Button {
             mode: Clutter.AnimationMode.EASE_OUT_QUAD,
         });
 
-        // Hide when mouse leaves both icon and label
         label.connect("notify::hover", () => {
-            if (!label.hover && !this.hover) {
-                journal(`[WindowPreview] TitlePopup not hovered, hiding it`);
-                this._hideTitlePopup();
+            journal(`[WindowPreview] TitlePopup hover changed: ${label.hover}, button hover: ${this.hover}`);
+
+            if (label.hover) {
+                // Mouse entered title popup
+                this._stateMachine.onPreviewHoverEnter();
+            } else {
+                // Mouse left title popup
+                this._stateMachine.onPreviewHoverLeave(this.hover);
             }
         });
 
-        // // label.set_can_focus(true);
-        // label.grab_key_focus();
-
-        // label.connect('key-release-event', (actor, event) => {
-        //     const key = event.get_key_symbol();
-        //     if (key === Clutter.KEY_Control_L || key === Clutter.KEY_Control_R) {
-        //         this._hideTitlePopup();
-        //         this._showHoverPreview();
-        //     }
-        //     return Clutter.EVENT_PROPAGATE;
-        // });
-
-        journal(`[WindowPreview] _showTitlePopup: Completed successfully`);
-        journal(`[WindowPreview] _showTitlePopup: Completed, starting poll`);
-        this._startCtrlPoll();
-    }
-
-    // SIMPLE POLLING METHODS
-    _stopCtrlPoll() {
-        if (this._ctrlPollId) {
-            journal(`[WindowPreview] _stopCtrlPoll: Stopping timer ID ${this._ctrlPollId}`);
-            GLib.source_remove(this._ctrlPollId);
-            this._ctrlPollId = null;
-        } else {
-            journal(`[WindowPreview] _stopCtrlPoll: No timer to stop`);
-        }
-    }
-
-    _startCtrlPoll() {
-        // Stop any existing poll
-        this._stopCtrlPoll();
-
-        // Don't start if no preview is showing
-        if ((!this._hoverPreview && !this._titlePopup) || !this.hover) {
-            journal(`[WindowPreview] _startCtrlPoll: No previews or not hovering`);
-            return;
-        }
-
-        this._ctrlPollId = GLib.timeout_add(
-            GLib.PRIORITY_DEFAULT,
-            TimeoutDelay,
-            this._checkCtrlKey.bind(this)
-        );
-
-        journal(`[WindowPreview] _startCtrlPoll: Timer started with ID ${this._ctrlPollId}`);
-    }
-
-    _checkCtrlKey() {
-        // If not hovering, stop immediately
-        if (!this.hover) {
-            this._stopCtrlPoll();
-            return GLib.SOURCE_REMOVE;
-        }
-
-        // If no previews, stop polling
-        if (!this._hoverPreview && !this._titlePopup) {
-            journal(`[WindowPreview] _checkCtrlKey: No previews exist, stopping poll`);
-            this._stopCtrlPoll();
-            return GLib.SOURCE_REMOVE;
-        }
-
-        // Check Ctrl key state
-        const [, , mods] = global.get_pointer();
-        const ctrlDown = (mods & Clutter.ModifierType.CONTROL_MASK) !== 0;
-
-        journal(`[WindowPreview] _checkCtrlKey: Timer ${this._ctrlPollId} - hoverPreview: ${!!this._hoverPreview}, titlePopup: ${!!this._titlePopup}, ctrlDown: ${ctrlDown}`);
-
-        // Switch if needed
-        if (this._hoverPreview && ctrlDown) {
-            journal(`[WindowPreview] _checkCtrlKey: Switching from hoverPreview to titlePopup`);
-            // Switch from hover preview to title popup
-            this._hideHoverPreview();
-            this._showTitlePopup();
-            return GLib.SOURCE_REMOVE;
-        }
-
-        if (this._titlePopup && !ctrlDown) {
-            journal(`[WindowPreview] _checkCtrlKey: Switching from titlePopup to hoverPreview`);
-            // Switch from title popup to hover preview
-            this._hideTitlePopup();
-            this._showHoverPreview();
-            return GLib.SOURCE_REMOVE;
-        }
-
-        journal(`[WindowPreview] _checkCtrlKey: No switch needed, continuing poll`);
-        // No change needed, continue polling
-        return GLib.SOURCE_CONTINUE;
+        journal(`[WindowPreview] _showTitlePopup: Completed`);
     }
 
     _hideHoverPreview() {
+        journal(`[WindowPreview] _hideHoverPreview: Starting`);
+
         if (!this._hoverPreview) {
-            journal(`[WindowPreview] _hideHoverPreview: No hoverPreview to hide`);
+            journal(`[WindowPreview] _hideHoverPreview: No preview to hide`);
             return;
         }
 
-        this._stopCtrlPoll();
-
-        journal(`[WindowPreview] _hideHoverPreview: Hiding hoverPreview`);
-
-        // Remove the hover signal from preview before destroying
         const wrapper = this._hoverPreview;
         this._hoverPreview = null;
 
         Main.layoutManager.removeChrome(wrapper);
         wrapper.destroy();
 
-        journal(`[WindowPreview] _hideHoverPreview: Cleanup complete`);
+        journal(`[WindowPreview] _hideHoverPreview: Completed`);
     }
 
     _hideTitlePopup() {
+        journal(`[WindowPreview] _hideTitlePopup: Starting`);
+
         if (!this._titlePopup) {
-            journal(`[WindowPreview] _hideTitlePopup: No titlePopup to hide`);
+            journal(`[WindowPreview] _hideTitlePopup: No popup to hide`);
             return;
         }
-
-        journal(`[WindowPreview] _hideTitlePopup: Hiding titlePopup, stopping poll`);
-        this._stopCtrlPoll();
-
-        journal(`[WindowPreview] _hideTitlePopup: Hiding titlePopup`);
 
         const popup = this._titlePopup;
         this._titlePopup = null;
@@ -599,7 +726,7 @@ class WindowPreview extends St.Button {
         Main.layoutManager.removeChrome(popup);
         popup.destroy();
 
-        journal(`[WindowPreview] _hideTitlePopup: Cleanup complete`);
+        journal(`[WindowPreview] _hideTitlePopup: Completed`);
     }
 
     _hideAllPreviews() {
@@ -608,7 +735,90 @@ class WindowPreview extends St.Button {
         this._hideTitlePopup();
     }
 
-    // needed for DND
+    // ==================== CONTEXT MENU ====================
+
+    _showContextMenu() {
+        let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP);
+
+        // menu - This is the PopupMenu JavaScript object.
+        // It's not a visual actor itself
+        // menu.box - This is the actual St.BoxLayout actor
+        // PopupMenu(JavaScript object)
+        // ├─ actor(St.Widget - the outer container)
+        // └─ box(St.BoxLayout - contains the menu items)
+        //     ├─ PopupMenuItem 1
+        //     ├─ PopupMenuItem 2
+        //     └─ ...
+
+        menu.box.add_style_class_name('workspace-context-menu');
+        this._contextMenu = menu;
+        let manager = new PopupMenu.PopupMenuManager(this);
+        manager.addMenu(menu);
+        Main.uiGroup.add_child(menu.actor);
+
+        menu.addAction(`Activate ${this._window.title}`, () => {
+            let win_workspace = this._window.get_workspace();
+            win_workspace.activate_with_focus(this._window, 0);
+        });
+
+        menu.addAction(`Close ${this._window.title}`, () => {
+            this._window.delete(0);
+        });
+
+        // Add desktop actions
+        const app = WindowTracker.get_window_app(this._window);
+        const appInfo = app?.get_app_info();
+        const actions = appInfo?.list_actions();
+
+        if (actions && actions.length > 0) {
+            menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+            actions.forEach(action => {
+                menu.addAction(`${appInfo.get_action_name(action)}`, () => {
+                    // https://gjs-docs.gnome.org/shell16~16/shell.app#method-launch_action
+                    app.launch_action(action, 0, -1);
+                });
+            });
+        }
+
+        menu.open(true);
+
+        if (menu._boxPointer) {
+            menu._boxPointer.translation_y = -35;
+        }
+    }
+
+    // ==================== UTILITY METHODS ====================
+
+    _is_covered(window) {
+        if (window.minimized) { return false; }
+        let current_workspace = WorkspaceManager.get_active_workspace();
+
+        let windows_by_stacking = Display.sort_windows_by_stacking(
+            global.get_window_actors()
+                .map(actor => actor.meta_window)
+                .filter(win => win.get_window_type() === Meta.WindowType.NORMAL)
+        ).filter(win => win.get_workspace() === current_workspace);
+
+        let targetRect = window.get_frame_rect();
+        let targetIndex = windows_by_stacking.indexOf(window);
+
+        for (let i = targetIndex + 1; i < windows_by_stacking.length; i++) {
+            let topWin = windows_by_stacking[i];
+            let topRect = topWin.get_frame_rect();
+
+            if (
+                topRect.x <= targetRect.x &&
+                topRect.y <= targetRect.y &&
+                topRect.x + topRect.width >= targetRect.x + targetRect.width &&
+                topRect.y + topRect.height >= targetRect.y + targetRect.height
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     get realWindow() {
         return this._window.get_compositor_private();
     }
@@ -636,27 +846,6 @@ class WindowPreview extends St.Button {
             this.set_child(iconActor);
         }
 
-        // let rect = new Mtk.Rectangle();
-        // [rect.x, rect.y] = [0, global.screen_height];
-        // [rect.width, rect.height] = [0,0];
-        // this._window.set_icon_geometry(rect);
-
-        // // Wait for the next tick to ensure icon is properly positioned
-        // this._updateIconIdleId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
-        //     if (!iconActor) {
-        //         return GLib.SOURCE_REMOVE; // exit early, nothing to do
-        //     }
-
-        //     if (!iconActor.get_stage()) return GLib.SOURCE_CONTINUE;
-
-        //     const rect = new Mtk.Rectangle();
-        //     [rect.x, rect.y] = iconActor.get_transformed_position();
-        //     [rect.width, rect.height] = iconActor.get_transformed_size();
-        //     this._window.set_icon_geometry(rect);
-        //     return GLib.SOURCE_REMOVE;
-        // });
-
-
         iconActor.connect('stage-views-changed', (actor) => {
             const rect = new Mtk.Rectangle();
             [rect.x, rect.y] = iconActor.get_transformed_position();
@@ -668,23 +857,22 @@ class WindowPreview extends St.Button {
     }
 
     destroy() {
-        // Disconnect the single hover signal
+        journal(`[WindowPreview] destroy: Cleaning up, current state=${this._stateMachine.state}`);
+
+        // Unregister from preview registry
+        PreviewRegistry.unregisterPreview(this);
+
+        // Disconnect signals
         if (this._hoverSignalId) {
             this.disconnect(this._hoverSignalId);
             this._hoverSignalId = null;
         }
 
-        if (this._hoverPreview) {
-            this._hideHoverPreview();
-        }
-
-        /* disconnect window signal: wm-class */
         if (this._wmClassChangedId && this._window) {
             this._window.disconnect(this._wmClassChangedId);
             this._wmClassChangedId = null;
         }
 
-        /* disconnect window signal: mapped */
         if (this._mappedId && this._window) {
             this._window.disconnect(this._mappedId);
             this._mappedId = null;
@@ -700,11 +888,29 @@ class WindowPreview extends St.Button {
             this._wsChangedId = null;
         }
 
+        // Clear hover debounce timeout
+        if (this._hoverTimeoutId) {
+            GLib.source_remove(this._hoverTimeoutId);
+            this._hoverTimeoutId = null;
+        }
+
+        // Destroy state machine (this will stop all timers)
+        if (this._stateMachine) {
+            this._stateMachine.destroy();
+            this._stateMachine = null;
+        }
+
+        // Clean up UI
         this._hideAllPreviews();
 
-        this._stopCtrlPoll();
+        if (this._contextMenu) {
+            this._contextMenu.close();
+            this._contextMenu = null;
+        }
 
         super.destroy();
+
+        journal(`[WindowPreview] destroy: Cleanup complete`);
     }
 }
 
