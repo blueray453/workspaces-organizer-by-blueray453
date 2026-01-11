@@ -31,15 +31,25 @@ const PreviewRegistry = {
     activePreview: null,
 
     registerPreview(preview) {
+        journal(`[PreviewRegistry] Registering preview for window: ${preview._window.title}`);
+
+        // Only cleanup if the active preview is actually showing something
         if (this.activePreview && this.activePreview !== preview) {
-            // Another preview is active, hide it
-            this.activePreview._stateMachine.forceIdle('another preview activated');
+            if (this.activePreview._stateMachine.isShowingPreview ||
+                this.activePreview._stateMachine.state === States.CLEANUP_DELAY) {
+                journal(`[PreviewRegistry] Cleaning up active preview that's showing UI`);
+                this.activePreview._stateMachine.forceIdle('new preview registered');
+            } else {
+                journal(`[PreviewRegistry] Active preview is already idle, skipping cleanup`);
+            }
         }
+
         this.activePreview = preview;
     },
 
     unregisterPreview(preview) {
         if (this.activePreview === preview) {
+            journal(`[PreviewRegistry] Unregistering preview for window: ${preview._window.title}`);
             this.activePreview = null;
         }
     }
@@ -81,6 +91,19 @@ class PreviewStateMachine {
             return;
         }
 
+        // Validate state transition
+        const validTransitions = {
+            [States.IDLE]: [States.SHOWING_PREVIEW, States.SHOWING_TITLE],
+            [States.SHOWING_PREVIEW]: [States.SHOWING_TITLE, States.CLEANUP_DELAY, States.IDLE],
+            [States.SHOWING_TITLE]: [States.SHOWING_PREVIEW, States.CLEANUP_DELAY, States.IDLE],
+            [States.CLEANUP_DELAY]: [States.IDLE, States.SHOWING_PREVIEW, States.SHOWING_TITLE],
+        };
+
+        if (!validTransitions[oldState]?.includes(newState)) {
+            journal(`[StateMachine] WARNING: Invalid transition ${oldState} → ${newState} (${reason})`);
+            // Still allow the transition but log it
+        }
+
         journal(`[StateMachine] Transition: ${oldState} → ${newState}${reason ? ` (${reason})` : ''}`);
 
         // Exit old state
@@ -108,8 +131,17 @@ class PreviewStateMachine {
 
             case States.SHOWING_PREVIEW:
             case States.SHOWING_TITLE:
-                // Stop Ctrl polling when leaving preview states
-                this._stopCtrlPoll();
+                // Only stop Ctrl poll if transitioning OUT of preview states
+                // If we're transitioning between preview states (preview ↔ title), keep the poll
+                const isStayingInPreview = this._state === States.SHOWING_PREVIEW ||
+                    this._state === States.SHOWING_TITLE;
+
+                if (!isStayingInPreview) {
+                    journal(`[StateMachine] Leaving preview states, stopping Ctrl poll`);
+                    this._stopCtrlPoll();
+                } else {
+                    journal(`[StateMachine] Staying in preview states, keeping Ctrl poll`);
+                }
                 break;
         }
     }
@@ -125,12 +157,20 @@ class PreviewStateMachine {
         switch (state) {
             case States.SHOWING_PREVIEW:
                 this._callbacks.onShowPreview();
-                this._startCtrlPoll();
+                if(!this._ctrlPollId) {
+                    this._startCtrlPoll();
+                } else {
+                    journal(`[StateMachine] Ctrl poll already running (ID: ${this._ctrlPollId}), keeping it`);
+                }
                 break;
 
             case States.SHOWING_TITLE:
                 this._callbacks.onShowTitle();
-                this._startCtrlPoll();
+                if (!this._ctrlPollId) {
+                    this._startCtrlPoll();
+                } else {
+                    journal(`[StateMachine] Ctrl poll already running (ID: ${this._ctrlPollId}), keeping it`);
+                }
                 break;
 
             case States.CLEANUP_DELAY:
@@ -200,12 +240,13 @@ class PreviewStateMachine {
      * Handle preview hover leave
      */
     onPreviewHoverLeave(iconHovered) {
-        journal(`[StateMachine] Preview hover leave, iconHovered: ${iconHovered}, current state: ${this._state}`);
+        // Handle possible undefined value from signals
+        const isIconHovered = Boolean(iconHovered);
+        journal(`[StateMachine] Preview hover leave, iconHovered: ${isIconHovered}, current state: ${this._state}`);
 
-        // Don't check iconHovered - always trigger cleanup when preview is left
-        // This ensures cleanup happens even when moving directly to another icon
-        if (this.isShowingPreview) {
-            this.transition(States.CLEANUP_DELAY, 'preview hover left');
+        if (!isIconHovered && this.isShowingPreview) {
+            // Neither icon nor preview is hovered
+            this.transition(States.CLEANUP_DELAY, 'preview and icon not hovered');
         }
     }
 
@@ -214,6 +255,12 @@ class PreviewStateMachine {
      */
     forceIdle(reason = '') {
         journal(`[StateMachine] Forcing IDLE state${reason ? `: ${reason}` : ''}`);
+
+        // Notify preview to unregister from registry
+        if (this._callbacks && this._callbacks.onForceIdle) {
+            this._callbacks.onForceIdle();
+        }
+
         this.transition(States.IDLE, reason);
     }
 
@@ -234,12 +281,23 @@ class PreviewStateMachine {
     _startCtrlPoll() {
         this._stopCtrlPoll();
 
-        journal(`[StateMachine] Starting Ctrl poll`);
+        journal(`[StateMachine] Starting Ctrl poll from state: ${this._state}`);
+
+        // Check if we actually have something to preview before starting poll
+        const hasPreviewContent = (this._state === States.SHOWING_PREVIEW && this._callbacks.hasPreview()) ||
+            (this._state === States.SHOWING_TITLE && this._callbacks.hasTitle());
+
+        if (!hasPreviewContent) {
+            journal(`[StateMachine] No preview content available, skipping Ctrl poll start`);
+            return;
+        }
 
         this._ctrlPollId = GLib.timeout_add(
             GLib.PRIORITY_DEFAULT,
-            100, // Poll every 100ms
-            this._onCtrlPollTick.bind(this)
+            TimeoutDelay,
+            () => {
+                return this._onCtrlPollTick();
+            }
         );
     }
 
@@ -248,9 +306,16 @@ class PreviewStateMachine {
      */
     _stopCtrlPoll() {
         if (this._ctrlPollId) {
-            journal(`[StateMachine] Stopping Ctrl poll ID ${this._ctrlPollId}`);
-            GLib.source_remove(this._ctrlPollId);
+            // Check if the source still exists before removing
+            const sourceId = this._ctrlPollId;
             this._ctrlPollId = null;
+
+            // Only remove if the source still exists
+            if (GLib.Source.remove(sourceId)) {
+                journal(`[StateMachine] Stopped Ctrl poll ID ${sourceId}`);
+            } else {
+                journal(`[StateMachine] Ctrl poll ID ${sourceId} was already removed`);
+            }
         }
     }
 
@@ -258,6 +323,12 @@ class PreviewStateMachine {
      * Ctrl poll tick handler
      */
     _onCtrlPollTick() {
+        if (!this.isShowingPreview) {
+            journal(`[StateMachine] Not showing preview anymore, stopping Ctrl poll`);
+            this._stopCtrlPoll();
+            return GLib.SOURCE_REMOVE;
+        }
+
         const hasPreview = (this._state === States.SHOWING_PREVIEW && this._callbacks.hasPreview()) ||
             (this._state === States.SHOWING_TITLE && this._callbacks.hasTitle());
 
@@ -341,6 +412,11 @@ class PreviewStateMachine {
     destroy() {
         journal(`[StateMachine] Destroying, current state: ${this._state}`);
 
+        // Force transition to IDLE to clean up any UI
+        if (this._state !== States.IDLE && this._callbacks && this._callbacks.onHideAll) {
+            this._callbacks.onHideAll();
+        }
+
         this._stopCtrlPoll();
         this._stopCleanupTimer();
 
@@ -383,6 +459,9 @@ class WindowPreview extends St.Button {
             shouldAbortCleanup: this._shouldAbortCleanup.bind(this),
             hasPreview: () => !!this._hoverPreview,
             hasTitle: () => !!this._titlePopup,
+            onForceIdle: () => {
+                PreviewRegistry.unregisterPreview(this);
+            }
         });
 
         // Initialize icon
@@ -396,6 +475,7 @@ class WindowPreview extends St.Button {
 
         // Connect hover signal with debounce
         this._hoverTimeoutId = null;
+
         this._hoverSignalId = this.connect('notify::hover', () => {
             journal(`[WindowPreview] notify::hover: hover=${this.hover}, state=${this._stateMachine.state}`);
 
@@ -405,24 +485,42 @@ class WindowPreview extends St.Button {
                 this._hoverTimeoutId = null;
             }
 
-            // Debounce hover changes
-            this._hoverTimeoutId = GLib.timeout_add(
-                GLib.PRIORITY_DEFAULT,
-                50, // Reduced from 200ms for faster response
-                () => {
-                    this._hoverTimeoutId = null;
-
-                    if (this.hover) {
-                        // Register this preview as active
-                        PreviewRegistry.registerPreview(this);
-                        this._stateMachine.onIconHoverEnter();
-                    } else {
-                        this._stateMachine.onIconHoverLeave();
-                    }
-
-                    return GLib.SOURCE_REMOVE;
+            // If we're already showing preview, handle immediately (no debounce)
+            if (this._stateMachine.isShowingPreview || this._stateMachine.state === States.CLEANUP_DELAY) {
+                if (this.hover) {
+                    journal(`[WindowPreview] Already showing preview, handling hover immediately`);
+                    PreviewRegistry.registerPreview(this);
+                    this._stateMachine.onIconHoverEnter();
+                } else {
+                    journal(`[WindowPreview] Already showing preview, handling leave immediately`);
+                    this._stateMachine.onIconHoverLeave();
                 }
-            );
+                return;
+            }
+
+            // Only debounce when entering from IDLE state
+            if (this.hover) {
+                this._hoverTimeoutId = GLib.timeout_add(
+                    GLib.PRIORITY_DEFAULT,
+                    30,
+                    () => {
+                        this._hoverTimeoutId = null;
+
+                        // Check if we're still in IDLE state (not changed by another event)
+                        if (this._stateMachine.state === States.IDLE) {
+                            PreviewRegistry.registerPreview(this);
+                            this._stateMachine.onIconHoverEnter();
+                        } else {
+                            journal(`[WindowPreview] State changed during debounce, skipping`);
+                        }
+
+                        return GLib.SOURCE_REMOVE;
+                    }
+                );
+            } else {
+                // Handle leave immediately when in IDLE state
+                this._stateMachine.onIconHoverLeave();
+            }
         });
 
         // Connect button press signal
@@ -512,6 +610,16 @@ class WindowPreview extends St.Button {
         if (!this.hover && (!this._hoverPreview || !this._hoverPreview.hover)) {
             journal(`[WindowPreview] _showHoverPreview: Mouse no longer hovering, aborting`);
             this._stateMachine._stopCtrlPoll();
+            return;
+        }
+
+        // Check if we should still show preview (atomic check)
+        const shouldShow = this.hover ||
+            (this._hoverPreview && this._hoverPreview.hover) ||
+            this._stateMachine.state === States.SHOWING_PREVIEW;
+
+        if (!shouldShow) {
+            journal(`[WindowPreview] _showHoverPreview: Not hovering and not in showing state, aborting`);
             return;
         }
 
@@ -616,7 +724,7 @@ class WindowPreview extends St.Button {
                 this._stateMachine.onPreviewHoverEnter();
             } else {
                 // Mouse left preview
-                this._stateMachine.onPreviewHoverLeave();
+                this._stateMachine.onPreviewHoverLeave(this.hover);
             }
         });
 
@@ -787,6 +895,23 @@ class WindowPreview extends St.Button {
         }
     }
 
+    _cleanupOtherPreviews() {
+        if (PreviewRegistry.activePreview && PreviewRegistry.activePreview !== this) {
+            const otherPreview = PreviewRegistry.activePreview;
+            const otherState = otherPreview._stateMachine.state;
+
+            // Only cleanup if the other preview is actually showing something
+            if (otherState === States.SHOWING_PREVIEW ||
+                otherState === States.SHOWING_TITLE ||
+                otherState === States.CLEANUP_DELAY) {
+                journal(`[WindowPreview] Cleaning up other preview: ${otherPreview._window.title} (state: ${otherState})`);
+                otherPreview._stateMachine.forceIdle('new preview activated');
+            } else {
+                journal(`[WindowPreview] Other preview is already idle (state: ${otherState}), skipping cleanup`);
+            }
+        }
+    }
+
     // ==================== UTILITY METHODS ====================
 
     _is_covered(window) {
@@ -846,18 +971,21 @@ class WindowPreview extends St.Button {
             this.set_child(iconActor);
         }
 
-        iconActor.connect('stage-views-changed', (actor) => {
+        const signalId = iconActor.connect('stage-views-changed', (actor) => {
             const rect = new Mtk.Rectangle();
             [rect.x, rect.y] = iconActor.get_transformed_position();
             [rect.width, rect.height] = iconActor.get_transformed_size();
             this._window.set_icon_geometry(rect);
 
-            iconActor.disconnect(id);
+            iconActor.disconnect(signalId);
         });
     }
 
     destroy() {
         journal(`[WindowPreview] destroy: Cleaning up, current state=${this._stateMachine.state}`);
+
+        // Clean up context menu first
+        this._cleanupContextMenu();
 
         // Unregister from preview registry
         PreviewRegistry.unregisterPreview(this);
@@ -888,6 +1016,12 @@ class WindowPreview extends St.Button {
             this._wsChangedId = null;
         }
 
+        // Clean up icon actor signals
+        if (this._iconSignalId && this._iconActor) {
+            this._iconActor.disconnect(this._iconSignalId);
+            this._iconSignalId = null;
+        }
+
         // Clear hover debounce timeout
         if (this._hoverTimeoutId) {
             GLib.source_remove(this._hoverTimeoutId);
@@ -903,9 +1037,9 @@ class WindowPreview extends St.Button {
         // Clean up UI
         this._hideAllPreviews();
 
-        if (this._contextMenu) {
-            this._contextMenu.close();
-            this._contextMenu = null;
+        // Remove children
+        if (this.get_child()) {
+            this.set_child(null);
         }
 
         super.destroy();
@@ -1047,7 +1181,7 @@ class WorkspaceThumbnail extends St.Button {
             GLib.Source.remove(this._addWindowTimeoutIds.get(window));
             this._addWindowTimeoutIds.delete(window);
         }
-        const sourceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+        const sourceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, TimeoutDelay, () => {
             // If already created a preview for this window, stop
             if (this._windowPreviews.has(window))
                 return GLib.SOURCE_REMOVE;
