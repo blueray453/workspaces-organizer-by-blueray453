@@ -1455,7 +1455,7 @@ export default class TopNotchWorkspaces extends Extension {
             );
         });
 
-        setLogging(true);
+        setLogging(false);
 
         // journalctl -f -o cat SYSLOG_IDENTIFIER=workspaces-organizer-by-blueray453
         journal(`Enabled`);
