@@ -984,9 +984,6 @@ class WindowPreview extends St.Button {
     destroy() {
         journal(`[WindowPreview] destroy: Cleaning up, current state=${this._stateMachine.state}`);
 
-        // Clean up context menu first
-        this._cleanupContextMenu();
-
         // Unregister from preview registry
         PreviewRegistry.unregisterPreview(this);
 
