@@ -22,6 +22,15 @@ const TimeoutDelay = 200;
 
 // ==================== PREVIEW REGISTRY WITH CTRL POLLING ====================
 
+// PreviewRegistry is a singleton manager
+// centralized manager for the currently active window preview and CTRL-key polling
+// It acts like a singleton registry + mediator specifically for hover previews.
+// Only one preview can be “active” at a time.
+// This polling only runs while there is an active preview.
+// Polling is scoped only to when a preview is active.
+// There are no dangling timers, memory leaks, or unnecessary CPU usage.
+// Registry → keeps track of active preview
+// Mediator → propagates CTRL - key changes to the preview
 const PreviewRegistry = {
     activePreview: null,
     _ctrlPollId: null,
