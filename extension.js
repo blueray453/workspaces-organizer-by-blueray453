@@ -336,6 +336,15 @@ class WindowPreview extends St.Button {
             track_hover: true,
         });
 
+        // `clip_to_allocation: true` makes the container act like a mask.
+        // anything outside innerContainer is cut off.
+        // Shadows are cropped correctly
+        // Think of it like a photo frame:
+        // outerWrapper → the frame(border, visible around the picture)
+        // innerContainer → the glass / mask inside the frame
+        // clone → the photo inside, which may have a little overhang(shadows)
+        // The glass cuts off anything sticking out, but the frame is always visible.
+        //
         const innerContainer = new St.BoxLayout({
             style_class: 'hover-preview-inner',
             width: previewWidth,
@@ -371,7 +380,11 @@ class WindowPreview extends St.Button {
             return Clutter.EVENT_STOP;
         });
 
-        // Build hierarchy
+        // BUILD HIERARCHY
+        // The cloneContainer might seem redundant at first
+        // The cloneContainer acts as a positioning canvas
+        // Gives you a reliable coordinate system for precise positioning
+        // Keeps the clone's negative positioning from affecting the clipped container
         const cloneContainer = new Clutter.Actor();
         cloneContainer.add_child(clone);
         cloneContainer.add_child(closeButton);
@@ -404,6 +417,16 @@ class WindowPreview extends St.Button {
 
         journal(`[WindowPreview] Hover preview shown`);
     }
+
+    // _showTitlePopup() is a fallback hover UI.
+
+    // When you hover a window preview while holding Ctrl,
+    // instead of showing the big live window preview,
+    // this function shows a small text label with the window title.
+
+    // However it creates a bug due to the use of grab_key_focus
+    // Some keybindings stop working.
+    // This is why removing this feature
 
     _showTitlePopup() {
         journal(`[WindowPreview] Showing title popup`);
@@ -594,6 +617,17 @@ class WindowPreview extends St.Button {
 
     _showContextMenu() {
         let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP);
+
+        // menu - This is the PopupMenu JavaScript object.
+        // It's not a visual actor itself
+        // menu.box - This is the actual St.BoxLayout actor
+        // PopupMenu(JavaScript object)
+        // ├─ actor(St.Widget - the outer container)
+        // └─ box(St.BoxLayout - contains the menu items)
+        //     ├─ PopupMenuItem 1
+        //     ├─ PopupMenuItem 2
+                //     └─ ...
+
         menu.box.add_style_class_name('workspace-context-menu');
         this._contextMenu = menu;
 
