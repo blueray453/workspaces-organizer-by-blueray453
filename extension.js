@@ -6,6 +6,7 @@ import St from 'gi://St';
 import Meta from 'gi://Meta';
 import Mtk from 'gi://Mtk';
 import Shell from 'gi://Shell';
+// import Pango from 'gi://Pango';
 
 import { Extension, gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -439,7 +440,6 @@ class WindowPreview extends St.Button {
 
     _showTitlePopup() {
         journal(`[WindowPreview] Showing title popup`);
-
         if (!this._window) return;
 
         // Hide hover preview if showing
@@ -461,9 +461,7 @@ class WindowPreview extends St.Button {
             return;
         }
 
-        let [labelX, labelY] = this.get_transformed_position();
         const title = this._window.get_title() || "Untitled Window";
-
         const label = new St.Label({
             text: title,
             style_class: "hover-title-popup",
@@ -471,12 +469,38 @@ class WindowPreview extends St.Button {
             track_hover: true,
         });
 
-        labelX = Math.max(0, labelX);
-        labelY = labelY - 105;
-        label.set_position(labelX, labelY);
-
-        this._titlePopup = label;
+        // Add to layout first to get accurate width
         Main.layoutManager.addChrome(label);
+
+        // Get screen dimensions
+        const screenWidth = global.get_screen_width();
+
+        // Get icon position and size
+        let [iconX, iconY] = this.get_transformed_position();
+        const iconWidth = this.width;
+
+        // Calculate maximum width for the label (with some padding from screen edges)
+        const padding = 10;
+        const maxWidth = screenWidth - (2 * padding);
+
+        // Set max width and enable ellipsization
+        // label.set_style(`max-width: ${maxWidth}px;`);
+        // label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+
+        // Get label width after potential truncation
+        const labelWidth = Math.min(label.width, maxWidth);
+
+        // Center the label horizontally to the icon
+        let labelX = iconX + (iconWidth - labelWidth) / 2;
+
+        // Keep label on screen horizontally
+        labelX = Math.max(padding, labelX);
+        labelX = Math.min(labelX, screenWidth - labelWidth - padding);
+
+        const labelY = iconY - 105;
+
+        label.set_position(labelX, labelY);
+        this._titlePopup = label;
 
         label.opacity = 0;
         label.ease({
