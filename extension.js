@@ -474,6 +474,7 @@ class WindowPreview extends St.Button {
 
         // Get screen dimensions
         const screenWidth = global.get_screen_width();
+        const screenHeight = global.get_screen_height();
 
         // Get icon position and size
         let [iconX, iconY] = this.get_transformed_position();
@@ -497,7 +498,8 @@ class WindowPreview extends St.Button {
         labelX = Math.max(padding, labelX);
         labelX = Math.min(labelX, screenWidth - labelWidth - padding);
 
-        const labelY = iconY - 105;
+        // const labelY = iconY - 105;
+        const labelY = screenHeight - 245;
 
         label.set_position(labelX, labelY);
         this._titlePopup = label;
