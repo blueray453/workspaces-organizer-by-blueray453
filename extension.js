@@ -331,7 +331,8 @@ class WindowPreview extends St.Button {
         const previewWidth = previewHeight * (windowFrame.width / windowFrame.height);
 
         let previewX = Math.max(0, windowPreviewX + (windowPreviewWidth - previewWidth) / 2);
-        const previewY = windowPreviewY - previewHeight - 40;
+        // const previewY = windowPreviewY - previewHeight - 40;
+        const previewY = screenHeight - previewHeight - 200 + 60;
 
         const bufferFrame = this._window.get_buffer_rect();
         const scale = previewHeight / windowFrame.height;
