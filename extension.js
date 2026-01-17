@@ -14,7 +14,11 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as DND from 'resource:///org/gnome/shell/ui/dnd.js';
 
-import { setLogging, setLogFn, journal } from './utils.js'
+import { setLogging, setLogFn, journal } from './utils.js';
+
+// Get screen dimensions
+const screenWidth = global.get_screen_width();
+const screenHeight = global.get_screen_height();
 
 const WorkspaceManager = global.get_workspace_manager();
 const WindowTracker = global.get_window_tracker();
@@ -327,7 +331,7 @@ class WindowPreview extends St.Button {
         const previewWidth = previewHeight * (windowFrame.width / windowFrame.height);
 
         let previewX = Math.max(0, windowPreviewX + (windowPreviewWidth - previewWidth) / 2);
-        const previewY = windowPreviewY - previewHeight - 64;
+        const previewY = windowPreviewY - previewHeight - 40;
 
         const bufferFrame = this._window.get_buffer_rect();
         const scale = previewHeight / windowFrame.height;
@@ -472,10 +476,6 @@ class WindowPreview extends St.Button {
         // Add to layout first to get accurate width
         Main.layoutManager.addChrome(label);
 
-        // Get screen dimensions
-        const screenWidth = global.get_screen_width();
-        const screenHeight = global.get_screen_height();
-
         // Get icon position and size
         let [iconX, iconY] = this.get_transformed_position();
         const iconWidth = this.width;
@@ -499,7 +499,7 @@ class WindowPreview extends St.Button {
         labelX = Math.min(labelX, screenWidth - labelWidth - padding);
 
         // const labelY = iconY - 105;
-        const labelY = screenHeight - 245;
+        const labelY = screenHeight - 200;
 
         label.set_position(labelX, labelY);
         this._titlePopup = label;
