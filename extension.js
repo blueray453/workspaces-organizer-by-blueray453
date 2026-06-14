@@ -889,6 +889,24 @@ class WorkspaceThumbnail extends St.Button {
                     });
                 });
 
+                menu.addAction(`Close all windows except workspace ${this._workspace.index()}`, () => {
+                    let windowsToClose = global.get_window_actors()
+                        .map(a => a.meta_window)
+                        .filter(w =>
+                            w.get_window_type() === 0 &&
+                            w.get_workspace() !== this._workspace
+                        );
+
+                    windowsToClose.forEach(window => {
+                        journal(`Closing window: ${window.get_title()}`);
+                        window.delete(global.get_current_time());
+                    });
+                    // windows.forEach(window => {
+                    //     journal(`Closing window: ${window.get_title()}`);
+                    //     window.delete(0);
+                    // });
+                });
+
                 menu.open(true);
             }
 
