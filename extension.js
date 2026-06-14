@@ -882,6 +882,23 @@ class WorkspaceThumbnail extends St.Button {
                 manager.addMenu(menu);
                 Main.uiGroup.add_child(menu.actor);
 
+                menu.addAction(`Close all windows on all workspaces`, () => {
+                    let windowsToClose = global.get_window_actors()
+                        .map(a => a.meta_window)
+                        .filter(w =>
+                            w.get_window_type() === 0
+                        );
+
+                    windowsToClose.forEach(window => {
+                        journal(`Closing window: ${window.get_title()}`);
+                        window.delete(global.get_current_time());
+                    });
+                    // windows.forEach(window => {
+                    //     journal(`Closing window: ${window.get_title()}`);
+                    //     window.delete(0);
+                    // });
+                });
+
                 menu.addAction(`Close all windows on workspace ${this._workspace.index()}`, () => {
                     windows.forEach(window => {
                         journal(`Closing window: ${window.get_title()}`);
