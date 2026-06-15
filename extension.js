@@ -868,61 +868,68 @@ class WorkspaceThumbnail extends St.Button {
 
                 const windowCount = windows.length;
 
-                if (windowCount === 0) {
-                    return Clutter.EVENT_STOP; // Fix: Return STOP to prevent menu creation
-                }
-
                 let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP);
                 menu.box.add_style_class_name('workspace-context-menu');
-                this._contextMenu = menu; // keep reference
-
-                // menu.removeAll();
+                this._contextMenu = menu;
 
                 let manager = new PopupMenu.PopupMenuManager(this);
                 manager.addMenu(menu);
                 Main.uiGroup.add_child(menu.actor);
 
-                menu.addAction(`Close all windows on all workspaces`, () => {
-                    let windowsToClose = global.get_window_actors()
-                        .map(a => a.meta_window)
-                        .filter(w =>
-                            w.get_window_type() === 0
-                        );
+                // if (windowCount === 0) {
+                //     return Clutter.EVENT_STOP; // Fix: Return STOP to prevent menu creation
+                // }
 
-                    windowsToClose.forEach(window => {
-                        journal(`Closing window: ${window.get_title()}`);
-                        window.delete(global.get_current_time());
+                if (windowCount === 0) {
+                    menu.addAction('Close all windows on all workspaces', () => {
+                        let windowsToClose = global.get_window_actors()
+                            .map(a => a.meta_window)
+                            .filter(w => w.get_window_type() === 0);
+
+                        windowsToClose.forEach(window => {
+                            journal(`Closing window: ${window.get_title()}`);
+                            window.delete(global.get_current_time());
+                        });
                     });
-                    // windows.forEach(window => {
-                    //     journal(`Closing window: ${window.get_title()}`);
-                    //     window.delete(0);
-                    // });
-                });
+                } else {
+                    menu.addAction('Close all windows on all workspaces', () => {
+                        let windowsToClose = global.get_window_actors()
+                            .map(a => a.meta_window)
+                            .filter(w => w.get_window_type() === 0);
 
-                menu.addAction(`Close all windows on workspace ${this._workspace.index()}`, () => {
-                    windows.forEach(window => {
-                        journal(`Closing window: ${window.get_title()}`);
-                        window.delete(0);
+                        windowsToClose.forEach(window => {
+                            journal(`Closing window: ${window.get_title()}`);
+                            window.delete(global.get_current_time());
+                        });
                     });
-                });
 
-                menu.addAction(`Close all windows except workspace ${this._workspace.index()}`, () => {
-                    let windowsToClose = global.get_window_actors()
-                        .map(a => a.meta_window)
-                        .filter(w =>
-                            w.get_window_type() === 0 &&
-                            w.get_workspace() !== this._workspace
-                        );
+                    menu.addAction(
+                        `Close all windows on workspace ${this._workspace.index()}`,
+                        () => {
+                            windows.forEach(window => {
+                                journal(`Closing window: ${window.get_title()}`);
+                                window.delete(0);
+                            });
+                        }
+                    );
 
-                    windowsToClose.forEach(window => {
-                        journal(`Closing window: ${window.get_title()}`);
-                        window.delete(global.get_current_time());
-                    });
-                    // windows.forEach(window => {
-                    //     journal(`Closing window: ${window.get_title()}`);
-                    //     window.delete(0);
-                    // });
-                });
+                    menu.addAction(
+                        `Close all windows except workspace ${this._workspace.index()}`,
+                        () => {
+                            let windowsToClose = global.get_window_actors()
+                                .map(a => a.meta_window)
+                                .filter(w =>
+                                    w.get_window_type() === 0 &&
+                                    w.get_workspace() !== this._workspace
+                                );
+
+                            windowsToClose.forEach(window => {
+                                journal(`Closing window: ${window.get_title()}`);
+                                window.delete(global.get_current_time());
+                            });
+                        }
+                    );
+                }
 
                 menu.open(true);
             }
