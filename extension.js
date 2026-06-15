@@ -868,47 +868,39 @@ class WorkspaceThumbnail extends St.Button {
 
                 const windowCount = windows.length;
 
+                // if (windowCount === 0) {
+                //     return Clutter.EVENT_STOP; // Fix: Return STOP to prevent menu creation
+                // }
+
                 let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP);
                 menu.box.add_style_class_name('workspace-context-menu');
                 this._contextMenu = menu;
 
                 let manager = new PopupMenu.PopupMenuManager(this);
                 manager.addMenu(menu);
+
                 Main.uiGroup.add_child(menu.actor);
 
-                // if (windowCount === 0) {
-                //     return Clutter.EVENT_STOP; // Fix: Return STOP to prevent menu creation
-                // }
+                // Always show this option
+                menu.addAction('Close all windows on all workspaces', () => {
+                    let windowsToClose = global.get_window_actors()
+                        .map(a => a.meta_window)
+                        .filter(w => w.get_window_type() === 0);
 
-                if (windowCount === 0) {
-                    menu.addAction('Close all windows on all workspaces', () => {
-                        let windowsToClose = global.get_window_actors()
-                            .map(a => a.meta_window)
-                            .filter(w => w.get_window_type() === 0);
-
-                        windowsToClose.forEach(window => {
-                            journal(`Closing window: ${window.get_title()}`);
-                            window.delete(global.get_current_time());
-                        });
+                    windowsToClose.forEach(window => {
+                        journal(`Closing window: ${window.get_title()}`);
+                        window.delete(global.get_current_time());
                     });
-                } else {
-                    menu.addAction('Close all windows on all workspaces', () => {
-                        let windowsToClose = global.get_window_actors()
-                            .map(a => a.meta_window)
-                            .filter(w => w.get_window_type() === 0);
+                });
 
-                        windowsToClose.forEach(window => {
-                            journal(`Closing window: ${window.get_title()}`);
-                            window.delete(global.get_current_time());
-                        });
-                    });
-
+                // Only show these when the current workspace has windows
+                if (windowCount > 0) {
                     menu.addAction(
                         `Close all windows on workspace ${this._workspace.index()}`,
                         () => {
                             windows.forEach(window => {
                                 journal(`Closing window: ${window.get_title()}`);
-                                window.delete(0);
+                                window.delete(global.get_current_time());
                             });
                         }
                     );
@@ -934,10 +926,7 @@ class WorkspaceThumbnail extends St.Button {
                 menu.open(true);
             }
 
-            return Clutter.EVENT_STOP; // prevent default
-
-            // For left click, let the default handler work
-            // return Clutter.EVENT_PROPAGATE;
+            return Clutter.EVENT_STOP;
         });
 
         this._windowAddedId = this._workspace.connect('window-added',
