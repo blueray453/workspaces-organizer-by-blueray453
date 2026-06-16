@@ -896,16 +896,6 @@ class WorkspaceThumbnail extends St.Button {
                 // Only show these when the current workspace has windows
                 if (windowCount > 0) {
                     menu.addAction(
-                        `Close all windows on workspace ${this._workspace.index()}`,
-                        () => {
-                            windows.forEach(window => {
-                                journal(`Closing window: ${window.get_title()}`);
-                                window.delete(global.get_current_time());
-                            });
-                        }
-                    );
-
-                    menu.addAction(
                         `Close all windows except workspace ${this._workspace.index()}`,
                         () => {
                             let windowsToClose = global.get_window_actors()
@@ -916,6 +906,16 @@ class WorkspaceThumbnail extends St.Button {
                                 );
 
                             windowsToClose.forEach(window => {
+                                journal(`Closing window: ${window.get_title()}`);
+                                window.delete(global.get_current_time());
+                            });
+                        }
+                    );
+
+                    menu.addAction(
+                        `Close all windows on workspace ${this._workspace.index()}`,
+                        () => {
+                            windows.forEach(window => {
                                 journal(`Closing window: ${window.get_title()}`);
                                 window.delete(global.get_current_time());
                             });
