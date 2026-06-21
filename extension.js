@@ -862,9 +862,11 @@ class WorkspaceThumbnail extends St.Button {
             }
 
             if (button === Clutter.BUTTON_SECONDARY) { // right click
-                let windows = this._workspace.list_windows().filter(w =>
-                    w.get_window_type() === 0
-                );
+                // let windows = this._workspace.list_windows().filter(w =>
+                //     w.get_window_type() === 0
+                // );
+
+                const windows = Display.get_tab_list(Meta.TabList.NORMAL, this._workspace);
 
                 const windowCount = windows.length;
 
@@ -883,14 +885,23 @@ class WorkspaceThumbnail extends St.Button {
 
                 // Always show this option
                 menu.addAction('Close all windows on all workspaces', () => {
-                    let windowsToClose = global.get_window_actors()
-                        .map(a => a.meta_window)
-                        .filter(w => w.get_window_type() === 0);
+                    // let windowsToClose = global.get_window_actors()
+                    //     .map(a => a.meta_window)
+                    //     .filter(w => w.get_window_type() === 0);
 
-                    windowsToClose.forEach(window => {
+                    let windowsToClose = Display.get_tab_list(Meta.TabList.NORMAL, null);
+
+                    const currentTime = global.get_current_time();
+
+                    // windowsToClose.forEach(window => {
+                    //     journal(`Closing window: ${window.get_title()}`);
+                    //     window.delete(global.get_current_time());
+                    // });
+                    for (const window of windowsToClose) {
                         journal(`Closing window: ${window.get_title()}`);
-                        window.delete(global.get_current_time());
-                    });
+                        // This is an asynchronous, non-blocking call
+                        window.delete(currentTime);
+                    }
                 });
 
                 // Only show these when the current workspace has windows
@@ -898,27 +909,46 @@ class WorkspaceThumbnail extends St.Button {
                     menu.addAction(
                         `Close all windows except workspace ${this._workspace.index()}`,
                         () => {
-                            let windowsToClose = global.get_window_actors()
-                                .map(a => a.meta_window)
-                                .filter(w =>
-                                    w.get_window_type() === 0 &&
-                                    w.get_workspace() !== this._workspace
-                                );
+                            // let windowsToClose = global.get_window_actors()
+                            //     .map(a => a.meta_window)
+                            //     .filter(w =>
+                            //         w.get_window_type() === 0 &&
+                            //         w.get_workspace() !== this._workspace
+                            //     );
 
-                            windowsToClose.forEach(window => {
+                            let windowsToClose = Display.get_tab_list(Meta.TabList.NORMAL, null).filter(w =>
+                                w.get_workspace() !== this._workspace
+                            );
+
+                            const currentTime = global.get_current_time();
+
+                            // windowsToClose.forEach(window => {
+                            //     journal(`Closing window: ${window.get_title()}`);
+                            //     window.delete(global.get_current_time());
+                            // });
+                            // for...of is faster and cleaner in modern GJS environments
+                            for (const window of windowsToClose) {
                                 journal(`Closing window: ${window.get_title()}`);
-                                window.delete(global.get_current_time());
-                            });
+                                // This is an asynchronous, non-blocking call
+                                window.delete(currentTime);
+                            }
                         }
                     );
 
                     menu.addAction(
                         `Close all windows on workspace ${this._workspace.index()}`,
                         () => {
-                            windows.forEach(window => {
+                            const currentTime = global.get_current_time();
+
+                            // windows.forEach(window => {
+                            //     journal(`Closing window: ${window.get_title()}`);
+                            //     window.delete(global.get_current_time());
+                            // });
+                            for (const window of windows) {
                                 journal(`Closing window: ${window.get_title()}`);
-                                window.delete(global.get_current_time());
-                            });
+                                // This is an asynchronous, non-blocking call
+                                window.delete(currentTime);
+                            }
                         }
                     );
                 }
