@@ -683,20 +683,22 @@ class WindowPreview extends St.Button {
         menu.addAction(`Close Except ${this._window.title}`, () => {
             const targetWmClass = this._window.get_wm_class();
 
-            const windows = Display.get_tab_list(
+            const windowsToClose = Display.get_tab_list(
                 Meta.TabList.NORMAL,
                 this._window.get_workspace()
+            ).filter(win =>
+                win !== this._window &&
+                win.get_wm_class() === targetWmClass &&
+                win.get_wm_class_instance() !== 'file_progress'
             );
 
-            windows.forEach(win => {
-                if (
-                    win !== this._window &&
-                    win.get_wm_class() === targetWmClass &&
-                    win.get_wm_class_instance() !== 'file_progress'
-                ) {
-                    win.delete(global.get_current_time());
-                }
-            });
+            const currentTime = global.get_current_time();
+
+            for (const window of windowsToClose) {
+                journal(`Closing window: ${window.get_title()}`);
+                // This is an asynchronous, non-blocking call
+                window.delete(currentTime);
+            }
         });
 
         // Add desktop actions
