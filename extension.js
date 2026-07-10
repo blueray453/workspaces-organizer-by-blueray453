@@ -680,6 +680,25 @@ class WindowPreview extends St.Button {
             this._window.delete(0);
         });
 
+        menu.addAction(`Close Except ${this._window.title}`, () => {
+            const targetWmClass = this._window.get_wm_class();
+
+            const windows = Display.get_tab_list(
+                Meta.TabList.NORMAL,
+                this._window.get_workspace()
+            );
+
+            windows.forEach(win => {
+                if (
+                    win !== this._window &&
+                    win.get_wm_class() === targetWmClass &&
+                    win.get_wm_class_instance() !== 'file_progress'
+                ) {
+                    win.delete(global.get_current_time());
+                }
+            });
+        });
+
         // Add desktop actions
         const app = WindowTracker.get_window_app(this._window);
         const appInfo = app?.get_app_info();
