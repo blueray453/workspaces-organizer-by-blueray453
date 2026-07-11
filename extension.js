@@ -729,10 +729,12 @@ class WindowPreview extends St.Button {
         let current_workspace = WorkspaceManager.get_active_workspace();
 
         let windows_by_stacking = Display.sort_windows_by_stacking(
-            global.get_window_actors()
-                .map(actor => actor.meta_window)
-                .filter(win => win.get_window_type() === Meta.WindowType.NORMAL)
-        ).filter(win => win.get_workspace() === current_workspace);
+            Display.list_all_windows()
+            .filter(win =>
+                (win.get_window_type() === Meta.WindowType.NORMAL ||
+                win.get_window_type() === Meta.WindowType.DIALOG) &&
+                win.get_workspace() === current_workspace)
+        );
 
         let targetRect = window.get_frame_rect();
         let targetIndex = windows_by_stacking.indexOf(window);
