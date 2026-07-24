@@ -36,14 +36,6 @@ A powerful GNOME Shell extension that provides a horizontal workspace indicator 
 - **Border and highlight** customization
 - **Works with** Dash to Panel and other panel extensions
 
-## Screenshots
-
-### With Dash to Panel
-![Screenshot with Dash to Panel](https://github.com/giantturtle/workspaces-organizer-workspaces-organizer.giantturtle.github.com/blob/master/Screenshot%20from%202025-10-29%2018-26-50.png)
-
-### Default GNOME Shell Panel
-![Screenshot with Default Panel](https://github.com/giantturtle/workspaces-organizer-workspaces-organizer.giantturtle.github.com/blob/master/Screenshot%20from%202025-10-29%2018-28-23.png)
-
 ## Installation
 
 ### From GNOME Extensions
