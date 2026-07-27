@@ -1036,8 +1036,14 @@ class WorkspaceThumbnail extends St.Button {
             GLib.Source.remove(this._addWindowTimeoutIds.get(window));
             this._addWindowTimeoutIds.delete(window);
         }
+
         const sourceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, TimeoutDelay, () => {
-            // If already created a preview for this window, stop
+            // Additional safety: check if the window is still on this workspace
+            if (window.get_workspace() !== this._workspace) {
+                this._addWindowTimeoutIds.delete(window);
+                return GLib.SOURCE_REMOVE;
+            }
+
             if (this._windowPreviews.has(window))
                 return GLib.SOURCE_REMOVE;
 
@@ -1046,16 +1052,11 @@ class WorkspaceThumbnail extends St.Button {
 
             let preview = new WindowPreview(window);
             preview.connect('clicked', () => {
-                // window.activate_with_workspace(global.get_current_time(), window.get_workspace());
                 this._workspace.activate(0);
                 window.activate(0);
             });
             this._windowPreviews.set(window, preview);
-            // Double check container is still valid  before adding
-            if (this._windowsBox && this._windowsBox.get_stage())
-                this._windowsBox.add_child(preview);
-            else
-                preview.destroy();
+            this._windowsBox.add_child(preview);
 
             this._windowCount++;
             this._updateThumbnailSize();
@@ -1063,6 +1064,7 @@ class WorkspaceThumbnail extends St.Button {
             this._addWindowTimeoutIds.delete(window);
             return GLib.SOURCE_REMOVE;
         });
+
         this._addWindowTimeoutIds.set(window, sourceId);
     }
 
@@ -1071,13 +1073,15 @@ class WorkspaceThumbnail extends St.Button {
         if (!preview)
             return;
 
-        // Remove any pending timeout for this window
         if (this._addWindowTimeoutIds.has(window)) {
             GLib.Source.remove(this._addWindowTimeoutIds.get(window));
             this._addWindowTimeoutIds.delete(window);
         }
 
         this._windowPreviews.delete(window);
+        // Explicitly remove from container before destroying
+        if (this._windowsBox && preview.get_parent() === this._windowsBox)
+            this._windowsBox.remove_child(preview);
         preview.destroy();
 
         this._windowCount--;
