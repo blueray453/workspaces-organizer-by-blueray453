@@ -168,6 +168,10 @@ class WindowPreview extends St.Button {
         this._delegate = this;
         DND.makeDraggable(this, { restoreOnSuccess: true });
 
+        // Drag-hover-to-activate state (for external drags: files, text, tabs, etc.)
+        this._dragActivateTimeoutId = null;
+        this._lastDragOverTime = 0;
+
         // Initialize icon
         this._updateIcon();
 
@@ -722,6 +726,61 @@ class WindowPreview extends St.Button {
         }
     }
 
+    // ==================== DRAG HOVER ACTIVATION ====================
+    // Lets you drag a file/text/tab from elsewhere, hover over this icon,
+    // and have the underlying window raise+focus so you can then drop
+    // onto the actual window surface.
+
+    handleDragOver(source, actor, x, y, time) {
+        // Don't hijack our own icon-reordering drags (workspace move DND,
+        // handled separately by WorkspaceThumbnail.acceptDrop/handleDragOver)
+        if (source instanceof WindowPreview) {
+            return DND.DragMotionResult.CONTINUE;
+        }
+
+        this._lastDragOverTime = GLib.get_monotonic_time();
+
+        if (!this._dragActivateTimeoutId) {
+            journal(`[WindowPreview] External drag hovering, scheduling activate`);
+            this._dragActivateTimeoutId = GLib.timeout_add(
+                GLib.PRIORITY_DEFAULT,
+                400, // debounce so a quick pass-over doesn't yank focus
+                () => {
+                    this._dragActivateTimeoutId = null;
+
+                    const elapsedMs = (GLib.get_monotonic_time() - this._lastDragOverTime) / 1000;
+                    if (elapsedMs > 500) {
+                        journal(`[WindowPreview] Drag left before activation, aborting`);
+                        return GLib.SOURCE_REMOVE;
+                    }
+
+                    this._activateForDrag();
+                    return GLib.SOURCE_REMOVE;
+                }
+            );
+        }
+
+        return DND.DragMotionResult.CONTINUE;
+    }
+
+    acceptDrop(_source) {
+        // Never actually accept the drop on the icon itself — we only want
+        // to raise/focus the window so the user can drop on its real surface.
+        return false;
+    }
+
+    _activateForDrag() {
+        if (!this._window) return;
+
+        journal(`[WindowPreview] Activating window for drag-hover: ${this._window.title}`);
+
+        const win = this._window;
+        if (win.minimized) win.unminimize();
+
+        const winWs = win.get_workspace();
+        winWs.activate_with_focus(win, global.get_current_time());
+    }
+
     // ==================== UTILITY METHODS ====================
 
     _is_covered(window) {
@@ -834,6 +893,11 @@ class WindowPreview extends St.Button {
         // Remove children
         if (this.get_child()) {
             this.set_child(null);
+        }
+
+        if (this._dragActivateTimeoutId) {
+            GLib.source_remove(this._dragActivateTimeoutId);
+            this._dragActivateTimeoutId = null;
         }
 
         super.destroy();
