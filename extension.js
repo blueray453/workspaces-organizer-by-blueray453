@@ -74,10 +74,11 @@ function fuzzyMatch(query, text) {
 }
 
 // ==================== SHARED CLONE-PREVIEW BUILDER ====================
-// Reuses the same clone/shadow math as WindowPreview._showHoverPreview,
-// factored out so the collection overlay can use "the existing
-// window-preview mechanism" per spec item 6. Optionally attaches a
-// close button (mirrors WindowPreview's hover-preview close button).
+// Reuses the same clone/shadow math for both the icon hover-preview and
+// the collection overlay preview. Optionally wraps the clone in an
+// outer, hover-tracking wrapper actor (used by the icon hover-preview,
+// which needs to live in Main.layoutManager chrome and detect its own
+// hover/click state) and optionally attaches a close button.
 
 function createClonePreviewActor(window, targetHeight, options = {}) {
     if (!window)
@@ -119,18 +120,25 @@ function createClonePreviewActor(window, targetHeight, options = {}) {
     container.add_child(cloneContainer);
 
     if (options.onClose) {
+        const closeIconSize = options.closeButtonSize ?? 32;
+        // Preserves exact prior pixel placement for each call site rather
+        // than guessing a formula from icon size: overlay passed 46/10,
+        // hover-preview passed 60/10.
+        const closeOffsetX = options.closeButtonOffsetX ?? (closeIconSize + 14);
+        const closeOffsetY = options.closeButtonOffsetY ?? 10;
+
         const closeButton = new St.Button({
             style_class: 'window-close-button',
             child: new St.Icon({
                 icon_name: 'window-close-symbolic',
-                icon_size: 32,
+                icon_size: closeIconSize,
             }),
             x_align: Clutter.ActorAlign.END,
             y_align: Clutter.ActorAlign.START,
             reactive: true,
         });
 
-        closeButton.set_position(targetWidth - 46, 10);
+        closeButton.set_position(targetWidth - closeOffsetX, closeOffsetY);
         closeButton.connect('clicked', () => {
             options.onClose(window);
             return Clutter.EVENT_STOP;
@@ -139,7 +147,37 @@ function createClonePreviewActor(window, targetHeight, options = {}) {
         cloneContainer.add_child(closeButton);
     }
 
-    return { actor: container, width: targetWidth, height: targetHeight };
+    // Collection overlay just wants the inner container positioned inside
+    // its own preview box — no outer wrapper needed.
+    if (!options.wrapperStyleClass)
+        return { actor: container, width: targetWidth, height: targetHeight };
+
+    // Icon hover-preview wants an outer, hover-tracking wrapper it can add
+    // directly to chrome and position on screen.
+    const wrapper = new St.BoxLayout({
+        style_class: options.wrapperStyleClass,
+        reactive: true,
+        track_hover: true,
+    });
+    wrapper.add_child(container);
+
+    if (options.onHoverChange) {
+        wrapper.connect('notify::hover', () => {
+            options.onHoverChange(wrapper.hover);
+        });
+    }
+
+    if (options.onActivate) {
+        wrapper.connect('button-press-event', (actor, event) => {
+            if (event.get_button() === Clutter.BUTTON_PRIMARY) {
+                options.onActivate();
+                return Clutter.EVENT_STOP;
+            }
+            return Clutter.EVENT_PROPAGATE;
+        });
+    }
+
+    return { actor: wrapper, inner: container, width: targetWidth, height: targetHeight };
 }
 
 // ==================== THUMBNAIL REGISTRY ====================
@@ -589,16 +627,13 @@ class WindowPreview extends St.Button {
 
         if (!this._window) return;
 
-        // Hide title popup if showing
         this._hideTitlePopup();
 
-        // Don't recreate if already exists
         if (this._hoverPreview) {
             journal(`[WindowPreview] Preview already exists`);
             return;
         }
 
-        // Check if we should still show - either hovering or cleanup timer running
         const shouldShow = this.hover ||
             this._cleanupTimeoutId !== null ||
             (this._hoverPreview !== null || this._titlePopup !== null);
@@ -608,78 +643,36 @@ class WindowPreview extends St.Button {
             return;
         }
 
-        // Clone window for preview
+        const previewHeight = 800;
+
+        const built = createClonePreviewActor(this._window, previewHeight, {
+            wrapperStyleClass: 'hover-preview-wrapper',
+            onClose: (win) => {
+                win.delete(global.get_current_time());
+                this._forceHide('close button clicked');
+            },
+            closeButtonSize: 48,
+            closeButtonOffsetX: 60,
+            closeButtonOffsetY: 10,
+            onHoverChange: (isHovered) => this._onPreviewHoverChange(isHovered),
+            onActivate: () => {
+                this._window.get_workspace().activate_with_focus(this._window, 0);
+                this._forceHide('preview clicked');
+            },
+        });
+
+        if (!built)
+            return;
+
         const windowPreviewWidth = this.get_width();
         const [windowPreviewX, windowPreviewY] = this.get_transformed_position();
-        const windowFrame = this._window.get_frame_rect();
 
-        const previewHeight = 800;
-        const previewWidth = previewHeight * (windowFrame.width / windowFrame.height);
-
-        let previewX = Math.max(0, windowPreviewX + (windowPreviewWidth - previewWidth) / 2);
-        // const previewY = windowPreviewY - previewHeight - 40;
+        const previewX = Math.max(0, windowPreviewX + (windowPreviewWidth - built.width) / 2);
         const previewY = screenHeight - previewHeight - 200 + 55;
 
-        const bufferFrame = this._window.get_buffer_rect();
-        const scale = previewHeight / windowFrame.height;
+        built.actor.set_position(previewX, previewY);
 
-        const scaledLeftShadow = (windowFrame.x - bufferFrame.x) * scale;
-        const scaledTopShadow = (windowFrame.y - bufferFrame.y) * scale;
-        const scaledRightShadow = ((bufferFrame.x + bufferFrame.width) - (windowFrame.x + windowFrame.width)) * scale;
-        const scaledBottomShadow = ((bufferFrame.y + bufferFrame.height) - (windowFrame.y + windowFrame.height)) * scale;
-
-        // Create preview hierarchy
-        const outerWrapper = new St.BoxLayout({
-            style_class: 'hover-preview-wrapper',
-            x: previewX,
-            y: previewY,
-            reactive: true,
-            track_hover: true,
-        });
-
-        const innerContainer = new St.BoxLayout({
-            style_class: 'hover-preview-inner',
-            width: previewWidth,
-            height: previewHeight,
-            clip_to_allocation: true,
-        });
-
-        const windowActor = this._window.get_compositor_private();
-        const clone = new Clutter.Clone({
-            source: windowActor,
-            width: previewWidth + scaledLeftShadow + scaledRightShadow,
-            height: previewHeight + scaledTopShadow + scaledBottomShadow,
-        });
-
-        clone.set_position(-scaledLeftShadow, -scaledTopShadow);
-
-        // Close button
-        const closeButton = new St.Button({
-            style_class: 'window-close-button',
-            child: new St.Icon({
-                icon_name: 'window-close-symbolic',
-                icon_size: 48,
-            }),
-            x_align: Clutter.ActorAlign.END,
-            y_align: Clutter.ActorAlign.START,
-            reactive: true,
-        });
-
-        closeButton.set_position(previewWidth - 60, 10);
-        closeButton.connect('clicked', () => {
-            this._window.delete(global.get_current_time());
-            this._forceHide('close button clicked');
-            return Clutter.EVENT_STOP;
-        });
-
-        // BUILD HIERARCHY
-        const cloneContainer = new Clutter.Actor();
-        cloneContainer.add_child(clone);
-        cloneContainer.add_child(closeButton);
-        innerContainer.add_child(cloneContainer);
-        outerWrapper.add_child(innerContainer);
-
-        this._hoverPreview = outerWrapper;
+        this._hoverPreview = built.actor;
         Main.layoutManager.addChrome(this._hoverPreview);
 
         this._hoverPreview.opacity = 0;
@@ -687,20 +680,6 @@ class WindowPreview extends St.Button {
             opacity: 255,
             duration: TimeoutDelay,
             mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-        });
-
-        // Event handlers
-        outerWrapper.connect('notify::hover', () => {
-            this._onPreviewHoverChange(outerWrapper.hover);
-        });
-
-        outerWrapper.connect('button-press-event', (actor, event) => {
-            if (event.get_button() === Clutter.BUTTON_PRIMARY) {
-                this._window.get_workspace().activate_with_focus(this._window, 0);
-                this._forceHide('preview clicked');
-                return Clutter.EVENT_STOP;
-            }
-            return Clutter.EVENT_PROPAGATE;
         });
 
         journal(`[WindowPreview] Hover preview shown`);
