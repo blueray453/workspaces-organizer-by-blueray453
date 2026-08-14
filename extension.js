@@ -25,6 +25,101 @@ const WindowTracker = global.get_window_tracker();
 const Display = global.get_display();
 const TimeoutDelay = 200;
 
+const DIRECT_MODE_MAX_WINDOWS = 5;
+
+// ==================== FUZZY MATCHING ====================
+
+function subsequenceMatch(query, text) {
+    let qi = 0, score = 0, consecutive = 0;
+    for (let ti = 0; ti < text.length && qi < query.length; ti++) {
+        if (text[ti] === query[qi]) {
+            score += 1 + consecutive;
+            consecutive++;
+            qi++;
+        } else {
+            consecutive = 0;
+        }
+    }
+    if (qi < query.length)
+        return { matched: false, score: -1 };
+    return { matched: true, score };
+}
+
+// Token-based fuzzy match: query is split on whitespace, each token
+// must appear (substring, falling back to fuzzy subsequence) somewhere
+// in the text. This is what lets "ext js" match "extension.js — VS Code"
+// even though there's no literal space in that position in the text.
+function fuzzyMatch(query, text) {
+    const trimmed = query.trim();
+    if (!trimmed)
+        return { matched: true, score: 0 };
+
+    const lowerText = text.toLowerCase();
+    const tokens = trimmed.toLowerCase().split(/\s+/).filter(t => t.length > 0);
+
+    let score = 0;
+    for (const token of tokens) {
+        const idx = lowerText.indexOf(token);
+        if (idx !== -1) {
+            score += 50 - Math.min(idx, 40); // earlier match = higher score
+            continue;
+        }
+
+        const sub = subsequenceMatch(token, lowerText);
+        if (!sub.matched)
+            return { matched: false, score: -1 };
+        score += sub.score;
+    }
+    return { matched: true, score };
+}
+
+// ==================== SHARED CLONE-PREVIEW BUILDER ====================
+// Reuses the same clone/shadow math as WindowPreview._showHoverPreview,
+// factored out so the collection overlay can use "the existing
+// window-preview mechanism" per spec item 6.
+
+function createClonePreviewActor(window, targetHeight) {
+    if (!window)
+        return null;
+
+    const windowActor = window.get_compositor_private();
+    if (!windowActor)
+        return null;
+
+    const windowFrame = window.get_frame_rect();
+    const bufferFrame = window.get_buffer_rect();
+    if (windowFrame.height === 0)
+        return null;
+
+    const targetWidth = targetHeight * (windowFrame.width / windowFrame.height);
+    const scale = targetHeight / windowFrame.height;
+
+    const scaledLeftShadow = (windowFrame.x - bufferFrame.x) * scale;
+    const scaledTopShadow = (windowFrame.y - bufferFrame.y) * scale;
+    const scaledRightShadow = ((bufferFrame.x + bufferFrame.width) - (windowFrame.x + windowFrame.width)) * scale;
+    const scaledBottomShadow = ((bufferFrame.y + bufferFrame.height) - (windowFrame.y + windowFrame.height)) * scale;
+
+    const container = new St.BoxLayout({
+        style_class: 'collection-preview-inner',
+        width: targetWidth,
+        height: targetHeight,
+        clip_to_allocation: true,
+    });
+
+    const clone = new Clutter.Clone({
+        source: windowActor,
+        width: targetWidth + scaledLeftShadow + scaledRightShadow,
+        height: targetHeight + scaledTopShadow + scaledBottomShadow,
+    });
+    clone.set_position(-scaledLeftShadow, -scaledTopShadow);
+
+    const cloneContainer = new Clutter.Actor();
+    cloneContainer.add_child(clone);
+    container.add_child(cloneContainer);
+
+    return { actor: container, width: targetWidth, height: targetHeight };
+}
+
 // ==================== PREVIEW REGISTRY WITH CTRL POLLING ====================
 
 // PreviewRegistry is a singleton manager
@@ -906,6 +1001,328 @@ class WindowPreview extends St.Button {
     }
 }
 
+// ==================== WINDOW COLLECTION OVERLAY ====================
+// Fullscreen, modal, Solarized Dark search overlay for 6+ window mode.
+// Never mutates window/workspace ordering or state — purely a display
+// and activation surface.
+
+class WindowCollectionOverlay {
+    constructor(windows) {
+        journal(`[CollectionOverlay] Opening with ${windows.length} windows`);
+
+        this._windows = windows;
+        this._results = [];
+        this._resultButtons = [];
+        this._selectedIndex = -1;
+        this._previewClone = null;
+        this._modalGrab = null;
+
+        this._buildUI();
+        this._setResults(this._getAllResultsSorted());
+        this._open();
+    }
+
+    _getAppName(window) {
+        const app = WindowTracker.get_window_app(window);
+        return app ? app.get_name() : (window.get_wm_class() || 'Unknown');
+    }
+
+    // Predictability requirement: group by app, then sort by title within
+    // each app. This is purely a display-order computation — the
+    // underlying workspace/stacking order is untouched.
+    _getAllResultsSorted() {
+        const items = this._windows
+            .filter(w => w && !w.skip_taskbar)
+            .map(w => ({
+                window: w,
+                title: w.get_title() || 'Untitled Window',
+                appName: this._getAppName(w),
+            }));
+
+        items.sort((a, b) => {
+            const appCompare = a.appName.localeCompare(b.appName);
+            if (appCompare !== 0)
+                return appCompare;
+            return a.title.localeCompare(b.title);
+        });
+
+        return items;
+    }
+
+    _buildUI() {
+        const monitor = Main.layoutManager.primaryMonitor;
+        this._monitorGeom = monitor;
+
+        this._container = new St.Widget({
+            style_class: 'window-collection-overlay',
+            reactive: true,
+            can_focus: true,
+            x: monitor.x,
+            y: monitor.y,
+            width: monitor.width,
+            height: monitor.height,
+        });
+
+        const margin = 40;
+        const entryHeight = 60;
+        const entryGap = 20;
+
+        const panelWidth = monitor.width - margin * 2;
+        const panelX = monitor.x + margin;
+
+        const entryY = monitor.y + margin;
+
+        const panelTop = entryY + entryHeight + entryGap;
+        const panelHeight = monitor.height - (panelTop - monitor.y) - margin;
+
+        const resultsWidth = Math.round(panelWidth * 0.32);
+        const previewWidth = panelWidth - resultsWidth - 20;
+
+        this._entry = new St.Entry({
+            style_class: 'collection-search-entry',
+            hint_text: 'Search windows…',
+            can_focus: true,
+            x: panelX,
+            y: entryY,
+            width: panelWidth,
+            height: entryHeight,
+        });
+
+        this._resultsBox = new St.BoxLayout({
+            style_class: 'collection-results-box',
+            vertical: true,
+            x: panelX,
+            y: panelTop,
+            width: resultsWidth,
+            height: panelHeight,
+        });
+
+        this._previewBox = new St.BoxLayout({
+            style_class: 'collection-preview-box',
+            x: panelX + resultsWidth + 20,
+            y: panelTop,
+            width: previewWidth,
+            height: panelHeight,
+        });
+
+        this._container.add_child(this._entry);
+        this._container.add_child(this._resultsBox);
+        this._container.add_child(this._previewBox);
+
+        this._entryChangedId = this._entry.clutter_text.connect('text-changed',
+            () => this._onSearchChanged());
+
+        this._entryKeyPressId = this._entry.clutter_text.connect('key-press-event',
+            (actor, event) => this._onKeyPress(event));
+    }
+
+    _open() {
+        Main.layoutManager.addChrome(this._container);
+        // Modern GNOME Shell: pushModal returns a grab object that must
+        // be passed back to popModal (not the actor).
+        this._modalGrab = Main.pushModal(this._container);
+        this._entry.grab_key_focus();
+    }
+
+    _close() {
+        journal(`[CollectionOverlay] Closing`);
+        this._clearPreview();
+
+        if (this._modalGrab) {
+            Main.popModal(this._modalGrab);
+            this._modalGrab = null;
+        }
+
+        if (this._entry?.clutter_text) {
+            this._entry.clutter_text.disconnect(this._entryChangedId);
+            this._entry.clutter_text.disconnect(this._entryKeyPressId);
+        }
+
+        Main.layoutManager.removeChrome(this._container);
+        this._container.destroy();
+    }
+
+    _onSearchChanged() {
+        const query = this._entry.get_text();
+        const all = this._getAllResultsSorted();
+
+        if (!query.trim()) {
+            this._setResults(all);
+            return;
+        }
+
+        const scored = [];
+        for (const item of all) {
+            const label = `${item.title} — ${item.appName}`;
+            const result = fuzzyMatch(query, label);
+            if (result.matched)
+                scored.push({ ...item, score: result.score });
+        }
+        scored.sort((a, b) => b.score - a.score);
+        this._setResults(scored);
+    }
+
+    _setResults(results) {
+        this._results = results;
+        this._resultsBox.destroy_all_children();
+        this._resultButtons = [];
+        this._selectedIndex = -1;
+
+        results.forEach((item, index) => {
+            const button = new St.Button({
+                style_class: 'collection-result-item',
+                label: `${item.title}  —  ${item.appName}`,
+                x_expand: true,
+                x_align: Clutter.ActorAlign.START,
+                track_hover: true,
+                reactive: true,
+            });
+
+            button.connect('clicked', () => this._activateResult(index));
+            button.connect('notify::hover', () => {
+                if (button.hover)
+                    this._selectIndex(index);
+            });
+
+            this._resultsBox.add_child(button);
+            this._resultButtons.push(button);
+        });
+
+        if (results.length > 0)
+            this._selectIndex(0);
+        else
+            this._clearPreview();
+    }
+
+    _selectIndex(index) {
+        if (index < 0 || index >= this._results.length)
+            return;
+
+        if (this._selectedIndex >= 0 && this._resultButtons[this._selectedIndex])
+            this._resultButtons[this._selectedIndex].remove_style_class_name('selected');
+
+        this._selectedIndex = index;
+        this._resultButtons[index]?.add_style_class_name('selected');
+
+        this._updatePreview(this._results[index].window);
+    }
+
+    _updatePreview(window) {
+        this._clearPreview();
+
+        const built = createClonePreviewActor(window, this._previewBox.height);
+        if (!built)
+            return;
+
+        built.actor.set_position(
+            Math.max(0, (this._previewBox.width - built.width) / 2),
+            Math.max(0, (this._previewBox.height - built.height) / 2)
+        );
+        this._previewBox.add_child(built.actor);
+        this._previewClone = built.actor;
+    }
+
+    _clearPreview() {
+        if (!this._previewClone)
+            return;
+
+        if (this._previewClone.get_parent() === this._previewBox)
+            this._previewBox.remove_child(this._previewClone);
+        this._previewClone.destroy();
+        this._previewClone = null;
+    }
+
+    _activateResult(index) {
+        const item = this._results[index];
+        if (!item)
+            return;
+
+        const window = item.window;
+        journal(`[CollectionOverlay] Activating: ${window.title}`);
+
+        if (window.minimized)
+            window.unminimize();
+
+        window.get_workspace().activate_with_focus(window, global.get_current_time());
+        this._close();
+    }
+
+    _onKeyPress(event) {
+        const symbol = event.get_key_symbol();
+
+        switch (symbol) {
+            case Clutter.KEY_Escape:
+                this._close();
+                return Clutter.EVENT_STOP;
+
+            case Clutter.KEY_Down:
+                if (this._selectedIndex < this._results.length - 1)
+                    this._selectIndex(this._selectedIndex + 1);
+                return Clutter.EVENT_STOP;
+
+            case Clutter.KEY_Up:
+                if (this._selectedIndex > 0)
+                    this._selectIndex(this._selectedIndex - 1);
+                return Clutter.EVENT_STOP;
+
+            case Clutter.KEY_Return:
+            case Clutter.KEY_KP_Enter:
+                if (this._selectedIndex >= 0)
+                    this._activateResult(this._selectedIndex);
+                return Clutter.EVENT_STOP;
+
+            default:
+                return Clutter.EVENT_PROPAGATE;
+        }
+    }
+}
+
+// ==================== WINDOW COLLECTION ICON ====================
+// Single icon shown when a workspace has more than DIRECT_MODE_MAX_WINDOWS.
+
+class WindowCollectionIcon extends St.Button {
+    static {
+        GObject.registerClass(this);
+    }
+
+    constructor(getWindowsFn) {
+        super({
+            style_class: 'workspace-thumbnail-collection-icon',
+            reactive: true,
+            track_hover: true,
+            can_focus: true,
+        });
+
+        this._getWindowsFn = getWindowsFn;
+
+        this._label = new St.Label({
+            style_class: 'collection-icon-label',
+            y_align: Clutter.ActorAlign.CENTER,
+            x_align: Clutter.ActorAlign.CENTER,
+        });
+        this.set_child(this._label);
+
+        this._clickedId = this.connect('clicked', () => this._openOverlay());
+    }
+
+    setCount(count) {
+        this._label.set_text(`▱ ${count}`);
+    }
+
+    _openOverlay() {
+        const windows = this._getWindowsFn();
+        new WindowCollectionOverlay(windows);
+    }
+
+    destroy() {
+        if (this._clickedId) {
+            this.disconnect(this._clickedId);
+            this._clickedId = null;
+        }
+        super.destroy();
+    }
+}
+
 // Represents a single workspace in the panel indicator.
 // Holds a set of WindowPreviews for all windows in that workspace.
 // shows a context menu (e.g., close all windows).
@@ -923,7 +1340,9 @@ class WorkspaceThumbnail extends St.Button {
 
         this._windowsBox = new St.BoxLayout();
 
-        this._windowCount = 0;
+        this._windowOrder = [];       // stable insertion-order list of tracked windows
+        this._mode = 'direct';        // 'direct' | 'collection'
+        this._collectionIcon = null;
 
         this.set_child(this._windowsBox);
 
@@ -1084,35 +1503,102 @@ class WorkspaceThumbnail extends St.Button {
     }
 
     _addWindow(window) {
-        if (this._windowPreviews.has(window))
-            return;
-
-        // // Add immediate check for window validity
-        // if (!window || window.is_override_redirect())
-        //     return;
-
-        // Skip uninteresting windows
         if (window.skip_taskbar)
             return;
 
-        // Ensure we don't leave behind multiple timeouts for the same window
+        if (this._windowOrder.includes(window))
+            return;
+
         if (this._addWindowTimeoutIds.has(window)) {
             GLib.Source.remove(this._addWindowTimeoutIds.get(window));
             this._addWindowTimeoutIds.delete(window);
         }
 
         const sourceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, TimeoutDelay, () => {
-            // Additional safety: check if the window is still on this workspace
-            if (window.get_workspace() !== this._workspace) {
-                this._addWindowTimeoutIds.delete(window);
-                return GLib.SOURCE_REMOVE;
-            }
+            this._addWindowTimeoutIds.delete(window);
 
+            if (window.get_workspace() !== this._workspace)
+                return GLib.SOURCE_REMOVE;
+
+            if (!this._windowOrder.includes(window))
+                this._windowOrder.push(window);
+
+            this._syncDisplayMode();
+            return GLib.SOURCE_REMOVE;
+        });
+
+        this._addWindowTimeoutIds.set(window, sourceId);
+    }
+
+    _removeWindow(window) {
+        if (this._addWindowTimeoutIds.has(window)) {
+            GLib.Source.remove(this._addWindowTimeoutIds.get(window));
+            this._addWindowTimeoutIds.delete(window);
+        }
+
+        const idx = this._windowOrder.indexOf(window);
+        if (idx === -1)
+            return;
+
+        this._windowOrder.splice(idx, 1);
+
+        const preview = this._windowPreviews.get(window);
+        if (preview) {
+            this._windowPreviews.delete(window);
+            if (this._windowsBox && preview.get_parent() === this._windowsBox)
+                this._windowsBox.remove_child(preview);
+            preview.destroy();
+        }
+
+        this._syncDisplayMode();
+    }
+
+    // ==================== DISPLAY MODE SWITCHING ====================
+    // Deterministic: purely a function of this._windowOrder.length.
+    // Never touches this._workspace, window stacking, or window state.
+
+    _syncDisplayMode() {
+        const count = this._windowOrder.length;
+
+        if (count > DIRECT_MODE_MAX_WINDOWS)
+            this._enterCollectionMode(count);
+        else
+            this._enterDirectMode();
+    }
+
+    _enterCollectionMode(count) {
+        // Tear down direct-mode icons (icons only — underlying windows untouched)
+        for (const preview of this._windowPreviews.values()) {
+            if (preview.get_parent() === this._windowsBox)
+                this._windowsBox.remove_child(preview);
+            preview.destroy();
+        }
+        this._windowPreviews.clear();
+
+        if (!this._collectionIcon) {
+            this._collectionIcon = new WindowCollectionIcon(() => this._windowOrder.slice());
+            this._windowsBox.add_child(this._collectionIcon);
+        }
+
+        this._collectionIcon.setCount(count);
+        this._mode = 'collection';
+    }
+
+    _enterDirectMode() {
+        if (this._collectionIcon) {
+            if (this._collectionIcon.get_parent() === this._windowsBox)
+                this._windowsBox.remove_child(this._collectionIcon);
+            this._collectionIcon.destroy();
+            this._collectionIcon = null;
+        }
+
+        // Create any missing icons, appended in _windowOrder order so
+        // existing icons never get reshuffled.
+        for (const window of this._windowOrder) {
             if (this._windowPreviews.has(window))
-                return GLib.SOURCE_REMOVE;
-
+                continue;
             if (!this._windowsBox || !this._windowsBox.get_stage())
-                return GLib.SOURCE_REMOVE;
+                continue;
 
             let preview = new WindowPreview(window);
             preview.connect('clicked', () => {
@@ -1121,53 +1607,23 @@ class WorkspaceThumbnail extends St.Button {
             });
             this._windowPreviews.set(window, preview);
             this._windowsBox.add_child(preview);
-
-            this._windowCount++;
-            this._updateThumbnailSize();
-
-            this._addWindowTimeoutIds.delete(window);
-            return GLib.SOURCE_REMOVE;
-        });
-
-        this._addWindowTimeoutIds.set(window, sourceId);
-    }
-
-    _removeWindow(window) {
-        let preview = this._windowPreviews.get(window);
-        if (!preview)
-            return;
-
-        if (this._addWindowTimeoutIds.has(window)) {
-            GLib.Source.remove(this._addWindowTimeoutIds.get(window));
-            this._addWindowTimeoutIds.delete(window);
         }
 
-        this._windowPreviews.delete(window);
-        // Explicitly remove from container before destroying
-        if (this._windowsBox && preview.get_parent() === this._windowsBox)
-            this._windowsBox.remove_child(preview);
-        preview.destroy();
-
-        this._windowCount--;
+        this._mode = 'direct';
         this._updateThumbnailSize();
     }
 
     _updateThumbnailSize() {
-        // Adjust icon sizes in window previews based on thumbnail size
-        let iconSize = 96; // Default size for large
+        let iconSize = 96;
+        const count = this._windowPreviews.size;
 
-        if (this._windowCount >= 7) {
-            iconSize = 48; // Smallest icons for many windows
-        } else if (this._windowCount >= 5) {
-            iconSize = 72; // Medium icons
-        }
-        // For 0-3 windows, keep default 96px
+        if (count >= 7) iconSize = 48;
+        else if (count >= 5) iconSize = 72;
 
-        // Update all window previews
         for (let preview of this._windowPreviews.values()) {
             if (preview.icon_size !== iconSize) {
                 preview.icon_size = iconSize;
-                preview._updateIcon(); // Force icon refresh
+                preview._updateIcon();
             }
         }
     }
@@ -1204,15 +1660,19 @@ class WorkspaceThumbnail extends St.Button {
         this._workspace.disconnect(this._windowRemovedId);
         Display.disconnect(this._restackedId);
         Display.disconnect(this._windowCreatedId);
-        // Clear any pending timeouts
-        for (const [, id] of this._addWindowTimeoutIds) {
+
+        for (const [, id] of this._addWindowTimeoutIds)
             GLib.Source.remove(id);
-        }
         this._addWindowTimeoutIds.clear();
 
         if (this._wsChangedId && WorkspaceManager) {
             WorkspaceManager.disconnect(this._wsChangedId);
             this._wsChangedId = null;
+        }
+
+        if (this._collectionIcon) {
+            this._collectionIcon.destroy();
+            this._collectionIcon = null;
         }
 
         super.destroy();
