@@ -76,9 +76,10 @@ function fuzzyMatch(query, text) {
 // ==================== SHARED CLONE-PREVIEW BUILDER ====================
 // Reuses the same clone/shadow math as WindowPreview._showHoverPreview,
 // factored out so the collection overlay can use "the existing
-// window-preview mechanism" per spec item 6.
+// window-preview mechanism" per spec item 6. Optionally attaches a
+// close button (mirrors WindowPreview's hover-preview close button).
 
-function createClonePreviewActor(window, targetHeight) {
+function createClonePreviewActor(window, targetHeight, options = {}) {
     if (!window)
         return null;
 
@@ -117,7 +118,126 @@ function createClonePreviewActor(window, targetHeight) {
     cloneContainer.add_child(clone);
     container.add_child(cloneContainer);
 
+    if (options.onClose) {
+        const closeButton = new St.Button({
+            style_class: 'window-close-button',
+            child: new St.Icon({
+                icon_name: 'window-close-symbolic',
+                icon_size: 32,
+            }),
+            x_align: Clutter.ActorAlign.END,
+            y_align: Clutter.ActorAlign.START,
+            reactive: true,
+        });
+
+        closeButton.set_position(targetWidth - 46, 10);
+        closeButton.connect('clicked', () => {
+            options.onClose(window);
+            return Clutter.EVENT_STOP;
+        });
+
+        cloneContainer.add_child(closeButton);
+    }
+
     return { actor: container, width: targetWidth, height: targetHeight };
+}
+
+// ==================== THUMBNAIL REGISTRY ====================
+// Tracks all live WorkspaceThumbnail actors so native (title-bar) window
+// drags can be hit-tested against them on drop, independent of our own
+// St/Clutter DND sessions.
+
+const ThumbnailRegistry = {
+    _thumbnails: new Set(),
+
+    register(thumb) {
+        this._thumbnails.add(thumb);
+    },
+
+    unregister(thumb) {
+        this._thumbnails.delete(thumb);
+    },
+
+    getAll() {
+        return [...this._thumbnails];
+    },
+};
+
+// ==================== TITLE BAR DRAG MONITOR ====================
+// Listens for native mutter window-move grabs (dragging a window by its
+// title bar) and, on release, checks whether the pointer is over one of
+// our workspace thumbnails. If so, moves the window there using the same
+// normal GNOME window-move machinery already used by internal DND drops.
+// This is NOT the same pipeline as DND.makeDraggable: title-bar drags are
+// a compositor-level grab operation, not a Clutter/St DND session, so
+// dnd.js never observes them and we must hook global.display directly.
+
+class TitleBarDragMonitor {
+    constructor() {
+        this._grabbedWindow = null;
+
+        this._beginId = global.display.connect('grab-op-begin',
+            (display, window, op) => this._onGrabOpBegin(window, op));
+        this._endId = global.display.connect('grab-op-end',
+            (display, window, op) => this._onGrabOpEnd(window, op));
+    }
+
+    _isMoveOp(op) {
+        return op === Meta.GrabOp.MOVING ||
+            op === Meta.GrabOp.KEYBOARD_MOVING;
+    }
+
+    _onGrabOpBegin(window, op) {
+        if (!this._isMoveOp(op))
+            return;
+
+        journal(`[TitleBarDragMonitor] Move grab started: ${window?.title}`);
+        this._grabbedWindow = window;
+    }
+
+    _onGrabOpEnd(window, op) {
+        const grabbed = this._grabbedWindow;
+        this._grabbedWindow = null;
+
+        if (!grabbed || grabbed !== window || !this._isMoveOp(op))
+            return;
+
+        const [pointerX, pointerY] = global.get_pointer();
+        const target = this._findThumbnailAt(pointerX, pointerY);
+
+        if (!target)
+            return;
+
+        journal(`[TitleBarDragMonitor] Dropped "${window.title}" onto workspace ${target._workspace.index()}`);
+        target._moveWindow(window);
+    }
+
+    _findThumbnailAt(x, y) {
+        for (const thumb of ThumbnailRegistry.getAll()) {
+            if (!thumb.get_stage())
+                continue;
+
+            const [tx, ty] = thumb.get_transformed_position();
+            const tw = thumb.width;
+            const th = thumb.height;
+
+            if (x >= tx && x <= tx + tw && y >= ty && y <= ty + th)
+                return thumb;
+        }
+        return null;
+    }
+
+    destroy() {
+        if (this._beginId) {
+            global.display.disconnect(this._beginId);
+            this._beginId = null;
+        }
+        if (this._endId) {
+            global.display.disconnect(this._endId);
+            this._endId = null;
+        }
+        this._grabbedWindow = null;
+    }
 }
 
 // ==================== PREVIEW REGISTRY WITH CTRL POLLING ====================
@@ -259,13 +379,13 @@ class WindowPreview extends St.Button {
         this._cleanupTimeoutId = null;
         this._hoverTimeoutId = null;
 
-        // DND setup
-        this._delegate = this;
-        DND.makeDraggable(this, { restoreOnSuccess: true });
-
         // Drag-hover-to-activate state (for external drags: files, text, tabs, etc.)
         this._dragActivateTimeoutId = null;
         this._lastDragOverTime = 0;
+
+        // DND setup
+        this._delegate = this;
+        DND.makeDraggable(this, { restoreOnSuccess: true });
 
         // Initialize icon
         this._updateIcon();
@@ -450,15 +570,6 @@ class WindowPreview extends St.Button {
             track_hover: true,
         });
 
-        // `clip_to_allocation: true` makes the container act like a mask.
-        // anything outside innerContainer is cut off.
-        // Shadows are cropped correctly
-        // Think of it like a photo frame:
-        // outerWrapper → the frame(border, visible around the picture)
-        // innerContainer → the glass / mask inside the frame
-        // clone → the photo inside, which may have a little overhang(shadows)
-        // The glass cuts off anything sticking out, but the frame is always visible.
-        //
         const innerContainer = new St.BoxLayout({
             style_class: 'hover-preview-inner',
             width: previewWidth,
@@ -495,10 +606,6 @@ class WindowPreview extends St.Button {
         });
 
         // BUILD HIERARCHY
-        // The cloneContainer might seem redundant at first
-        // The cloneContainer acts as a positioning canvas
-        // Gives you a reliable coordinate system for precise positioning
-        // Keeps the clone's negative positioning from affecting the clipped container
         const cloneContainer = new Clutter.Actor();
         cloneContainer.add_child(clone);
         cloneContainer.add_child(closeButton);
@@ -532,30 +639,17 @@ class WindowPreview extends St.Button {
         journal(`[WindowPreview] Hover preview shown`);
     }
 
-    // _showTitlePopup() is a fallback hover UI.
-
-    // When you hover a window preview while holding Ctrl,
-    // instead of showing the big live window preview,
-    // this function shows a small text label with the window title.
-
-    // However it creates a bug due to the use of grab_key_focus
-    // Some keybindings stop working.
-    // This is why removing this feature
-
     _showTitlePopup() {
         journal(`[WindowPreview] Showing title popup`);
         if (!this._window) return;
 
-        // Hide hover preview if showing
         this._hideHoverPreview();
 
-        // Don't recreate if already exists
         if (this._titlePopup) {
             journal(`[WindowPreview] Title popup already exists`);
             return;
         }
 
-        // Check if we should still show - either hovering or cleanup timer running
         const shouldShow = this.hover ||
             this._cleanupTimeoutId !== null ||
             (this._hoverPreview !== null || this._titlePopup !== null);
@@ -573,32 +667,21 @@ class WindowPreview extends St.Button {
             track_hover: true,
         });
 
-        // Add to layout first to get accurate width
         Main.layoutManager.addChrome(label);
 
-        // Get icon position and size
         let [iconX, iconY] = this.get_transformed_position();
         const iconWidth = this.width;
 
-        // Calculate maximum width for the label (with some padding from screen edges)
         const padding = 10;
         const maxWidth = screenWidth - (2 * padding);
 
-        // Set max width and enable ellipsization
-        // label.set_style(`max-width: ${maxWidth}px;`);
-        // label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
-
-        // Get label width after potential truncation
         const labelWidth = Math.min(label.width, maxWidth);
 
-        // Center the label horizontally to the icon
         let labelX = iconX + (iconWidth - labelWidth) / 2;
 
-        // Keep label on screen horizontally
         labelX = Math.max(padding, labelX);
         labelX = Math.min(labelX, screenWidth - labelWidth - padding);
 
-        // const labelY = iconY - 105;
         const labelY = screenHeight - 200;
 
         label.set_position(labelX, labelY);
@@ -649,13 +732,8 @@ class WindowPreview extends St.Button {
     _forceHide(reason = '') {
         journal(`[WindowPreview] Force hiding${reason ? `: ${reason}` : ''}`);
 
-        // Cancel cleanup timer first to prevent it from firing after unregister
         this._cancelCleanup();
-
-        // Unregister from registry (stops Ctrl polling)
         PreviewRegistry.unregisterPreview(this);
-
-        // Hide all UI
         this._hideAll();
     }
 
@@ -676,7 +754,6 @@ class WindowPreview extends St.Button {
             () => {
                 this._cleanupTimeoutId = null;
 
-                // Check if still not hovering
                 const iconHovered = this.hover;
                 const previewHovered = this._hoverPreview?.hover || false;
                 const titleHovered = this._titlePopup?.hover || false;
@@ -686,13 +763,9 @@ class WindowPreview extends St.Button {
                     return GLib.SOURCE_REMOVE;
                 }
 
-                // Proceed with cleanup
                 journal(`[WindowPreview] Cleanup timer completed`);
 
-                // Unregister first to stop Ctrl polling
                 PreviewRegistry.unregisterPreview(this);
-
-                // Then hide all UI
                 this._hideAll();
 
                 return GLib.SOURCE_REMOVE;
@@ -710,6 +783,57 @@ class WindowPreview extends St.Button {
             GLib.source_remove(this._cleanupTimeoutId);
             this._cleanupTimeoutId = null;
         }
+    }
+
+    // ==================== DRAG HOVER ACTIVATION ====================
+    // Lets you drag a file/text/tab from elsewhere, hover over this icon,
+    // and have the underlying window raise+focus so you can then drop
+    // onto the actual window surface.
+
+    handleDragOver(source, actor, x, y, time) {
+        if (source instanceof WindowPreview) {
+            return DND.DragMotionResult.CONTINUE;
+        }
+
+        this._lastDragOverTime = GLib.get_monotonic_time();
+
+        if (!this._dragActivateTimeoutId) {
+            journal(`[WindowPreview] External drag hovering, scheduling activate`);
+            this._dragActivateTimeoutId = GLib.timeout_add(
+                GLib.PRIORITY_DEFAULT,
+                400,
+                () => {
+                    this._dragActivateTimeoutId = null;
+
+                    const elapsedMs = (GLib.get_monotonic_time() - this._lastDragOverTime) / 1000;
+                    if (elapsedMs > 500) {
+                        journal(`[WindowPreview] Drag left before activation, aborting`);
+                        return GLib.SOURCE_REMOVE;
+                    }
+
+                    this._activateForDrag();
+                    return GLib.SOURCE_REMOVE;
+                }
+            );
+        }
+
+        return DND.DragMotionResult.CONTINUE;
+    }
+
+    acceptDrop(_source) {
+        return false;
+    }
+
+    _activateForDrag() {
+        if (!this._window) return;
+
+        journal(`[WindowPreview] Activating window for drag-hover: ${this._window.title}`);
+
+        const win = this._window;
+        if (win.minimized) win.unminimize();
+
+        const winWs = win.get_workspace();
+        winWs.activate_with_focus(win, global.get_current_time());
     }
 
     // ==================== EVENT HANDLERS ====================
@@ -753,16 +877,6 @@ class WindowPreview extends St.Button {
     _showContextMenu() {
         let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP);
 
-        // menu - This is the PopupMenu JavaScript object.
-        // It's not a visual actor itself
-        // menu.box - This is the actual St.BoxLayout actor
-        // PopupMenu(JavaScript object)
-        // ├─ actor(St.Widget - the outer container)
-        // └─ box(St.BoxLayout - contains the menu items)
-        //     ├─ PopupMenuItem 1
-        //     ├─ PopupMenuItem 2
-                //     └─ ...
-
         menu.box.add_style_class_name('workspace-context-menu');
         this._contextMenu = menu;
 
@@ -795,12 +909,10 @@ class WindowPreview extends St.Button {
 
             for (const window of windowsToClose) {
                 journal(`Closing window: ${window.get_title()}`);
-                // This is an asynchronous, non-blocking call
                 window.delete(currentTime);
             }
         });
 
-        // Add desktop actions
         const app = WindowTracker.get_window_app(this._window);
         const appInfo = app?.get_app_info();
         const actions = appInfo?.list_actions();
@@ -821,61 +933,6 @@ class WindowPreview extends St.Button {
         }
     }
 
-    // ==================== DRAG HOVER ACTIVATION ====================
-    // Lets you drag a file/text/tab from elsewhere, hover over this icon,
-    // and have the underlying window raise+focus so you can then drop
-    // onto the actual window surface.
-
-    handleDragOver(source, actor, x, y, time) {
-        // Don't hijack our own icon-reordering drags (workspace move DND,
-        // handled separately by WorkspaceThumbnail.acceptDrop/handleDragOver)
-        if (source instanceof WindowPreview) {
-            return DND.DragMotionResult.CONTINUE;
-        }
-
-        this._lastDragOverTime = GLib.get_monotonic_time();
-
-        if (!this._dragActivateTimeoutId) {
-            journal(`[WindowPreview] External drag hovering, scheduling activate`);
-            this._dragActivateTimeoutId = GLib.timeout_add(
-                GLib.PRIORITY_DEFAULT,
-                400, // debounce so a quick pass-over doesn't yank focus
-                () => {
-                    this._dragActivateTimeoutId = null;
-
-                    const elapsedMs = (GLib.get_monotonic_time() - this._lastDragOverTime) / 1000;
-                    if (elapsedMs > 500) {
-                        journal(`[WindowPreview] Drag left before activation, aborting`);
-                        return GLib.SOURCE_REMOVE;
-                    }
-
-                    this._activateForDrag();
-                    return GLib.SOURCE_REMOVE;
-                }
-            );
-        }
-
-        return DND.DragMotionResult.CONTINUE;
-    }
-
-    acceptDrop(_source) {
-        // Never actually accept the drop on the icon itself — we only want
-        // to raise/focus the window so the user can drop on its real surface.
-        return false;
-    }
-
-    _activateForDrag() {
-        if (!this._window) return;
-
-        journal(`[WindowPreview] Activating window for drag-hover: ${this._window.title}`);
-
-        const win = this._window;
-        if (win.minimized) win.unminimize();
-
-        const winWs = win.get_workspace();
-        winWs.activate_with_focus(win, global.get_current_time());
-    }
-
     // ==================== UTILITY METHODS ====================
 
     _is_covered(window) {
@@ -884,10 +941,10 @@ class WindowPreview extends St.Button {
 
         let windows_by_stacking = Display.sort_windows_by_stacking(
             Display.list_all_windows()
-            .filter(win =>
-                (win.get_window_type() === Meta.WindowType.NORMAL ||
-                win.get_window_type() === Meta.WindowType.DIALOG) &&
-                win.get_workspace() === current_workspace)
+                .filter(win =>
+                    (win.get_window_type() === Meta.WindowType.NORMAL ||
+                        win.get_window_type() === Meta.WindowType.DIALOG) &&
+                    win.get_workspace() === current_workspace)
         );
 
         let targetRect = window.get_frame_rect();
@@ -950,10 +1007,8 @@ class WindowPreview extends St.Button {
     destroy() {
         journal(`[WindowPreview] Destroying`);
 
-        // Force hide to clean up everything properly
         this._forceHide('destroy');
 
-        // Disconnect signals
         if (this._hoverSignalId) {
             this.disconnect(this._hoverSignalId);
             this._hoverSignalId = null;
@@ -979,20 +1034,18 @@ class WindowPreview extends St.Button {
             this._wsChangedId = null;
         }
 
-        // Clear hover debounce timeout
         if (this._hoverTimeoutId) {
             GLib.source_remove(this._hoverTimeoutId);
             this._hoverTimeoutId = null;
         }
 
-        // Remove children
-        if (this.get_child()) {
-            this.set_child(null);
-        }
-
         if (this._dragActivateTimeoutId) {
             GLib.source_remove(this._dragActivateTimeoutId);
             this._dragActivateTimeoutId = null;
+        }
+
+        if (this.get_child()) {
+            this.set_child(null);
         }
 
         super.destroy();
@@ -1004,7 +1057,8 @@ class WindowPreview extends St.Button {
 // ==================== WINDOW COLLECTION OVERLAY ====================
 // Fullscreen, modal, Solarized Dark search overlay for 6+ window mode.
 // Never mutates window/workspace ordering or state — purely a display
-// and activation surface.
+// and activation surface. Search results are draggable and represent
+// the real window (see _setResults / _onResultDragBegin).
 
 class WindowCollectionOverlay {
     constructor(windows) {
@@ -1016,6 +1070,7 @@ class WindowCollectionOverlay {
         this._selectedIndex = -1;
         this._previewClone = null;
         this._modalGrab = null;
+        this._closed = false;
 
         this._buildUI();
         this._setResults(this._getAllResultsSorted());
@@ -1088,14 +1143,21 @@ class WindowCollectionOverlay {
             height: entryHeight,
         });
 
-        this._resultsBox = new St.BoxLayout({
-            style_class: 'collection-results-box',
-            vertical: true,
+        this._resultsScroll = new St.ScrollView({
+            style_class: 'collection-results-scroll',
             x: panelX,
             y: panelTop,
             width: resultsWidth,
             height: panelHeight,
         });
+        this._resultsScroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
+
+        this._resultsBox = new St.BoxLayout({
+            style_class: 'collection-results-box',
+            vertical: true,
+            x_expand: true,
+        });
+        this._resultsScroll.set_child(this._resultsBox);
 
         this._previewBox = new St.BoxLayout({
             style_class: 'collection-preview-box',
@@ -1106,7 +1168,7 @@ class WindowCollectionOverlay {
         });
 
         this._container.add_child(this._entry);
-        this._container.add_child(this._resultsBox);
+        this._container.add_child(this._resultsScroll);
         this._container.add_child(this._previewBox);
 
         this._entryChangedId = this._entry.clutter_text.connect('text-changed',
@@ -1117,14 +1179,25 @@ class WindowCollectionOverlay {
     }
 
     _open() {
-        Main.layoutManager.addChrome(this._container);
-        // Modern GNOME Shell: pushModal returns a grab object that must
-        // be passed back to popModal (not the actor).
-        this._modalGrab = Main.pushModal(this._container);
+        Main.layoutManager.addChrome(this._container, {
+            affectsInputRegion: true,
+            trackFullscreen: true,
+        });
+
+        // Ensure it stacks above the top panel and every other chrome actor
+        Main.layoutManager.uiGroup.set_child_above_sibling(this._container, null);
+
+        this._modalGrab = Main.pushModal(this._container, {
+            actionMode: Shell.ActionMode.NORMAL,
+        });
+
         this._entry.grab_key_focus();
     }
 
     _close() {
+        if (this._closed) return;
+        this._closed = true;
+
         journal(`[CollectionOverlay] Closing`);
         this._clearPreview();
 
@@ -1143,6 +1216,8 @@ class WindowCollectionOverlay {
     }
 
     _onSearchChanged() {
+        if (this._closed) return;
+
         const query = this._entry.get_text();
         const all = this._getAllResultsSorted();
 
@@ -1178,6 +1253,16 @@ class WindowCollectionOverlay {
                 reactive: true,
             });
 
+            // Make this row a DND source representing the *actual window*,
+            // matching the same protocol WorkspaceThumbnail.acceptDrop already
+            // understands (source.realWindow -> a Meta.WindowActor).
+            button._delegate = button;
+            button.realWindow = item.window.get_compositor_private();
+
+            const draggable = DND.makeDraggable(button, { restoreOnSuccess: false });
+            button._draggable = draggable;
+            draggable.connect('drag-begin', () => this._onResultDragBegin(button));
+
             button.connect('clicked', () => this._activateResult(index));
             button.connect('notify::hover', () => {
                 if (button.hover)
@@ -1195,6 +1280,7 @@ class WindowCollectionOverlay {
     }
 
     _selectIndex(index) {
+        if (this._closed) return;
         if (index < 0 || index >= this._results.length)
             return;
 
@@ -1210,7 +1296,9 @@ class WindowCollectionOverlay {
     _updatePreview(window) {
         this._clearPreview();
 
-        const built = createClonePreviewActor(window, this._previewBox.height);
+        const built = createClonePreviewActor(window, this._previewBox.height, {
+            onClose: (win) => this._closeWindowFromPreview(win),
+        });
         if (!built)
             return;
 
@@ -1232,7 +1320,46 @@ class WindowCollectionOverlay {
         this._previewClone = null;
     }
 
+    // Closing from the preview closes the real window (same as the taskbar
+    // close-button / context-menu "Close" action) and then just prunes it
+    // from the current result set — it does not reorder, reactivate, or
+    // otherwise touch any other window.
+    _closeWindowFromPreview(window) {
+        if (this._closed) return;
+
+        journal(`[CollectionOverlay] Closing window from preview: ${window.title}`);
+
+        window.delete(global.get_current_time());
+
+        const closedIndex = this._results.findIndex(item => item.window === window);
+        if (closedIndex === -1)
+            return;
+
+        this._results.splice(closedIndex, 1);
+        this._windows = this._windows.filter(w => w !== window);
+
+        const button = this._resultButtons[closedIndex];
+        if (button) {
+            if (button.get_parent() === this._resultsBox)
+                this._resultsBox.remove_child(button);
+            button.destroy();
+        }
+        this._resultButtons.splice(closedIndex, 1);
+
+        if (this._results.length === 0) {
+            this._selectedIndex = -1;
+            this._clearPreview();
+            return;
+        }
+
+        const nextIndex = Math.min(closedIndex, this._results.length - 1);
+        this._selectedIndex = -1; // force _selectIndex to treat it as a fresh selection
+        this._selectIndex(nextIndex);
+    }
+
     _activateResult(index) {
+        if (this._closed) return;
+
         const item = this._results[index];
         if (!item)
             return;
@@ -1247,7 +1374,56 @@ class WindowCollectionOverlay {
         this._close();
     }
 
+    // Fires once the pointer has moved past DND's built-in drag threshold —
+    // i.e. this is a real drag, not a click. St.Button + DND.makeDraggable
+    // already gives us click-vs-drag for free: a plain press/release under
+    // threshold fires 'clicked' normally (see _activateResult), and only
+    // exceeding the threshold reaches here, so a window is never activated
+    // as a side effect of starting a drag.
+    _onResultDragBegin(button) {
+        if (this._closed)
+            return;
+        this._closed = true;
+
+        journal(`[CollectionOverlay] Drag started on result — closing overlay, drag continues`);
+
+        this._clearPreview();
+
+        if (this._modalGrab) {
+            Main.popModal(this._modalGrab);
+            this._modalGrab = null;
+        }
+
+        if (this._entry?.clutter_text) {
+            this._entry.clutter_text.disconnect(this._entryChangedId);
+            this._entry.clutter_text.disconnect(this._entryKeyPressId);
+        }
+
+        // Visually and functionally "closed" immediately: no longer modal,
+        // no longer painted, no longer in chrome.
+        Main.layoutManager.removeChrome(this._container);
+        this._container.hide();
+
+        // But don't destroy yet — dnd.js may still reference this._resultsBox
+        // (button's original parent) to restore position if the drag is
+        // cancelled or dropped somewhere invalid. Destroy only once dnd.js
+        // signals it's fully done with the actor.
+        const draggable = button._draggable;
+        if (!draggable) {
+            this._container.destroy();
+            return;
+        }
+
+        const endId = draggable.connect('drag-end', () => {
+            draggable.disconnect(endId);
+            journal(`[CollectionOverlay] Drag finished, disposing overlay`);
+            this._container.destroy();
+        });
+    }
+
     _onKeyPress(event) {
+        if (this._closed) return Clutter.EVENT_PROPAGATE;
+
         const symbol = event.get_key_symbol();
 
         switch (symbol) {
@@ -1324,8 +1500,9 @@ class WindowCollectionIcon extends St.Button {
 }
 
 // Represents a single workspace in the panel indicator.
-// Holds a set of WindowPreviews for all windows in that workspace.
-// shows a context menu (e.g., close all windows).
+// Holds a set of WindowPreviews for all windows in that workspace,
+// or a single WindowCollectionIcon when there are more than
+// DIRECT_MODE_MAX_WINDOWS windows.
 class WorkspaceThumbnail extends St.Button {
     static {
         GObject.registerClass(this);
@@ -1353,6 +1530,8 @@ class WorkspaceThumbnail extends St.Button {
 
         this._workspace = workspace;
 
+        ThumbnailRegistry.register(this);
+
         this._wsChangedId = WorkspaceManager.connect('workspace-switched', () => {
             if (this._contextMenu) {
                 this._contextMenu.close();
@@ -1368,17 +1547,9 @@ class WorkspaceThumbnail extends St.Button {
             }
 
             if (button === Clutter.BUTTON_SECONDARY) { // right click
-                // let windows = this._workspace.list_windows().filter(w =>
-                //     w.get_window_type() === 0
-                // );
-
                 const windows = Display.get_tab_list(Meta.TabList.NORMAL, this._workspace);
 
                 const windowCount = windows.length;
-
-                // if (windowCount === 0) {
-                //     return Clutter.EVENT_STOP; // Fix: Return STOP to prevent menu creation
-                // }
 
                 let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP);
                 menu.box.add_style_class_name('workspace-context-menu');
@@ -1389,53 +1560,29 @@ class WorkspaceThumbnail extends St.Button {
 
                 Main.uiGroup.add_child(menu.actor);
 
-                // Always show this option
                 menu.addAction('Close all windows on all workspaces', () => {
-                    // let windowsToClose = global.get_window_actors()
-                    //     .map(a => a.meta_window)
-                    //     .filter(w => w.get_window_type() === 0);
-
                     let windowsToClose = Display.get_tab_list(Meta.TabList.NORMAL, null);
 
                     const currentTime = global.get_current_time();
 
-                    // windowsToClose.forEach(window => {
-                    //     journal(`Closing window: ${window.get_title()}`);
-                    //     window.delete(global.get_current_time());
-                    // });
                     for (const window of windowsToClose) {
                         journal(`Closing window: ${window.get_title()}`);
-                        // This is an asynchronous, non-blocking call
                         window.delete(currentTime);
                     }
                 });
 
-                // Only show these when the current workspace has windows
                 if (windowCount > 0) {
                     menu.addAction(
                         `Close all windows except workspace ${this._workspace.index()}`,
                         () => {
-                            // let windowsToClose = global.get_window_actors()
-                            //     .map(a => a.meta_window)
-                            //     .filter(w =>
-                            //         w.get_window_type() === 0 &&
-                            //         w.get_workspace() !== this._workspace
-                            //     );
-
                             let windowsToClose = Display.get_tab_list(Meta.TabList.NORMAL, null).filter(w =>
                                 w.get_workspace() !== this._workspace
                             );
 
                             const currentTime = global.get_current_time();
 
-                            // windowsToClose.forEach(window => {
-                            //     journal(`Closing window: ${window.get_title()}`);
-                            //     window.delete(global.get_current_time());
-                            // });
-                            // for...of is faster and cleaner in modern GJS environments
                             for (const window of windowsToClose) {
                                 journal(`Closing window: ${window.get_title()}`);
-                                // This is an asynchronous, non-blocking call
                                 window.delete(currentTime);
                             }
                         }
@@ -1446,13 +1593,8 @@ class WorkspaceThumbnail extends St.Button {
                         () => {
                             const currentTime = global.get_current_time();
 
-                            // windows.forEach(window => {
-                            //     journal(`Closing window: ${window.get_title()}`);
-                            //     window.delete(global.get_current_time());
-                            // });
                             for (const window of windows) {
                                 journal(`Closing window: ${window.get_title()}`);
-                                // This is an asynchronous, non-blocking call
                                 window.delete(currentTime);
                             }
                         }
@@ -1567,7 +1709,6 @@ class WorkspaceThumbnail extends St.Button {
     }
 
     _enterCollectionMode(count) {
-        // Tear down direct-mode icons (icons only — underlying windows untouched)
         for (const preview of this._windowPreviews.values()) {
             if (preview.get_parent() === this._windowsBox)
                 this._windowsBox.remove_child(preview);
@@ -1592,8 +1733,6 @@ class WorkspaceThumbnail extends St.Button {
             this._collectionIcon = null;
         }
 
-        // Create any missing icons, appended in _windowOrder order so
-        // existing icons never get reshuffled.
         for (const window of this._windowOrder) {
             if (this._windowPreviews.has(window))
                 continue;
@@ -1675,6 +1814,8 @@ class WorkspaceThumbnail extends St.Button {
             this._collectionIcon = null;
         }
 
+        ThumbnailRegistry.unregister(this);
+
         super.destroy();
     }
 }
@@ -1690,14 +1831,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
         super(0.0, _('Workspace Indicator'));
 
         this.reactive = false;
-
-        // let container = new St.Widget({
-        //     layout_manager: new Clutter.BinLayout(),
-        //     x_expand: true,
-        //     y_expand: true,
-        // });
-
-        // this.add_child(container);
 
         // Main container
         this._mainBox = new St.BoxLayout({
@@ -1729,7 +1862,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
 
         this.add_child(this._mainBox);
 
-        // this._workspacesItems = [];
         this._workspaceSection = new PopupMenu.PopupMenuSection();
         this.menu.addMenuItem(this._workspaceSection);
 
@@ -1740,21 +1872,18 @@ class WorkspaceIndicator extends PanelMenu.Button {
                 this._onWorkspaceSwitched.bind(this)),
         ];
 
-        // this._createWorkspacesSection();
         this._updateThumbnails();
     }
 
-    // Add this method from the reference code
     _getCurrentWorkspaceName() {
         const workspaceManager = global.workspace_manager;
         const currentWorkspace = workspaceManager.get_active_workspace_index();
         return Meta.prefs_get_workspace_name(currentWorkspace);
     }
 
-    // Add this method from the reference code
     _onWorkspaceSwitched() {
         this._workspaceName.set_text(this._getCurrentWorkspaceName());
-        this._updateActiveThumbnail(); // Keep existing functionality
+        this._updateActiveThumbnail();
     }
 
     _updateActiveThumbnail() {
@@ -1779,16 +1908,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
         super.destroy();
     }
 
-    _updateActiveThumbnail() {
-        let thumbs = this._thumbnailsBox.get_children();
-        for (let i = 0; i < thumbs.length; i++) {
-            if (i === WorkspaceManager.get_active_workspace_index())
-                thumbs[i].add_style_class_name('active');
-            else
-                thumbs[i].remove_style_class_name('active');
-        }
-    }
-
     _updateThumbnails() {
         this._thumbnailsBox.destroy_all_children();
 
@@ -1799,7 +1918,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
         this._updateActiveThumbnail();
     }
 
-    // Explicitly cancel any GLib sources created by thumbnails
     cleanupSources() {
         let thumbs = this._thumbnailsBox.get_children();
         for (let i = 0; i < thumbs.length; i++) {
@@ -1807,7 +1925,6 @@ class WorkspaceIndicator extends PanelMenu.Button {
                 thumbs[i].cleanupSources();
         }
     }
-
 }
 
 export default class TopNotchWorkspaces extends Extension {
@@ -1816,6 +1933,7 @@ export default class TopNotchWorkspaces extends Extension {
         this._indicator = null;
         this._handles = [];
         this._origUpdateSwitcher = null;
+        this._titleBarDragMonitor = null;
     }
 
     enable() {
@@ -1840,16 +1958,22 @@ export default class TopNotchWorkspaces extends Extension {
 
         setLogging(true);
 
-        // journalctl -f -o cat SYSLOG_IDENTIFIER=workspaces-organizer-by-blueray453
         journal(`Enabled`);
 
         // Workspace indicator in top bar
         this._indicator = new WorkspaceIndicator();
         Main.panel.addToStatusArea('workspace-indicator', this._indicator, 0, 'left');
+
+        // Native title-bar drag -> drop on workspace thumbnail
+        this._titleBarDragMonitor = new TitleBarDragMonitor();
     }
 
     disable() {
-        // Destroy workspace indicator
+        if (this._titleBarDragMonitor) {
+            this._titleBarDragMonitor.destroy();
+            this._titleBarDragMonitor = null;
+        }
+
         if (this._indicator) {
             this._indicator.destroy();
             this._indicator = null;
