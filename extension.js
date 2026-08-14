@@ -174,8 +174,9 @@ const ThumbnailRegistry = {
 
 class TitleBarDragMonitor {
     constructor() {
-        this._currentDragWindow = null;
+        this._grabbedWindow = null;
         this._dragPollId = 0;
+        this._currentDragWindow = null;
         this._lastSwitchedWorkspace = null;
 
         this._beginId = global.display.connect('grab-op-begin',
@@ -190,7 +191,9 @@ class TitleBarDragMonitor {
     }
 
     _onGrabOpBegin(window, op) {
-        if (!this._isMoveOp(op)) return;
+        if (!this._isMoveOp(op))
+            return;
+
         journal(`[TitleBarDragMonitor] Move grab started: ${window?.title}`);
         this._currentDragWindow = window;
         this._lastSwitchedWorkspace = null;
@@ -203,21 +206,23 @@ class TitleBarDragMonitor {
         this._lastSwitchedWorkspace = null;
         this._stopDragPoll();
 
-        if (!grabbed || grabbed !== window || !this._isMoveOp(op)) return;
+        if (!grabbed || grabbed !== window || !this._isMoveOp(op))
+            return;
 
+        // Keep the original drop handling (it will move the window to the workspace
+        // under the pointer, which is already correct after the hover switch).
         const [pointerX, pointerY] = global.get_pointer();
         const target = this._findThumbnailAt(pointerX, pointerY);
         if (target) {
             journal(`[TitleBarDragMonitor] Dropped "${window.title}" onto workspace ${target._workspace.index()}`);
             target._moveWindow(window);
-            // Ensure the window is fully visible after drop
-            this._ensureWindowVisible(window);
         }
     }
 
     _findThumbnailAt(x, y) {
         for (const thumb of ThumbnailRegistry.getAll()) {
-            if (!thumb.get_stage()) continue;
+            if (!thumb.get_stage())
+                continue;
             const [tx, ty] = thumb.get_transformed_position();
             const tw = thumb.width;
             const th = thumb.height;
@@ -258,10 +263,12 @@ class TitleBarDragMonitor {
 
         const [px, py] = global.get_pointer();
         const thumb = this._findThumbnailAt(px, py);
-        if (!thumb) return GLib.SOURCE_CONTINUE;
+        if (!thumb)
+            return GLib.SOURCE_CONTINUE;
 
         const targetWs = thumb._workspace;
         const currentWs = WorkspaceManager.get_active_workspace();
+        // If already on that workspace, or we already switched to it, do nothing
         if (targetWs === currentWs || targetWs === this._lastSwitchedWorkspace)
             return GLib.SOURCE_CONTINUE;
 
@@ -285,25 +292,6 @@ class TitleBarDragMonitor {
         return GLib.SOURCE_CONTINUE;
     }
 
-    // ----- Ensure window is fully visible (maximize if off-screen) -----
-
-    _ensureWindowVisible(window) {
-        const monitorIndex = window.get_monitor();
-        const monitor = Main.layoutManager.monitors[monitorIndex];
-        if (!monitor) return;
-
-        const rect = window.get_frame_rect();
-        const monRect = monitor; // monitor is a Clutter.Rect with x, y, width, height
-
-        const xOff = rect.x < monRect.x || rect.x + rect.width > monRect.x + monRect.width;
-        const yOff = rect.y < monRect.y || rect.y + rect.height > monRect.y + monRect.height;
-
-        if (xOff || yOff) {
-            journal(`[TitleBarDragMonitor] Window off‑screen, maximizing`);
-            window.maximize(global.get_current_time());
-        }
-    }
-
     destroy() {
         this._stopDragPoll();
         if (this._beginId) {
@@ -315,6 +303,7 @@ class TitleBarDragMonitor {
             this._endId = null;
         }
         this._currentDragWindow = null;
+        this._grabbedWindow = null;
     }
 }
 
