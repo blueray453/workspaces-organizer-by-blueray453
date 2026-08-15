@@ -1342,12 +1342,26 @@ class WindowCollectionOverlay {
     _updatePreview(window) {
         this._clearPreview();
 
-        const built = createClonePreviewActor(window, this._previewBox.height, {
+        const windowFrame = window.get_frame_rect();
+        if (windowFrame.height === 0) return;
+        const aspect = windowFrame.width / windowFrame.height;
+
+        // Start with the full available height
+        let targetHeight = this._previewBox.height;
+        let targetWidth = targetHeight * aspect;
+
+        // If width overflows, scale down to fit width
+        if (targetWidth > this._previewBox.width) {
+            targetWidth = this._previewBox.width;
+            targetHeight = targetWidth / aspect;
+        }
+
+        const built = createClonePreviewActor(window, targetHeight, {
             onClose: (win) => this._closeWindowFromPreview(win),
         });
-        if (!built)
-            return;
+        if (!built) return;
 
+        // Center the preview inside the preview box
         built.actor.set_position(
             Math.max(0, (this._previewBox.width - built.width) / 2),
             Math.max(0, (this._previewBox.height - built.height) / 2)
