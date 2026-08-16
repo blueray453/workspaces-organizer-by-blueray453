@@ -27,6 +27,12 @@ const TimeoutDelay = 200;
 
 const DIRECT_MODE_MAX_WINDOWS = 5;
 
+const LAYOUT = {
+    TITLE_HEIGHT_MIN: 40,
+    TITLE_HEIGHT_MAX: 100,
+    TITLE_HEIGHT_FRACTION: 0.2,
+};
+
 // ==================== FUZZY MATCHING ====================
 
 function subsequenceMatch(query, text) {
@@ -119,11 +125,42 @@ function createClonePreviewActor(window, targetHeight, options = {}) {
     cloneContainer.add_child(clone);
     container.add_child(cloneContainer);
 
+    // ===== Title overlay =====
+    // cloneContainer is a plain Clutter.Actor (not a BoxLayout), so
+    // absolute set_position() here works the same way it already does
+    // for the close button below — no BoxLayout auto-arrangement to
+    // fight with. Coordinates are relative to (0,0)-(targetWidth,
+    // targetHeight), i.e. the same visible region the outer clip box
+    // exposes, so this always centers on the *visible* window content,
+    // never the shadow margin.
+    if (options.showTitle !== false) {
+        const titleText = window.get_title();
+        const label = titleText && titleText.trim() ? titleText : 'Untitled';
+
+        const titleHeight = Math.min(
+            LAYOUT.TITLE_HEIGHT_MAX,
+            Math.max(LAYOUT.TITLE_HEIGHT_MIN, targetHeight * LAYOUT.TITLE_HEIGHT_FRACTION)
+        );
+
+        const title = new St.Label({
+            style_class: 'clone-title-overlay',
+            text: label,
+            x_align: Clutter.ActorAlign.FILL,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+
+        title.clutter_text.set_x_align(Clutter.ActorAlign.CENTER);
+        title.clutter_text.set_y_align(Clutter.ActorAlign.CENTER);
+        title.clutter_text.set_line_wrap(true);
+
+        title.set_size(targetWidth, titleHeight);
+        title.set_position(0, (targetHeight - titleHeight) / 2);
+
+        cloneContainer.add_child(title);
+    }
+
     if (options.onClose) {
         const closeIconSize = options.closeButtonSize ?? 32;
-        // Preserves exact prior pixel placement for each call site rather
-        // than guessing a formula from icon size: overlay passed 46/10,
-        // hover-preview passed 60/10.
         const closeOffsetX = options.closeButtonOffsetX ?? (closeIconSize + 14);
         const closeOffsetY = options.closeButtonOffsetY ?? 10;
 
@@ -147,13 +184,9 @@ function createClonePreviewActor(window, targetHeight, options = {}) {
         cloneContainer.add_child(closeButton);
     }
 
-    // Collection overlay just wants the inner container positioned inside
-    // its own preview box — no outer wrapper needed.
     if (!options.wrapperStyleClass)
         return { actor: container, width: targetWidth, height: targetHeight };
 
-    // Icon hover-preview wants an outer, hover-tracking wrapper it can add
-    // directly to chrome and position on screen.
     const wrapper = new St.BoxLayout({
         style_class: options.wrapperStyleClass,
         reactive: true,
@@ -647,6 +680,7 @@ class WindowPreview extends St.Button {
 
         const built = createClonePreviewActor(this._window, previewHeight, {
             wrapperStyleClass: 'hover-preview-wrapper',
+            showTitle: false,
             onClose: (win) => {
                 win.delete(global.get_current_time());
                 this._forceHide('close button clicked');
