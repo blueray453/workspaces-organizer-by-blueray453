@@ -178,10 +178,6 @@
     /* clone container inside the preview box */
 }
 
-.dmenu-fullscreen {
-    padding: 0;
-}
-
 .clone-title-overlay {
     color: #fdf6e3;                     /* base3 */
     background-color: rgba(0, 0, 0, 0.55);
