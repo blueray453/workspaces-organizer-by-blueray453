@@ -185,3 +185,26 @@
     font-weight: bold;
     padding: 8px 16px;
 }
+
+/* ===== Window preview icon (reorderable) ===== */
+.window-preview-icon {
+    border-radius: 6px;
+    transition-duration: 120ms;
+}
+
+/* Optional: slightly highlight the dragged source icon */
+.window-preview-icon.reorder-drag-source {
+    opacity: 0.70;
+}
+
+/* Insert BEFORE this icon → show indicator on LEFT edge */
+.window-preview-icon.reorder-insert-before {
+    box-shadow: inset 8px 0 0 0 #268bd2;
+    background-color: rgba(38, 139, 210, 0.12);
+}
+
+/* Insert AFTER this icon → show indicator on RIGHT edge */
+.window-preview-icon.reorder-insert-after {
+    box-shadow: inset -8px 0 0 0 #268bd2;
+    background-color: rgba(38, 139, 210, 0.12);
+}
