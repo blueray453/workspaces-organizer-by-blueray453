@@ -6,7 +6,6 @@ import St from 'gi://St';
 import Meta from 'gi://Meta';
 import Mtk from 'gi://Mtk';
 import Shell from 'gi://Shell';
-// import Pango from 'gi://Pango';
 import { Extension, gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
@@ -46,10 +45,6 @@ function subsequenceMatch(query, text) {
     return { matched: true, score };
 }
 
-// Token-based fuzzy match: query is split on whitespace, each token
-// must appear (substring, falling back to fuzzy subsequence) somewhere
-// in the text. This is what lets "ext js" match "extension.js — VS Code"
-// even though there's no literal space in that position in the text.
 function fuzzyMatch(query, text) {
     const trimmed = query.trim();
     if (!trimmed)
@@ -72,12 +67,6 @@ function fuzzyMatch(query, text) {
 }
 
 // ==================== SHARED CLONE-PREVIEW BUILDER ====================
-// Reuses the same clone/shadow math for both the icon hover-preview and
-// the collection overlay preview. Optionally wraps the clone in an
-// outer, hover-tracking wrapper actor (used by the icon hover-preview,
-// which needs to live in Main.layoutManager chrome and detect its own
-// hover/click state) and optionally attaches a close button.
-
 function createClonePreviewActor(window, targetHeight, options = {}) {
     if (!window)
         return null;
@@ -188,12 +177,13 @@ function createClonePreviewActor(window, targetHeight, options = {}) {
     return { actor: wrapper, inner: container, width: targetWidth, height: targetHeight };
 }
 
+// ==================== DRAG DROP MANAGER ====================
 const DragDropManager = {
     _sourcePreview: null,
     _placeholder: null,
     _placeholderBox: null,
-    _lastInsertion: null, // { box, index }
-    _snapshot: null,       // { box, rects: [{window,x,width,mid,right}] }
+    _lastInsertion: null,
+    _snapshot: null,
 
     beginDrag(sourcePreview) {
         if (this._sourcePreview && this._sourcePreview !== sourcePreview)
@@ -202,12 +192,6 @@ const DragDropManager = {
         this._snapshot = null;
         if (typeof sourcePreview.add_style_class_name === 'function')
             sourcePreview.add_style_class_name('reorder-drag-source');
-        // NOTE: no hide()/show() here — dnd.js already removes `actor`
-        // from its original parent (windowsBox) as part of starting the
-        // drag (see dnd.js._gestureRecognized's non-getDragActor branch),
-        // so the slot is already vacated for us. Calling hide() here was
-        // both redundant and, in an earlier revision, the cause of the
-        // drag never completing.
     },
 
     endDrag() {
@@ -234,10 +218,6 @@ const DragDropManager = {
             this._clearPlaceholder();
     },
 
-    // Rects for every remaining (non-dragged) preview in `box`, measured
-    // ONCE per box per drag — the first time this box is asked about.
-    // Reused afterwards so our own placeholder's presence (which shifts
-    // sibling icons) never feeds back into the next tick's measurement.
     _snapshotRects(box, order, draggedWindow) {
         if (this._snapshot && this._snapshot.box === box)
             return this._snapshot.rects;
@@ -257,10 +237,6 @@ const DragDropManager = {
         return rects;
     },
 
-    // Single source of truth for "given this pointer X over this box,
-    // where should the dragged window land?" Used by both the empty-space
-    // hover path and the icon-to-icon hover path — they're the same
-    // computation, so there's only one place this math can go stale.
     computeInsertionFromPointer(draggedWindow, order, pointerX, box) {
         const rects = this._snapshotRects(box, order, draggedWindow);
         if (rects.length === 0)
@@ -378,10 +354,6 @@ const DragDropManager = {
 };
 
 // ==================== THUMBNAIL REGISTRY ====================
-// Tracks all live WorkspaceThumbnail actors so native (title-bar) window
-// drags can be hit-tested against them on drop, independent of our own
-// St/Clutter DND sessions.
-
 const ThumbnailRegistry = {
     _thumbnails: new Set(),
     register(thumb) {
@@ -617,7 +589,394 @@ const PreviewRegistry = {
     }
 };
 
-// ==================== WINDOW PREVIEW CLASS ====================
+// ==================== CONTROLLER: Window Icon Renderer ====================
+class WindowIconRenderer {
+    constructor(parentActor, window) {
+        this._parent = parentActor;
+        this._window = window;
+        this._iconSize = 96;
+        this._signalId = null;
+
+        this._updateIcon();
+        this._wmClassChangedId = this._window.connect('notify::wm-class', this._updateIcon.bind(this));
+        this._mappedId = this._window.connect('notify::mapped', this._updateIcon.bind(this));
+    }
+
+    _updateIcon() {
+        const app = Shell.WindowTracker.get_default().get_window_app(this._window) ||
+            Shell.AppSystem.get_default().lookup_app(this._window.get_wm_class());
+        let iconActor = null;
+        if (app && app.get_app_info().get_icon()) {
+            iconActor = app.create_icon_texture(this._iconSize);
+            this._parent.set_child(iconActor);
+        } else {
+            let gicon = this._window.get_gicon();
+            if (!gicon)
+                gicon = new Gio.ThemedIcon({ name: 'applications-system-symbolic' });
+            const icon = new St.Icon({
+                gicon: gicon,
+                style_class: 'popup-menu-icon'
+            });
+            iconActor = St.TextureCache.get_default().load_gicon(null, icon, this._iconSize);
+            this._parent.set_child(iconActor);
+        }
+
+        // Set icon geometry for window
+        const signalId = iconActor.connect('stage-views-changed', (actor) => {
+            const rect = new Mtk.Rectangle();
+            [rect.x, rect.y] = iconActor.get_transformed_position();
+            [rect.width, rect.height] = iconActor.get_transformed_size();
+            this._window.set_icon_geometry(rect);
+            iconActor.disconnect(signalId);
+        });
+        this._signalId = signalId;
+    }
+
+    setIconSize(size) {
+        if (size !== this._iconSize) {
+            this._iconSize = size;
+            this._updateIcon();
+        }
+    }
+
+    destroy() {
+        if (this._wmClassChangedId && this._window) {
+            this._window.disconnect(this._wmClassChangedId);
+            this._wmClassChangedId = null;
+        }
+        if (this._mappedId && this._window) {
+            this._window.disconnect(this._mappedId);
+            this._mappedId = null;
+        }
+        // The icon actor is child of parent; it will be destroyed with parent
+    }
+}
+
+// ==================== CONTROLLER: Window Context Menu ====================
+class WindowContextMenu {
+    constructor(window, anchorActor) {
+        this._window = window;
+        this._anchor = anchorActor;
+        this._menu = null;
+        this._menuManager = null;
+    }
+
+    open() {
+        if (this._menu) {
+            this._menu.open(true);
+            return;
+        }
+
+        let menu = new PopupMenu.PopupMenu(this._anchor, 0.0, St.Side.TOP);
+        menu.box.add_style_class_name('workspace-context-menu');
+        this._menu = menu;
+        this._menuManager = new PopupMenu.PopupMenuManager(this._anchor);
+        this._menuManager.addMenu(menu);
+        Main.uiGroup.add_child(menu.actor);
+
+        const win = this._window;
+        menu.addAction(`Activate ${win.title}`, () => {
+            let win_workspace = win.get_workspace();
+            win_workspace.activate_with_focus(win, 0);
+        });
+
+        menu.addAction(`Close ${win.title}`, () => {
+            win.delete(0);
+        });
+
+        menu.addAction(`Close Except ${win.title}`, () => {
+            const targetWmClass = win.get_wm_class();
+            const windowsToClose = Display.get_tab_list(
+                Meta.TabList.NORMAL,
+                win.get_workspace()
+            ).filter(w =>
+                w !== win &&
+                w.get_wm_class() === targetWmClass &&
+                w.get_wm_class_instance() !== 'file_progress'
+            );
+            const currentTime = global.get_current_time();
+            for (const window of windowsToClose) {
+                journal(`Closing window: ${window.get_title()}`);
+                window.delete(currentTime);
+            }
+        });
+
+        const app = WindowTracker.get_window_app(win);
+        const appInfo = app?.get_app_info();
+        const actions = appInfo?.list_actions();
+        if (actions && actions.length > 0) {
+            menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+            actions.forEach(action => {
+                menu.addAction(`${appInfo.get_action_name(action)}`, () => {
+                    app.launch_action(action, 0, -1);
+                });
+            });
+        }
+
+        menu.open(true);
+        if (menu._boxPointer)
+            menu._boxPointer.translation_y = -35;
+    }
+
+    close() {
+        if (this._menu) {
+            this._menu.close();
+            // menu will be destroyed when closed?
+            this._menu = null;
+            this._menuManager = null;
+        }
+    }
+
+    destroy() {
+        this.close();
+    }
+}
+
+// ==================== CONTROLLER: Hover Preview ====================
+class HoverPreviewController {
+    constructor(anchorActor, window) {
+        this._anchor = anchorActor;
+        this._window = window;
+        this._previewActor = null;
+        this._cleanupTimeoutId = null;
+        this._isShowing = false;
+    }
+
+    show() {
+        if (this._isShowing) {
+            this._updatePreview();
+            return;
+        }
+
+        const previewHeight = 800;
+        const built = createClonePreviewActor(this._window, previewHeight, {
+            wrapperStyleClass: 'hover-preview-wrapper',
+            showTitle: false,
+            onClose: (win) => {
+                win.delete(global.get_current_time());
+                this.hide();
+            },
+            closeButtonSize: 48,
+            closeButtonOffsetX: 60,
+            closeButtonOffsetY: 10,
+            onHoverChange: (isHovered) => {
+                if (this._anchor._onPreviewHoverChange)
+                    this._anchor._onPreviewHoverChange(isHovered);
+            },
+            onActivate: () => {
+                this._window.get_workspace().activate_with_focus(this._window, 0);
+                this.hide();
+            },
+        });
+
+        if (!built)
+            return;
+
+        const windowPreviewWidth = this._anchor.get_width();
+        const [windowPreviewX, windowPreviewY] = this._anchor.get_transformed_position();
+        const previewX = Math.max(0, windowPreviewX + (windowPreviewWidth - built.width) / 2);
+        const previewY = screenHeight - previewHeight - 200 + 55;
+
+        built.actor.set_position(previewX, previewY);
+        this._previewActor = built.actor;
+        Main.layoutManager.addChrome(this._previewActor);
+
+        this._previewActor.opacity = 0;
+        this._previewActor.ease({
+            opacity: 255,
+            duration: TimeoutDelay,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        });
+
+        this._isShowing = true;
+        journal(`[HoverPreviewController] Shown`);
+    }
+
+    _updatePreview() {
+        // For simplicity, we hide and re-show. Could be optimized but okay.
+        if (this._isShowing) {
+            this.hide();
+            this.show();
+        }
+    }
+
+    hide() {
+        if (!this._isShowing)
+            return;
+        if (this._previewActor) {
+            const actor = this._previewActor;
+            this._previewActor = null;
+            Main.layoutManager.removeChrome(actor);
+            actor.destroy();
+        }
+        this._isShowing = false;
+        this._cancelCleanup();
+        journal(`[HoverPreviewController] Hidden`);
+    }
+
+    isShowing() {
+        return this._isShowing;
+    }
+
+    startCleanup(delay = TimeoutDelay) {
+        this._cancelCleanup();
+        this._cleanupTimeoutId = GLib.timeout_add(
+            GLib.PRIORITY_DEFAULT,
+            delay,
+            () => {
+                this._cleanupTimeoutId = null;
+                // Check hover states via anchor's methods if needed
+                const iconHovered = this._anchor.hover || false;
+                const previewHovered = this._previewActor?.hover || false;
+                if (iconHovered || previewHovered) {
+                    journal(`[HoverPreviewController] Cleanup aborted - still hovering`);
+                    return GLib.SOURCE_REMOVE;
+                }
+                this.hide();
+                return GLib.SOURCE_REMOVE;
+            }
+        );
+    }
+
+    _cancelCleanup() {
+        if (this._cleanupTimeoutId) {
+            GLib.source_remove(this._cleanupTimeoutId);
+            this._cleanupTimeoutId = null;
+        }
+    }
+
+    destroy() {
+        this.hide();
+        this._cancelCleanup();
+    }
+}
+
+// ==================== CONTROLLER: Title Popup ====================
+class TitlePopupController {
+    constructor(anchorActor, window) {
+        this._anchor = anchorActor;
+        this._window = window;
+        this._popupActor = null;
+        this._isShowing = false;
+        this._hoverSignalId = null;
+    }
+
+    show() {
+        if (this._isShowing)
+            return;
+
+        const title = this._window.get_title() || "Untitled Window";
+        const label = new St.Label({
+            text: title,
+            style_class: "hover-title-popup",
+            reactive: true,
+            track_hover: true,
+        });
+        Main.layoutManager.addChrome(label);
+
+        let [iconX, iconY] = this._anchor.get_transformed_position();
+        const iconWidth = this._anchor.width;
+        const padding = 10;
+        const maxWidth = screenWidth - (2 * padding);
+        const labelWidth = Math.min(label.width, maxWidth);
+        let labelX = iconX + (iconWidth - labelWidth) / 2;
+        labelX = Math.max(padding, labelX);
+        labelX = Math.min(labelX, screenWidth - labelWidth - padding);
+        const labelY = screenHeight - 200;
+
+        label.set_position(labelX, labelY);
+        this._popupActor = label;
+
+        label.opacity = 0;
+        label.ease({
+            opacity: 255,
+            duration: TimeoutDelay,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        });
+
+        this._hoverSignalId = label.connect("notify::hover", () => {
+            if (this._anchor._onPreviewHoverChange)
+                this._anchor._onPreviewHoverChange(label.hover);
+        });
+
+        this._isShowing = true;
+        journal(`[TitlePopupController] Shown`);
+    }
+
+    hide() {
+        if (!this._isShowing)
+            return;
+        if (this._popupActor) {
+            const actor = this._popupActor;
+            this._popupActor = null;
+            if (this._hoverSignalId) {
+                actor.disconnect(this._hoverSignalId);
+                this._hoverSignalId = null;
+            }
+            Main.layoutManager.removeChrome(actor);
+            actor.destroy();
+        }
+        this._isShowing = false;
+        journal(`[TitlePopupController] Hidden`);
+    }
+
+    isShowing() {
+        return this._isShowing;
+    }
+
+    destroy() {
+        this.hide();
+    }
+}
+
+// ==================== CONTROLLER: External Drag Activator ====================
+class ExternalDragActivator {
+    constructor(window) {
+        this._window = window;
+        this._dragActivateTimeoutId = null;
+        this._lastDragOverTime = 0;
+    }
+
+    handleDragOver() {
+        this._lastDragOverTime = GLib.get_monotonic_time();
+
+        if (!this._dragActivateTimeoutId) {
+            journal(`[ExternalDragActivator] External drag hovering, scheduling activate`);
+            this._dragActivateTimeoutId = GLib.timeout_add(
+                GLib.PRIORITY_DEFAULT,
+                400,
+                () => {
+                    this._dragActivateTimeoutId = null;
+                    const elapsedMs = (GLib.get_monotonic_time() - this._lastDragOverTime) / 1000;
+                    if (elapsedMs > 500) {
+                        journal(`[ExternalDragActivator] Drag left before activation, aborting`);
+                        return GLib.SOURCE_REMOVE;
+                    }
+                    this._activateWindow();
+                    return GLib.SOURCE_REMOVE;
+                }
+            );
+        }
+    }
+
+    _activateWindow() {
+        if (!this._window) return;
+        journal(`[ExternalDragActivator] Activating window for drag-hover: ${this._window.title}`);
+        const win = this._window;
+        if (win.minimized) win.unminimize();
+        const winWs = win.get_workspace();
+        winWs.activate_with_focus(win, global.get_current_time());
+    }
+
+    destroy() {
+        if (this._dragActivateTimeoutId) {
+            GLib.source_remove(this._dragActivateTimeoutId);
+            this._dragActivateTimeoutId = null;
+        }
+    }
+}
+
+// ==================== WINDOW PREVIEW CLASS (Coordinator) ====================
 class WindowPreview extends St.Button {
     static {
         GObject.registerClass(this);
@@ -633,18 +992,16 @@ class WindowPreview extends St.Button {
         this._window = window;
         this.icon_size = 96;
 
-        // UI elements
-        this._hoverPreview = null;
-        this._titlePopup = null;
-        this._contextMenu = null;
+        // Controllers
+        this._iconRenderer = new WindowIconRenderer(this, window);
+        this._contextMenu = new WindowContextMenu(window, this);
+        this._hoverPreview = new HoverPreviewController(this, window);
+        this._titlePopup = new TitlePopupController(this, window);
+        this._dragActivator = new ExternalDragActivator(window);
 
-        // Timers
+        // Timers / state
         this._cleanupTimeoutId = null;
         this._hoverTimeoutId = null;
-
-        // Drag-hover-to-activate state (for external drags: files, text, tabs, etc.)
-        this._dragActivateTimeoutId = null;
-        this._lastDragOverTime = 0;
 
         // DND setup
         this._delegate = this;
@@ -670,15 +1027,6 @@ class WindowPreview extends St.Button {
             }
         });
 
-        // Initialize icon
-        this._updateIcon();
-
-        // Connect window signals
-        this._wmClassChangedId = this._window.connect('notify::wm-class',
-            this._updateIcon.bind(this));
-        this._mappedId = this._window.connect('notify::mapped',
-            this._updateIcon.bind(this));
-
         // Connect hover signal
         this._hoverSignalId = this.connect('notify::hover', () => {
             journal(`[WindowPreview] Icon hover changed: ${this.hover}`);
@@ -695,7 +1043,6 @@ class WindowPreview extends St.Button {
             this._forceHide('workspace switched');
             if (this._contextMenu) {
                 this._contextMenu.close();
-                this._contextMenu = null;
             }
         });
     }
@@ -713,7 +1060,7 @@ class WindowPreview extends St.Button {
         }
         if (this.hover) {
             this._cancelCleanup();
-            if (this._isShowingPreview()) {
+            if (this._hoverPreview.isShowing() || this._titlePopup.isShowing()) {
                 journal(`[WindowPreview] Already showing preview, updating immediately`);
                 this._updatePreview();
                 return;
@@ -729,7 +1076,7 @@ class WindowPreview extends St.Button {
                 }
             );
         } else {
-            if (this._isShowingPreview())
+            if (this._hoverPreview.isShowing() || this._titlePopup.isShowing())
                 this._startCleanup();
         }
     }
@@ -746,10 +1093,13 @@ class WindowPreview extends St.Button {
 
     _onCtrlChanged(ctrlPressed) {
         journal(`[WindowPreview] Ctrl changed: ${ctrlPressed}`);
-        if (ctrlPressed)
-            this._showTitlePopup();
-        else
-            this._showHoverPreview();
+        if (ctrlPressed) {
+            this._titlePopup.show();
+            this._hoverPreview.hide();
+        } else {
+            this._hoverPreview.show();
+            this._titlePopup.hide();
+        }
     }
 
     // ==================== PREVIEW DISPLAY ====================
@@ -758,171 +1108,35 @@ class WindowPreview extends St.Button {
             journal(`[WindowPreview] No window available`);
             return;
         }
-        const shouldShow = this.hover || this._isShowingPreview();
+        const shouldShow = this.hover || this._hoverPreview.isShowing() || this._titlePopup.isShowing();
         if (!shouldShow) {
             journal(`[WindowPreview] Not hovering anymore, aborting`);
             return;
         }
         const ctrlPressed = PreviewRegistry.getCurrentCtrlState();
         if (ctrlPressed)
-            this._showTitlePopup();
+            this._titlePopup.show();
         else
-            this._showHoverPreview();
+            this._hoverPreview.show();
     }
 
     _updatePreview() {
         const ctrlPressed = PreviewRegistry.getCurrentCtrlState();
-        if (ctrlPressed && !this._titlePopup)
-            this._showTitlePopup();
-        else if (!ctrlPressed && !this._hoverPreview)
-            this._showHoverPreview();
-    }
-
-    _showHoverPreview() {
-        journal(`[WindowPreview] Showing hover preview`);
-        if (!this._window) return;
-        this._hideTitlePopup();
-
-        if (this._hoverPreview) {
-            journal(`[WindowPreview] Preview already exists`);
-            return;
+        if (ctrlPressed) {
+            this._titlePopup.show();
+            this._hoverPreview.hide();
+        } else {
+            this._hoverPreview.show();
+            this._titlePopup.hide();
         }
-
-        const shouldShow = this.hover ||
-            this._cleanupTimeoutId !== null ||
-            (this._hoverPreview !== null || this._titlePopup !== null);
-        if (!shouldShow) {
-            journal(`[WindowPreview] Not hovering and no cleanup pending, aborting`);
-            return;
-        }
-
-        const previewHeight = 800;
-        const built = createClonePreviewActor(this._window, previewHeight, {
-            wrapperStyleClass: 'hover-preview-wrapper',
-            showTitle: false,
-            onClose: (win) => {
-                win.delete(global.get_current_time());
-                this._forceHide('close button clicked');
-            },
-            closeButtonSize: 48,
-            closeButtonOffsetX: 60,
-            closeButtonOffsetY: 10,
-            onHoverChange: (isHovered) => this._onPreviewHoverChange(isHovered),
-            onActivate: () => {
-                this._window.get_workspace().activate_with_focus(this._window, 0);
-                this._forceHide('preview clicked');
-            },
-        });
-
-        if (!built)
-            return;
-
-        const windowPreviewWidth = this.get_width();
-        const [windowPreviewX, windowPreviewY] = this.get_transformed_position();
-        const previewX = Math.max(0, windowPreviewX + (windowPreviewWidth - built.width) / 2);
-        const previewY = screenHeight - previewHeight - 200 + 55;
-
-        built.actor.set_position(previewX, previewY);
-        this._hoverPreview = built.actor;
-        Main.layoutManager.addChrome(this._hoverPreview);
-
-        this._hoverPreview.opacity = 0;
-        this._hoverPreview.ease({
-            opacity: 255,
-            duration: TimeoutDelay,
-            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-        });
-
-        journal(`[WindowPreview] Hover preview shown`);
-    }
-
-    _showTitlePopup() {
-        journal(`[WindowPreview] Showing title popup`);
-        if (!this._window) return;
-        this._hideHoverPreview();
-
-        if (this._titlePopup) {
-            journal(`[WindowPreview] Title popup already exists`);
-            return;
-        }
-
-        const shouldShow = this.hover ||
-            this._cleanupTimeoutId !== null ||
-            (this._hoverPreview !== null || this._titlePopup !== null);
-        if (!shouldShow) {
-            journal(`[WindowPreview] Not hovering and no cleanup pending, aborting`);
-            return;
-        }
-
-        const title = this._window.get_title() || "Untitled Window";
-        const label = new St.Label({
-            text: title,
-            style_class: "hover-title-popup",
-            reactive: true,
-            track_hover: true,
-        });
-        Main.layoutManager.addChrome(label);
-
-        let [iconX, iconY] = this.get_transformed_position();
-        const iconWidth = this.width;
-        const padding = 10;
-        const maxWidth = screenWidth - (2 * padding);
-        const labelWidth = Math.min(label.width, maxWidth);
-        let labelX = iconX + (iconWidth - labelWidth) / 2;
-        labelX = Math.max(padding, labelX);
-        labelX = Math.min(labelX, screenWidth - labelWidth - padding);
-        const labelY = screenHeight - 200;
-
-        label.set_position(labelX, labelY);
-        this._titlePopup = label;
-
-        label.opacity = 0;
-        label.ease({
-            opacity: 255,
-            duration: TimeoutDelay,
-            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-        });
-
-        label.connect("notify::hover", () => {
-            this._onPreviewHoverChange(label.hover);
-        });
-
-        journal(`[WindowPreview] Title popup shown`);
-    }
-
-    _hideHoverPreview() {
-        if (!this._hoverPreview) return;
-        journal(`[WindowPreview] Hiding hover preview`);
-        const wrapper = this._hoverPreview;
-        this._hoverPreview = null;
-        Main.layoutManager.removeChrome(wrapper);
-        wrapper.destroy();
-    }
-
-    _hideTitlePopup() {
-        if (!this._titlePopup) return;
-        journal(`[WindowPreview] Hiding title popup`);
-        const popup = this._titlePopup;
-        this._titlePopup = null;
-        Main.layoutManager.removeChrome(popup);
-        popup.destroy();
-    }
-
-    _hideAll() {
-        journal(`[WindowPreview] Hiding all previews`);
-        this._hideHoverPreview();
-        this._hideTitlePopup();
     }
 
     _forceHide(reason = '') {
         journal(`[WindowPreview] Force hiding${reason ? `: ${reason}` : ''}`);
         this._cancelCleanup();
         PreviewRegistry.unregisterPreview(this);
-        this._hideAll();
-    }
-
-    _isShowingPreview() {
-        return this._hoverPreview !== null || this._titlePopup !== null;
+        this._hoverPreview.hide();
+        this._titlePopup.hide();
     }
 
     // ==================== CLEANUP MANAGEMENT ====================
@@ -935,15 +1149,16 @@ class WindowPreview extends St.Button {
             () => {
                 this._cleanupTimeoutId = null;
                 const iconHovered = this.hover;
-                const previewHovered = this._hoverPreview?.hover || false;
-                const titleHovered = this._titlePopup?.hover || false;
+                const previewHovered = this._hoverPreview._previewActor?.hover || false;
+                const titleHovered = this._titlePopup._popupActor?.hover || false;
                 if (iconHovered || previewHovered || titleHovered) {
                     journal(`[WindowPreview] Cleanup aborted - still hovering`);
                     return GLib.SOURCE_REMOVE;
                 }
                 journal(`[WindowPreview] Cleanup timer completed`);
                 PreviewRegistry.unregisterPreview(this);
-                this._hideAll();
+                this._hoverPreview.hide();
+                this._titlePopup.hide();
                 return GLib.SOURCE_REMOVE;
             }
         );
@@ -962,15 +1177,9 @@ class WindowPreview extends St.Button {
     }
 
     // ==================== DRAG HOVER ACTIVATION ====================
-    // Lets you drag a file/text/tab from elsewhere, hover over this icon,
-    // and have the underlying window raise+focus so you can then drop
-    // onto the actual window surface.
-
     handleDragOver(source, actor, x, y, time) {
         journal(`[WindowPreview] handleDragOver source=${source?.constructor?.name}, window=${this._window?.title}`);
 
-        // If the dragged item is another window icon → route to the parent
-        // WorkspaceThumbnail so it can compute the before/after insertion.
         if (source instanceof WindowPreview) {
             const draggedWindow = source._window;
             const thumbnail = this._getThumbnail();
@@ -983,27 +1192,8 @@ class WindowPreview extends St.Button {
             return DND.DragMotionResult.CONTINUE;
         }
 
-        // External drag (files, text, tabs, etc.) → keep existing activate behavior.
-        this._lastDragOverTime = GLib.get_monotonic_time();
-
-        if (!this._dragActivateTimeoutId) {
-            journal(`[WindowPreview] External drag hovering, scheduling activate`);
-            this._dragActivateTimeoutId = GLib.timeout_add(
-                GLib.PRIORITY_DEFAULT,
-                400,
-                () => {
-                    this._dragActivateTimeoutId = null;
-                    const elapsedMs = (GLib.get_monotonic_time() - this._lastDragOverTime) / 1000;
-                    if (elapsedMs > 500) {
-                        journal(`[WindowPreview] Drag left before activation, aborting`);
-                        return GLib.SOURCE_REMOVE;
-                    }
-                    this._activateForDrag();
-                    return GLib.SOURCE_REMOVE;
-                }
-            );
-        }
-
+        // External drag
+        this._dragActivator.handleDragOver();
         return DND.DragMotionResult.CONTINUE;
     }
 
@@ -1023,15 +1213,6 @@ class WindowPreview extends St.Button {
         }
 
         return false;
-    }
-
-    _activateForDrag() {
-        if (!this._window) return;
-        journal(`[WindowPreview] Activating window for drag-hover: ${this._window.title}`);
-        const win = this._window;
-        if (win.minimized) win.unminimize();
-        const winWs = win.get_workspace();
-        winWs.activate_with_focus(win, global.get_current_time());
     }
 
     // ==================== EVENT HANDLERS ====================
@@ -1060,64 +1241,12 @@ class WindowPreview extends St.Button {
         if (button === Clutter.BUTTON_SECONDARY) {
             journal(`[WindowPreview] Right click`);
             this._forceHide('right click');
-            this._showContextMenu();
+            this._contextMenu.open();
             return Clutter.EVENT_STOP;
         }
     }
 
-    // ==================== CONTEXT MENU ====================
-    _showContextMenu() {
-        let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP);
-        menu.box.add_style_class_name('workspace-context-menu');
-        this._contextMenu = menu;
-        let manager = new PopupMenu.PopupMenuManager(this);
-        manager.addMenu(menu);
-        Main.uiGroup.add_child(menu.actor);
-
-        menu.addAction(`Activate ${this._window.title}`, () => {
-            let win_workspace = this._window.get_workspace();
-            win_workspace.activate_with_focus(this._window, 0);
-        });
-
-        menu.addAction(`Close ${this._window.title}`, () => {
-            this._window.delete(0);
-        });
-
-        menu.addAction(`Close Except ${this._window.title}`, () => {
-            const targetWmClass = this._window.get_wm_class();
-            const windowsToClose = Display.get_tab_list(
-                Meta.TabList.NORMAL,
-                this._window.get_workspace()
-            ).filter(win =>
-                win !== this._window &&
-                win.get_wm_class() === targetWmClass &&
-                win.get_wm_class_instance() !== 'file_progress'
-            );
-            const currentTime = global.get_current_time();
-            for (const window of windowsToClose) {
-                journal(`Closing window: ${window.get_title()}`);
-                window.delete(currentTime);
-            }
-        });
-
-        const app = WindowTracker.get_window_app(this._window);
-        const appInfo = app?.get_app_info();
-        const actions = appInfo?.list_actions();
-        if (actions && actions.length > 0) {
-            menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-            actions.forEach(action => {
-                menu.addAction(`${appInfo.get_action_name(action)}`, () => {
-                    app.launch_action(action, 0, -1);
-                });
-            });
-        }
-
-        menu.open(true);
-        if (menu._boxPointer)
-            menu._boxPointer.translation_y = -35;
-    }
-
-    // ==================== UTILITY METHODS ====================
+    // ==================== UTILITY ====================
     _is_covered(window) {
         if (window.minimized) return false;
         let current_workspace = WorkspaceManager.get_active_workspace();
@@ -1149,34 +1278,6 @@ class WindowPreview extends St.Button {
         return this._window.get_compositor_private();
     }
 
-    _updateIcon() {
-        const app = Shell.WindowTracker.get_default().get_window_app(this._window) ||
-            Shell.AppSystem.get_default().lookup_app(this._window.get_wm_class());
-        let iconActor = null;
-        if (app && app.get_app_info().get_icon()) {
-            iconActor = app.create_icon_texture(this.icon_size);
-            this.set_child(iconActor);
-        } else {
-            let gicon = this._window.get_gicon();
-            if (!gicon)
-                gicon = new Gio.ThemedIcon({ name: 'applications-system-symbolic' });
-            const icon = new St.Icon({
-                gicon: gicon,
-                style_class: 'popup-menu-icon'
-            });
-            iconActor = St.TextureCache.get_default().load_gicon(null, icon, this.icon_size);
-            this.set_child(iconActor);
-        }
-
-        const signalId = iconActor.connect('stage-views-changed', (actor) => {
-            const rect = new Mtk.Rectangle();
-            [rect.x, rect.y] = iconActor.get_transformed_position();
-            [rect.width, rect.height] = iconActor.get_transformed_size();
-            this._window.set_icon_geometry(rect);
-            iconActor.disconnect(signalId);
-        });
-    }
-
     destroy() {
         journal(`[WindowPreview] Destroying`);
         DragDropManager.clearIfRelated(this);
@@ -1185,14 +1286,6 @@ class WindowPreview extends St.Button {
         if (this._hoverSignalId) {
             this.disconnect(this._hoverSignalId);
             this._hoverSignalId = null;
-        }
-        if (this._wmClassChangedId && this._window) {
-            this._window.disconnect(this._wmClassChangedId);
-            this._wmClassChangedId = null;
-        }
-        if (this._mappedId && this._window) {
-            this._window.disconnect(this._mappedId);
-            this._mappedId = null;
         }
         if (this._buttonPressedId) {
             this.disconnect(this._buttonPressedId);
@@ -1206,10 +1299,13 @@ class WindowPreview extends St.Button {
             GLib.source_remove(this._hoverTimeoutId);
             this._hoverTimeoutId = null;
         }
-        if (this._dragActivateTimeoutId) {
-            GLib.source_remove(this._dragActivateTimeoutId);
-            this._dragActivateTimeoutId = null;
-        }
+
+        this._iconRenderer.destroy();
+        this._contextMenu.destroy();
+        this._hoverPreview.destroy();
+        this._titlePopup.destroy();
+        this._dragActivator.destroy();
+
         if (this.get_child())
             this.set_child(null);
 
@@ -1388,9 +1484,6 @@ class WindowCollectionOverlay {
                 reactive: true,
             });
 
-            // Make this row a DND source representing the *actual window*,
-            // matching the same protocol WorkspaceThumbnail.acceptDrop already
-            // understands (source.realWindow -> a Meta.WindowActor).
             button._delegate = button;
             button.realWindow = item.window.get_compositor_private();
 
@@ -1605,11 +1698,277 @@ class WindowCollectionIcon extends St.Button {
     }
 }
 
-// ==================== WORKSPACE THUMBNAIL ====================
-// Represents a single workspace in the panel indicator.
-// Holds a set of WindowPreviews for all windows in that workspace,
-// or a single WindowCollectionIcon when there are more than
-// DIRECT_MODE_MAX_WINDOWS windows.
+// ==================== WINDOW ORDER STORE ====================
+class WindowOrderStore {
+    constructor(workspace) {
+        this._workspace = workspace;
+        this._order = [];
+        this._pendingInsertIndices = new Map();
+        this._addWindowTimeoutIds = new Map();
+
+        // Listen to workspace signals to add/remove windows
+        this._windowAddedId = workspace.connect('window-added', (ws, win) => this._addWindow(win));
+        this._windowRemovedId = workspace.connect('window-removed', (ws, win) => this._removeWindow(win));
+        this._windowCreatedId = Display.connect('window-created', (display, win) => {
+            if (win.get_workspace() === this._workspace)
+                this._addWindow(win);
+        });
+
+        // Initial population
+        this._workspace.list_windows().forEach(w => this._addWindow(w));
+    }
+
+    get order() {
+        return this._order;
+    }
+
+    _addWindow(window) {
+        if (window.skip_taskbar)
+            return;
+
+        if (this._order.includes(window)) {
+            this._pendingInsertIndices.delete(window);
+            return;
+        }
+
+        if (this._addWindowTimeoutIds.has(window)) {
+            GLib.Source.remove(this._addWindowTimeoutIds.get(window));
+            this._addWindowTimeoutIds.delete(window);
+        }
+
+        const sourceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, TimeoutDelay, () => {
+            this._addWindowTimeoutIds.delete(window);
+
+            if (window.get_workspace() !== this._workspace)
+                return GLib.SOURCE_REMOVE;
+
+            if (!this._order.includes(window)) {
+                if (this._pendingInsertIndices.has(window)) {
+                    const idx = Math.max(
+                        0,
+                        Math.min(
+                            this._pendingInsertIndices.get(window),
+                            this._order.length
+                        )
+                    );
+                    this._order.splice(idx, 0, window);
+                } else {
+                    this._order.push(window);
+                }
+            }
+
+            this._pendingInsertIndices.delete(window);
+            this._emitOrderChanged();
+            return GLib.SOURCE_REMOVE;
+        });
+
+        this._addWindowTimeoutIds.set(window, sourceId);
+    }
+
+    _removeWindow(window) {
+        this._pendingInsertIndices.delete(window);
+
+        if (this._addWindowTimeoutIds.has(window)) {
+            GLib.Source.remove(this._addWindowTimeoutIds.get(window));
+            this._addWindowTimeoutIds.delete(window);
+        }
+
+        const idx = this._order.indexOf(window);
+        if (idx === -1)
+            return;
+
+        this._order.splice(idx, 1);
+        this._emitOrderChanged();
+    }
+
+    reorderWindowToIndex(window, insertIndex) {
+        if (insertIndex === null)
+            return;
+
+        const currentIndex = this._order.indexOf(window);
+        if (currentIndex === -1) {
+            if (window.get_workspace() === this._workspace) {
+                const idx = Math.max(0, Math.min(insertIndex, this._order.length));
+                this._order.splice(idx, 0, window);
+                this._emitOrderChanged();
+            }
+            return;
+        }
+
+        this._order.splice(currentIndex, 1);
+        const idx = Math.max(0, Math.min(insertIndex, this._order.length));
+        this._order.splice(idx, 0, window);
+        this._emitOrderChanged();
+    }
+
+    setPendingInsertIndex(window, index) {
+        this._pendingInsertIndices.set(window, index);
+    }
+
+    cleanupSources() {
+        for (const [, id] of this._addWindowTimeoutIds)
+            GLib.Source.remove(id);
+        this._addWindowTimeoutIds.clear();
+    }
+
+    destroy() {
+        this.cleanupSources();
+        this._pendingInsertIndices.clear();
+        if (this._windowAddedId)
+            this._workspace.disconnect(this._windowAddedId);
+        if (this._windowRemovedId)
+            this._workspace.disconnect(this._windowRemovedId);
+        if (this._windowCreatedId)
+            Display.disconnect(this._windowCreatedId);
+    }
+
+    _emitOrderChanged() {
+        // We'll use a custom signal mechanism (could use Signals.EventEmitter, but we'll keep simple)
+        if (this._onOrderChanged) this._onOrderChanged();
+    }
+
+    setOnOrderChanged(callback) {
+        this._onOrderChanged = callback;
+    }
+}
+
+// ==================== DISPLAY MODE SWITCHER ====================
+class DisplayModeSwitcher {
+    constructor(box, orderStore) {
+        this._box = box;
+        this._orderStore = orderStore;
+        this._windowPreviews = new Map();
+        this._collectionIcon = null;
+        this._mode = 'direct';
+
+        this._orderStore.setOnOrderChanged(() => this.sync());
+        this.sync();
+    }
+
+    sync() {
+        const count = this._orderStore.order.length;
+        if (count > DIRECT_MODE_MAX_WINDOWS)
+            this._enterCollectionMode(count);
+        else
+            this._enterDirectMode();
+    }
+
+    _enterCollectionMode(count) {
+        // Remove all window previews
+        for (const preview of this._windowPreviews.values()) {
+            if (preview.get_parent() === this._box)
+                this._box.remove_child(preview);
+            preview.destroy();
+        }
+        this._windowPreviews.clear();
+
+        if (!this._collectionIcon) {
+            this._collectionIcon = new WindowCollectionIcon(() => this._orderStore.order.slice());
+            this._box.add_child(this._collectionIcon);
+        }
+        this._collectionIcon.setCount(count);
+        this._mode = 'collection';
+    }
+
+    _enterDirectMode() {
+        // Remove collection icon if present
+        if (this._collectionIcon) {
+            if (this._collectionIcon.get_parent() === this._box)
+                this._box.remove_child(this._collectionIcon);
+            this._collectionIcon.destroy();
+            this._collectionIcon = null;
+        }
+
+        const currentWindows = new Set(this._orderStore.order);
+
+        // 1. Remove previews for windows no longer in the order
+        for (const [window, preview] of this._windowPreviews) {
+            if (!currentWindows.has(window)) {
+                if (preview.get_parent() === this._box)
+                    this._box.remove_child(preview);
+                preview.destroy();
+                this._windowPreviews.delete(window);
+            }
+        }
+
+        // 2. Add previews for windows in the order that don't have one yet
+        for (const window of this._orderStore.order) {
+            if (this._windowPreviews.has(window))
+                continue;
+            if (!this._box || !this._box.get_stage())
+                continue;
+
+            let preview = new WindowPreview(window);
+            preview.connect('clicked', () => {
+                this._orderStore._workspace.activate(0);
+                window.activate(0);
+            });
+
+            this._windowPreviews.set(window, preview);
+            this._box.add_child(preview);
+        }
+
+        this._mode = 'direct';
+        this._syncChildOrder();
+        this._updateThumbnailSize();
+    }
+
+    _syncChildOrder() {
+        if (this._mode !== 'direct' || !this._box)
+            return;
+
+        const orderedPreviews = [];
+        for (const window of this._orderStore.order) {
+            const preview = this._windowPreviews.get(window);
+            if (!preview)
+                continue;
+            if (preview.get_parent() === this._box)
+                this._box.remove_child(preview);
+            orderedPreviews.push(preview);
+        }
+
+        for (const preview of orderedPreviews)
+            this._box.add_child(preview);
+    }
+
+    _updateThumbnailSize() {
+        let iconSize = 96;
+        const count = this._windowPreviews.size;
+        if (count >= 7) iconSize = 48;
+        else if (count >= 5) iconSize = 72;
+        for (let preview of this._windowPreviews.values()) {
+            if (preview.icon_size !== iconSize) {
+                preview.icon_size = iconSize;
+                preview._iconRenderer.setIconSize(iconSize);
+            }
+        }
+    }
+
+    getPreviews() {
+        return this._windowPreviews;
+    }
+
+    getMode() {
+        return this._mode;
+    }
+
+    destroy() {
+        for (const preview of this._windowPreviews.values()) {
+            if (preview.get_parent() === this._box)
+                this._box.remove_child(preview);
+            preview.destroy();
+        }
+        this._windowPreviews.clear();
+        if (this._collectionIcon) {
+            if (this._collectionIcon.get_parent() === this._box)
+                this._box.remove_child(this._collectionIcon);
+            this._collectionIcon.destroy();
+            this._collectionIcon = null;
+        }
+    }
+}
+
+// ==================== WORKSPACE THUMBNAIL (Coordinator) ====================
 class WorkspaceThumbnail extends St.Button {
     static {
         GObject.registerClass(this);
@@ -1622,20 +1981,25 @@ class WorkspaceThumbnail extends St.Button {
             y_expand: true,
         });
 
+        this._workspace = workspace;
         this._windowsBox = new St.BoxLayout();
-        this._windowOrder = [];
-        this._mode = 'direct';
-        this._collectionIcon = null;
         this.set_child(this._windowsBox);
 
-        this._delegate = this;
-        this._windowPreviews = new Map();
-        this._addWindowTimeoutIds = new Map();
-        this._pendingInsertIndices = new Map();
-        this._workspace = workspace;
+        // Order store and display mode switcher
+        this._orderStore = new WindowOrderStore(workspace);
+        this._displayMode = new DisplayModeSwitcher(this._windowsBox, this._orderStore);
+
+        // Keep references for DragDropManager
+        this._windowOrder = this._orderStore.order;
 
         ThumbnailRegistry.register(this);
 
+        this._delegate = this;
+
+        // Context menu
+        this._contextMenu = null;
+
+        // Workspace switch signal to close context menu
         this._wsChangedId = WorkspaceManager.connect('workspace-switched', () => {
             if (this._contextMenu) {
                 this._contextMenu.close();
@@ -1643,82 +2007,76 @@ class WorkspaceThumbnail extends St.Button {
             }
         });
 
+        // Click on thumbnail to switch workspace
         this.connect('button-press-event', (actor, event) => {
             let button = event.get_button();
             if (button === Clutter.BUTTON_PRIMARY) {
                 this._workspace.activate(0);
             }
             if (button === Clutter.BUTTON_SECONDARY) {
-                const windows = Display.get_tab_list(Meta.TabList.NORMAL, this._workspace);
-                const windowCount = windows.length;
-                let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP);
-                menu.box.add_style_class_name('workspace-context-menu');
-                this._contextMenu = menu;
-                let manager = new PopupMenu.PopupMenuManager(this);
-                manager.addMenu(menu);
-                Main.uiGroup.add_child(menu.actor);
+                this._showContextMenu();
+            }
+            return Clutter.EVENT_STOP;
+        });
 
-                menu.addAction('Close all windows on all workspaces', () => {
-                    let windowsToClose = Display.get_tab_list(Meta.TabList.NORMAL, null);
+        // Restacked signal – not needed for reorder, but kept for compatibility
+        this._restackedId = Display.connect('restacked', () => { });
+    }
+
+    _showContextMenu() {
+        const windows = Display.get_tab_list(Meta.TabList.NORMAL, this._workspace);
+        const windowCount = windows.length;
+        let menu = new PopupMenu.PopupMenu(this, 0.0, St.Side.TOP);
+        menu.box.add_style_class_name('workspace-context-menu');
+        this._contextMenu = menu;
+        let manager = new PopupMenu.PopupMenuManager(this);
+        manager.addMenu(menu);
+        Main.uiGroup.add_child(menu.actor);
+
+        menu.addAction('Close all windows on all workspaces', () => {
+            let windowsToClose = Display.get_tab_list(Meta.TabList.NORMAL, null);
+            const currentTime = global.get_current_time();
+            for (const window of windowsToClose) {
+                journal(`Closing window: ${window.get_title()}`);
+                window.delete(currentTime);
+            }
+        });
+
+        if (windowCount > 0) {
+            menu.addAction(
+                `Close all windows except workspace ${this._workspace.index()}`,
+                () => {
+                    let windowsToClose = Display.get_tab_list(Meta.TabList.NORMAL, null).filter(w =>
+                        w.get_workspace() !== this._workspace
+                    );
                     const currentTime = global.get_current_time();
                     for (const window of windowsToClose) {
                         journal(`Closing window: ${window.get_title()}`);
                         window.delete(currentTime);
                     }
-                });
-
-                if (windowCount > 0) {
-                    menu.addAction(
-                        `Close all windows except workspace ${this._workspace.index()}`,
-                        () => {
-                            let windowsToClose = Display.get_tab_list(Meta.TabList.NORMAL, null).filter(w =>
-                                w.get_workspace() !== this._workspace
-                            );
-                            const currentTime = global.get_current_time();
-                            for (const window of windowsToClose) {
-                                journal(`Closing window: ${window.get_title()}`);
-                                window.delete(currentTime);
-                            }
-                        }
-                    );
-                    menu.addAction(
-                        `Close all windows on workspace ${this._workspace.index()}`,
-                        () => {
-                            const currentTime = global.get_current_time();
-                            for (const window of windows) {
-                                journal(`Closing window: ${window.get_title()}`);
-                                window.delete(currentTime);
-                            }
-                        }
-                    );
                 }
-                menu.open(true);
-            }
-            return Clutter.EVENT_STOP;
-        });
-
-        this._windowAddedId = this._workspace.connect('window-added',
-            (ws, window) => this._addWindow(window));
-        this._windowRemovedId = this._workspace.connect('window-removed',
-            (ws, window) => this._removeWindow(window));
-        this._restackedId = Display.connect('restacked',
-            this._onRestacked.bind(this));
-        this._windowCreatedId = Display.connect('window-created',
-            (display, window) => {
-                if (window.get_workspace() === this._workspace)
-                    this._addWindow(window);
-            });
-
-        this._workspace.list_windows().forEach(w => this._addWindow(w));
-        this._onRestacked();
+            );
+            menu.addAction(
+                `Close all windows on workspace ${this._workspace.index()}`,
+                () => {
+                    const currentTime = global.get_current_time();
+                    for (const window of windows) {
+                        journal(`Closing window: ${window.get_title()}`);
+                        window.delete(currentTime);
+                    }
+                }
+            );
+        }
+        menu.open(true);
     }
 
+    // ==================== DND TARGET METHODS ====================
     handleDragOver(source, actor, x, y, time) {
         const draggedWindow = getDraggedWindow(source);
         if (!draggedWindow)
             return DND.DragMotionResult.CONTINUE;
 
-        if (this._mode !== 'direct')
+        if (this._displayMode.getMode() !== 'direct')
             return DND.DragMotionResult.MOVE_DROP;
 
         const [pointerX] = global.get_pointer();
@@ -1736,16 +2094,11 @@ class WorkspaceThumbnail extends St.Button {
 
         const last = DragDropManager.getLastInsertion();
         const insertIndex = last && last.box === this._windowsBox ? last.index : null;
-        this._dropWindowAt(draggedWindow, insertIndex);
+        this._moveWindow(draggedWindow, insertIndex);
         DragDropManager.clearPlaceholder();
         return true;
     }
 
-    // Icon-to-icon hover is mathematically identical to hovering empty
-    // space in the same box — both just need "pointerX vs this box's
-    // snapshot" — so route through the same, snapshot-stabilized path
-    // instead of re-measuring the hovered icon's live (placeholder-shifted)
-    // position, which is what caused the flicker.
     handleWindowDragOver(draggedWindow, targetPreview, x, y, time) {
         if (!draggedWindow || targetPreview?._window === draggedWindow)
             return DND.DragMotionResult.MOVE_DROP;
@@ -1758,165 +2111,7 @@ class WorkspaceThumbnail extends St.Button {
         return this.acceptDrop({ _window: draggedWindow }, null, x, y, time);
     }
 
-    // ==================== WINDOW MANAGEMENT ====================
-    _addWindow(window) {
-        if (window.skip_taskbar)
-            return;
-
-        if (this._windowOrder.includes(window)) {
-            this._pendingInsertIndices.delete(window);
-            return;
-        }
-
-        if (this._addWindowTimeoutIds.has(window)) {
-            GLib.Source.remove(this._addWindowTimeoutIds.get(window));
-            this._addWindowTimeoutIds.delete(window);
-        }
-
-        const sourceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, TimeoutDelay, () => {
-            this._addWindowTimeoutIds.delete(window);
-
-            if (window.get_workspace() !== this._workspace)
-                return GLib.SOURCE_REMOVE;
-
-            if (!this._windowOrder.includes(window)) {
-                if (this._pendingInsertIndices.has(window)) {
-                    const idx = Math.max(
-                        0,
-                        Math.min(
-                            this._pendingInsertIndices.get(window),
-                            this._windowOrder.length
-                        )
-                    );
-                    this._windowOrder.splice(idx, 0, window);
-                } else {
-                    this._windowOrder.push(window);
-                }
-            }
-
-            this._pendingInsertIndices.delete(window);
-            this._syncDisplayMode();
-
-            return GLib.SOURCE_REMOVE;
-        });
-
-        this._addWindowTimeoutIds.set(window, sourceId);
-    }
-
-    _removeWindow(window) {
-        this._pendingInsertIndices.delete(window);
-
-        if (this._addWindowTimeoutIds.has(window)) {
-            GLib.Source.remove(this._addWindowTimeoutIds.get(window));
-            this._addWindowTimeoutIds.delete(window);
-        }
-
-        const idx = this._windowOrder.indexOf(window);
-        if (idx === -1)
-            return;
-
-        this._windowOrder.splice(idx, 1);
-        const preview = this._windowPreviews.get(window);
-        if (preview) {
-            this._windowPreviews.delete(window);
-            if (this._windowsBox && preview.get_parent() === this._windowsBox)
-                this._windowsBox.remove_child(preview);
-            preview.destroy();
-        }
-        this._syncDisplayMode();
-    }
-
-    // ==================== DISPLAY MODE SWITCHING ====================
-    _syncDisplayMode() {
-        const count = this._windowOrder.length;
-        if (count > DIRECT_MODE_MAX_WINDOWS)
-            this._enterCollectionMode(count);
-        else
-            this._enterDirectMode();
-    }
-
-    _enterCollectionMode(count) {
-        for (const preview of this._windowPreviews.values()) {
-            if (preview.get_parent() === this._windowsBox)
-                this._windowsBox.remove_child(preview);
-            preview.destroy();
-        }
-        this._windowPreviews.clear();
-
-        if (!this._collectionIcon) {
-            this._collectionIcon = new WindowCollectionIcon(() => this._windowOrder.slice());
-            this._windowsBox.add_child(this._collectionIcon);
-        }
-        this._collectionIcon.setCount(count);
-        this._mode = 'collection';
-    }
-
-    _enterDirectMode() {
-        if (this._collectionIcon) {
-            if (this._collectionIcon.get_parent() === this._windowsBox)
-                this._windowsBox.remove_child(this._collectionIcon);
-            this._collectionIcon.destroy();
-            this._collectionIcon = null;
-        }
-
-        for (const window of this._windowOrder) {
-            if (this._windowPreviews.has(window))
-                continue;
-            if (!this._windowsBox || !this._windowsBox.get_stage())
-                continue;
-
-            let preview = new WindowPreview(window);
-            preview.connect('clicked', () => {
-                this._workspace.activate(0);
-                window.activate(0);
-            });
-
-            this._windowPreviews.set(window, preview);
-            this._windowsBox.add_child(preview);
-        }
-
-        this._mode = 'direct';
-        this._syncChildOrder();
-        this._updateThumbnailSize();
-    }
-
-    _syncChildOrder() {
-        if (this._mode !== 'direct' || !this._windowsBox)
-            return;
-
-        // Collect the previews in _windowOrder sequence, removing each from
-        // the box as we go. Then re-add them in that same sequence.
-        const orderedPreviews = [];
-        for (const window of this._windowOrder) {
-            const preview = this._windowPreviews.get(window);
-            if (!preview)
-                continue;
-            if (preview.get_parent() === this._windowsBox)
-                this._windowsBox.remove_child(preview);
-            orderedPreviews.push(preview);
-        }
-
-        for (const preview of orderedPreviews)
-            this._windowsBox.add_child(preview);
-    }
-
-    _updateThumbnailSize() {
-        let iconSize = 96;
-        const count = this._windowPreviews.size;
-        if (count >= 7) iconSize = 48;
-        else if (count >= 5) iconSize = 72;
-        for (let preview of this._windowPreviews.values()) {
-            if (preview.icon_size !== iconSize) {
-                preview.icon_size = iconSize;
-                preview._updateIcon();
-            }
-        }
-    }
-
-    _onRestacked() {
-        // no-op, kept for potential future use
-    }
-
+    // ==================== WINDOW MOVEMENT ====================
     _moveWindow(window, insertIndex = null) {
         const wasSameWorkspace = window.get_workspace() === this._workspace;
 
@@ -1925,78 +2120,46 @@ class WorkspaceThumbnail extends St.Button {
             window.move_to_monitor(monitorIndex);
 
         if (insertIndex !== null && !wasSameWorkspace)
-            this._pendingInsertIndices.set(window, insertIndex);
+            this._orderStore.setPendingInsertIndex(window, insertIndex);
 
         window.change_workspace(this._workspace);
 
         if (insertIndex !== null && wasSameWorkspace)
-            this._reorderWindowToIndex(window, insertIndex);
+            this._orderStore.reorderWindowToIndex(window, insertIndex);
     }
 
-    _reorderWindowToIndex(window, insertIndex) {
-        if (insertIndex === null)
-            return;
-
-        const currentIndex = this._windowOrder.indexOf(window);
-        if (currentIndex === -1) {
-            if (window.get_workspace() === this._workspace) {
-                const idx = Math.max(0, Math.min(insertIndex, this._windowOrder.length));
-                this._windowOrder.splice(idx, 0, window);
-                this._syncDisplayMode();
-            }
-            return;
-        }
-
-        this._windowOrder.splice(currentIndex, 1);
-        const idx = Math.max(0, Math.min(insertIndex, this._windowOrder.length));
-        this._windowOrder.splice(idx, 0, window);
-
-        if (this._mode === 'direct')
-            this._syncChildOrder();
-        else
-            this._syncDisplayMode();
-    }
-
-    _dropWindowAt(window, insertIndex) {
-        if (!window)
-            return;
-        this._moveWindow(window, insertIndex);
+    _syncChildOrder() {
+        this._displayMode._syncChildOrder();
     }
 
     cleanupSources() {
-        for (const [, id] of this._addWindowTimeoutIds)
-            GLib.Source.remove(id);
-        this._addWindowTimeoutIds.clear();
+        this._orderStore.cleanupSources();
     }
 
     destroy() {
-        this._workspace.disconnect(this._windowAddedId);
-        this._workspace.disconnect(this._windowRemovedId);
-        Display.disconnect(this._restackedId);
-        Display.disconnect(this._windowCreatedId);
-
-        for (const [, id] of this._addWindowTimeoutIds)
-            GLib.Source.remove(id);
-        this._addWindowTimeoutIds.clear();
-
-        this._pendingInsertIndices.clear();
-
         if (this._wsChangedId && WorkspaceManager) {
             WorkspaceManager.disconnect(this._wsChangedId);
             this._wsChangedId = null;
         }
-        if (this._collectionIcon) {
-            this._collectionIcon.destroy();
-            this._collectionIcon = null;
+        if (this._restackedId) {
+            Display.disconnect(this._restackedId);
+            this._restackedId = null;
+        }
+        if (this._contextMenu) {
+            this._contextMenu.close();
+            this._contextMenu = null;
         }
         DragDropManager.clearIfRelated(this._windowsBox);
         ThumbnailRegistry.unregister(this);
+
+        this._orderStore.destroy();
+        this._displayMode.destroy();
+
         super.destroy();
     }
 }
 
-// The top-level indicator that sits in the GNOME top panel.
-// Contains all WorkspaceThumbnails in a row (or vertical layout if orientation changes).
+// ==================== WORKSPACE INDICATOR ====================
 class WorkspaceIndicator extends PanelMenu.Button {
     static {
         GObject.registerClass(this);
@@ -2092,6 +2255,7 @@ class WorkspaceIndicator extends PanelMenu.Button {
     }
 }
 
+// ==================== EXTENSION ENTRY ====================
 export default class TopNotchWorkspaces extends Extension {
     constructor(metadata) {
         super(metadata);
