@@ -195,6 +195,8 @@
 /* Optional: slightly highlight the dragged source icon */
 .window-preview-icon.reorder-drag-source {
     opacity: 0.70;
+    border: 3px solid #268bd2;
+    border-radius: 6px;
 }
 
 .window-preview-icon.drag-placeholder-icon {
