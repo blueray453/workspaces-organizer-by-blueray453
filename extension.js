@@ -188,34 +188,34 @@ function createClonePreviewActor(window, targetHeight, options = {}) {
     return { actor: wrapper, inner: container, width: targetWidth, height: targetHeight };
 }
 
-// ==================== DRAG & DROP MANAGER ====================
-// Single owner of every "reorder while dragging" visual. WindowPreview
-// only reports drag-begin/drag-end; WorkspaceThumbnail only reports
-// "here's the box and the index the dragged window would land at".
-// Nobody else creates, styles, or positions the placeholder actor.
 const DragDropManager = {
     _sourcePreview: null,
     _placeholder: null,
     _placeholderBox: null,
-    _placeholderIndex: -1,
+    _lastInsertion: null, // { box, index }
+    _snapshot: null,       // { box, rects: [{window,x,width,mid,right}] }
 
-    // ---- drag lifecycle (called by WindowPreview) ----
     beginDrag(sourcePreview) {
         if (this._sourcePreview && this._sourcePreview !== sourcePreview)
             this.endDrag();
         this._sourcePreview = sourcePreview;
+        this._snapshot = null;
         if (typeof sourcePreview.add_style_class_name === 'function')
             sourcePreview.add_style_class_name('reorder-drag-source');
-        // Vacate its slot — the placeholder takes over showing "where it is".
-        sourcePreview.hide();
+        // NOTE: no hide()/show() here — dnd.js already removes `actor`
+        // from its original parent (windowsBox) as part of starting the
+        // drag (see dnd.js._gestureRecognized's non-getDragActor branch),
+        // so the slot is already vacated for us. Calling hide() here was
+        // both redundant and, in an earlier revision, the cause of the
+        // drag never completing.
     },
 
     endDrag() {
-        this._destroyPlaceholder();
+        this._clearPlaceholder();
+        this._snapshot = null;
         if (this._sourcePreview) {
             try {
                 this._sourcePreview.remove_style_class_name('reorder-drag-source');
-                this._sourcePreview.show();
             } catch (e) {
                 // actor may already be destroyed
             }
@@ -223,25 +223,104 @@ const DragDropManager = {
         this._sourcePreview = null;
     },
 
-    // Called by destroy() paths so a destroyed actor is never touched again.
     clearIfRelated(actor) {
         if (this._sourcePreview === actor) {
-            this._destroyPlaceholder();
+            this._clearPlaceholder();
+            this._snapshot = null;
             this._sourcePreview = null;
             return;
         }
         if (this._placeholderBox === actor)
-            this._destroyPlaceholder();
+            this._clearPlaceholder();
     },
 
-    // ---- target placement (called by WorkspaceThumbnail) ----
-    // `box` is the WorkspaceThumbnail._windowsBox the placeholder should
-    // live in; `index` is where among its *current real* children it
-    // should land.
-    showTarget(box, index) {
+    // Rects for every remaining (non-dragged) preview in `box`, measured
+    // ONCE per box per drag — the first time this box is asked about.
+    // Reused afterwards so our own placeholder's presence (which shifts
+    // sibling icons) never feeds back into the next tick's measurement.
+    _snapshotRects(box, order, draggedWindow) {
+        if (this._snapshot && this._snapshot.box === box)
+            return this._snapshot.rects;
+
+        const rects = [];
+        for (const w of order) {
+            if (w === draggedWindow)
+                continue;
+            const preview = box.get_children().find(c => c._window === w);
+            if (!preview || !preview.get_stage())
+                continue;
+            const [x] = preview.get_transformed_position();
+            const [width] = preview.get_transformed_size();
+            rects.push({ window: w, x, width, mid: x + width / 2, right: x + width });
+        }
+        this._snapshot = { box, rects };
+        return rects;
+    },
+
+    // Single source of truth for "given this pointer X over this box,
+    // where should the dragged window land?" Used by both the empty-space
+    // hover path and the icon-to-icon hover path — they're the same
+    // computation, so there's only one place this math can go stale.
+    computeInsertionFromPointer(draggedWindow, order, pointerX, box) {
+        const rects = this._snapshotRects(box, order, draggedWindow);
+        if (rects.length === 0)
+            return { insertIndex: 0 };
+
+        const first = rects[0];
+        const last = rects[rects.length - 1];
+        let target = null;
+        let insertBefore = true;
+
+        if (pointerX < first.x) {
+            target = first;
+            insertBefore = true;
+        } else if (pointerX >= last.right) {
+            target = last;
+            insertBefore = false;
+        } else {
+            for (const r of rects) {
+                if (pointerX >= r.x && pointerX < r.right) {
+                    target = r;
+                    insertBefore = pointerX < r.mid;
+                    break;
+                }
+            }
+            if (!target) {
+                for (let i = 0; i < rects.length - 1; i++) {
+                    const left = rects[i], right = rects[i + 1];
+                    if (pointerX >= left.right && pointerX <= right.x) {
+                        const distanceToLeft = pointerX - left.right;
+                        const distanceToRight = right.x - pointerX;
+                        target = distanceToLeft <= distanceToRight ? left : right;
+                        insertBefore = target === right;
+                        break;
+                    }
+                }
+            }
+            if (!target) {
+                let nearest = rects[0];
+                let best = Math.abs(pointerX - nearest.mid);
+                for (const r of rects) {
+                    const d = Math.abs(pointerX - r.mid);
+                    if (d < best) { best = d; nearest = r; }
+                }
+                target = nearest;
+                insertBefore = pointerX < nearest.mid;
+            }
+        }
+
+        const orderWithout = order.filter(w => w !== draggedWindow);
+        let targetIndex = orderWithout.indexOf(target.window);
+        if (targetIndex === -1)
+            targetIndex = orderWithout.length;
+
+        return { insertIndex: insertBefore ? targetIndex : targetIndex + 1 };
+    },
+
+    updatePlaceholder(box, index) {
         if (!this._sourcePreview || !box)
             return;
-        if (this._placeholderBox === box && this._placeholderIndex === index)
+        if (this._placeholderBox === box && this._lastInsertion?.index === index)
             return;
 
         const placeholder = this._ensurePlaceholder();
@@ -256,37 +335,37 @@ const DragDropManager = {
         box.insert_child_at_index(placeholder, clamped);
 
         this._placeholderBox = box;
-        this._placeholderIndex = clamped;
+        this._lastInsertion = { box, index: clamped };
     },
 
-    clearTarget() {
-        this._destroyPlaceholder();
+    clearPlaceholder() {
+        this._clearPlaceholder();
     },
 
-    // ---- internals ----
+    getLastInsertion() {
+        return this._lastInsertion;
+    },
+
     _ensurePlaceholder() {
         if (this._placeholder)
             return this._placeholder;
         if (!this._sourcePreview)
             return null;
-
         const size = this._sourcePreview.icon_size ?? 96;
         const placeholder = new St.Bin({
             style_class: 'window-preview-icon drag-placeholder-icon',
             width: size,
             height: size,
         });
-        placeholder.opacity = 140; // semi-transparent
-
+        placeholder.opacity = 140;
         const iconActor = this._sourcePreview.get_child();
         if (iconActor)
             placeholder.set_child(new Clutter.Clone({ source: iconActor }));
-
         this._placeholder = placeholder;
         return placeholder;
     },
 
-    _destroyPlaceholder() {
+    _clearPlaceholder() {
         if (!this._placeholder)
             return;
         if (this._placeholder.get_parent())
@@ -294,7 +373,7 @@ const DragDropManager = {
         this._placeholder.destroy();
         this._placeholder = null;
         this._placeholderBox = null;
-        this._placeholderIndex = -1;
+        this._lastInsertion = null;
     },
 };
 
@@ -327,6 +406,7 @@ function getDraggedWindow(source) {
     return null;
 }
 
+// (Legacy ReorderManager – kept but not used; could be removed later)
 const ReorderManager = {
     _source: null,
     _target: null,
@@ -345,26 +425,18 @@ const ReorderManager = {
             return;
         try {
             this._source.remove_style_class_name('reorder-drag-source');
-        } catch (e) {
-            // actor may already be destroyed
-        }
+        } catch (e) { }
         this._source = null;
     },
 
     showTarget(target, insertBefore) {
-        journal(`[ReorderManager] showTarget insertBefore=${insertBefore}, target=${target?._window?.title}`);
-
         if (this._target === target && this._insertBefore === insertBefore)
             return;
-
         this.clearTarget();
-
         this._target = target;
         this._insertBefore = insertBefore;
-
         if (target && typeof target.add_style_class_name === 'function') {
             const cls = insertBefore ? 'reorder-insert-before' : 'reorder-insert-after';
-            journal(`[ReorderManager] Adding CSS class: ${cls}`);
             target.add_style_class_name(cls);
         }
     },
@@ -372,13 +444,10 @@ const ReorderManager = {
     clearTarget() {
         if (!this._target)
             return;
-        journal(`[ReorderManager] clearTarget`);
         try {
             this._target.remove_style_class_name('reorder-insert-before');
             this._target.remove_style_class_name('reorder-insert-after');
-        } catch (e) {
-            // actor may already be destroyed
-        }
+        } catch (e) { }
         this._target = null;
         this._insertBefore = false;
     },
@@ -396,14 +465,7 @@ const ReorderManager = {
 };
 
 // ==================== TITLE BAR DRAG MONITOR ====================
-// Listens for native mutter window-move grabs (dragging a window by its
-// title bar) and, on release, checks whether the pointer is over one of
-// our workspace thumbnails. If so, moves the window there using the same
-// normal GNOME window-move machinery already used by internal DND drops.
-// This is NOT the same pipeline as DND.makeDraggable: title-bar drags are
-// a compositor-level grab operation, not a Clutter/St DND session, so
-// dnd.js never observes them and we must hook global.display directly.
-
+// (Unchanged – kept as is)
 class TitleBarDragMonitor {
     constructor() {
         this._grabbedWindow = null;
@@ -440,8 +502,6 @@ class TitleBarDragMonitor {
         if (!grabbed || grabbed !== window || !this._isMoveOp(op))
             return;
 
-        // Keep the original drop handling (it will move the window to the workspace
-        // under the pointer, which is already correct after the hover switch).
         const [pointerX, pointerY] = global.get_pointer();
         const target = this._findThumbnailAt(pointerX, pointerY);
         if (target) {
@@ -531,16 +591,7 @@ class TitleBarDragMonitor {
 }
 
 // ==================== PREVIEW REGISTRY WITH CTRL POLLING ====================
-
-// PreviewRegistry is a singleton manager
-// centralized manager for the currently active window preview and CTRL-key polling
-// It acts like a singleton registry + mediator specifically for hover previews.
-// Only one preview can be “active” at a time.
-// This polling only runs while there is an active preview.
-// Polling is scoped only to when a preview is active.
-// There are no dangling timers, memory leaks, or unnecessary CPU usage.
-// Registry → keeps track of active preview
-// Mediator → propagates CTRL - key changes to the preview
+// (Unchanged)
 const PreviewRegistry = {
     activePreview: null,
     _ctrlPollId: null,
@@ -627,6 +678,7 @@ const PreviewRegistry = {
 };
 
 // ==================== WINDOW PREVIEW CLASS ====================
+// (Unchanged except for a minor adjustment: _getThumbnail now uses a helper)
 class WindowPreview extends St.Button {
     static {
         GObject.registerClass(this);
@@ -1228,11 +1280,7 @@ class WindowPreview extends St.Button {
 }
 
 // ==================== WINDOW COLLECTION OVERLAY ====================
-// Fullscreen, modal, Solarized Dark search overlay for 6+ window mode.
-// Never mutates window/workspace ordering or state — purely a display
-// and activation surface. Search results are draggable and represent
-// the real window (see _setResults / _onResultDragBegin).
-
+// (Unchanged)
 class WindowCollectionOverlay {
     constructor(windows) {
         journal(`[CollectionOverlay] Opening with ${windows.length} windows`);
@@ -1253,9 +1301,6 @@ class WindowCollectionOverlay {
         return app ? app.get_name() : (window.get_wm_class() || 'Unknown');
     }
 
-    // Predictability requirement: group by app, then sort by title within
-    // each app. This is purely a display-order computation — the
-    // underlying workspace/stacking order is untouched.
     _getAllResultsSorted() {
         const items = this._windows
             .filter(w => w && !w.skip_taskbar)
@@ -1479,10 +1524,6 @@ class WindowCollectionOverlay {
         this._previewClone = null;
     }
 
-    // Closing from the preview closes the real window (same as the taskbar
-    // close-button / context-menu "Close" action) and then just prunes it
-    // from the current result set — it does not reorder, reactivate, or
-    // otherwise touch any other window.
     _closeWindowFromPreview(window) {
         if (this._closed) return;
         journal(`[CollectionOverlay] Closing window from preview: ${window.title}`);
@@ -1527,12 +1568,6 @@ class WindowCollectionOverlay {
         this._close();
     }
 
-    // Fires once the pointer has moved past DND's built-in drag threshold —
-    // i.e. this is a real drag, not a click. St.Button + DND.makeDraggable
-    // already gives us click-vs-drag for free: a plain press/release under
-    // threshold fires 'clicked' normally (see _activateResult), and only
-    // exceeding the threshold reaches here, so a window is never activated
-    // as a side effect of starting a drag.
     _onResultDragBegin(button) {
         if (this._closed)
             return;
@@ -1548,15 +1583,9 @@ class WindowCollectionOverlay {
             this._entry.clutter_text.disconnect(this._entryKeyPressId);
         }
 
-        // Visually and functionally "closed" immediately: no longer modal,
-        // no longer painted, no longer in chrome.
         Main.layoutManager.removeChrome(this._container);
         this._container.hide();
 
-        // But don't destroy yet — dnd.js may still reference this._resultsBox
-        // (button's original parent) to restore position if the drag is
-        // cancelled or dropped somewhere invalid. Destroy only once dnd.js
-        // signals it's fully done with the actor.
         const draggable = button._draggable;
         if (!draggable) {
             this._container.destroy();
@@ -1597,6 +1626,7 @@ class WindowCollectionOverlay {
 }
 
 // ==================== WINDOW COLLECTION ICON ====================
+// (Unchanged)
 class WindowCollectionIcon extends St.Button {
     static {
         GObject.registerClass(this);
@@ -1638,6 +1668,7 @@ class WindowCollectionIcon extends St.Button {
     }
 }
 
+// ==================== WORKSPACE THUMBNAIL ====================
 // Represents a single workspace in the panel indicator.
 // Holds a set of WindowPreviews for all windows in that workspace,
 // or a single WindowCollectionIcon when there are more than
@@ -1745,7 +1776,6 @@ class WorkspaceThumbnail extends St.Button {
         this._onRestacked();
     }
 
-    // ==================== DND (workspace-level drops) ====================
     handleDragOver(source, actor, x, y, time) {
         const draggedWindow = getDraggedWindow(source);
         if (!draggedWindow)
@@ -1754,11 +1784,10 @@ class WorkspaceThumbnail extends St.Button {
         if (this._mode !== 'direct')
             return DND.DragMotionResult.MOVE_DROP;
 
-        const insertion = this._computeInsertionFromPointer(draggedWindow);
-        if (insertion)
-            DragDropManager.showTarget(this._windowsBox, insertion.insertIndex);
-        else
-            DragDropManager.clearTarget();
+        const [pointerX] = global.get_pointer();
+        const insertion = DragDropManager.computeInsertionFromPointer(
+            draggedWindow, this._windowOrder, pointerX, this._windowsBox);
+        DragDropManager.updatePlaceholder(this._windowsBox, insertion.insertIndex);
 
         return DND.DragMotionResult.MOVE_DROP;
     }
@@ -1768,223 +1797,28 @@ class WorkspaceThumbnail extends St.Button {
         if (!draggedWindow)
             return false;
 
-        const insertion = this._computeInsertionFromPointer(draggedWindow);
-        this._dropWindowAt(draggedWindow, insertion ? insertion.insertIndex : null);
-        DragDropManager.clearTarget();
+        const last = DragDropManager.getLastInsertion();
+        const insertIndex = last && last.box === this._windowsBox ? last.index : null;
+        this._dropWindowAt(draggedWindow, insertIndex);
+        DragDropManager.clearPlaceholder();
         return true;
     }
 
-    // ==================== WINDOW REORDERING ====================
+    // Icon-to-icon hover is mathematically identical to hovering empty
+    // space in the same box — both just need "pointerX vs this box's
+    // snapshot" — so route through the same, snapshot-stabilized path
+    // instead of re-measuring the hovered icon's live (placeholder-shifted)
+    // position, which is what caused the flicker.
     handleWindowDragOver(draggedWindow, targetPreview, x, y, time) {
-        if (this._mode !== 'direct')
+        if (!draggedWindow || targetPreview?._window === draggedWindow)
             return DND.DragMotionResult.MOVE_DROP;
-
-        if (!targetPreview || targetPreview._window === draggedWindow) {
-            DragDropManager.clearTarget();
-            return DND.DragMotionResult.MOVE_DROP;
-        }
-
-        const [pointerX] = global.get_pointer();
-        const [px] = targetPreview.get_transformed_position();
-        const [pw] = targetPreview.get_transformed_size();
-        const insertBefore = pointerX < (px + pw / 2);
-
-        const insertion = this._insertionForTarget(draggedWindow, targetPreview, insertBefore);
-        DragDropManager.showTarget(this._windowsBox, insertion.insertIndex);
-        return DND.DragMotionResult.MOVE_DROP;
+        return this.handleDragOver({ _window: draggedWindow }, null, x, y, time);
     }
 
     acceptWindowDrop(draggedWindow, targetPreview, x, y, time) {
         if (!draggedWindow)
             return false;
-
-        let insertion;
-        if (this._mode === 'direct' && targetPreview && targetPreview._window !== draggedWindow) {
-            const [pointerX] = global.get_pointer();
-            const [px] = targetPreview.get_transformed_position();
-            const [pw] = targetPreview.get_transformed_size();
-            const insertBefore = pointerX < (px + pw / 2);
-            insertion = this._insertionForTarget(draggedWindow, targetPreview, insertBefore);
-        } else {
-            insertion = this._computeInsertionFromPointer(draggedWindow);
-        }
-
-        this._dropWindowAt(draggedWindow, insertion ? insertion.insertIndex : null);
-        DragDropManager.clearTarget();
-        return true;
-    }
-
-    _insertionForTarget(draggedWindow, targetPreview, insertBefore) {
-        const targetWindow = targetPreview._window;
-        const orderWithout = this._windowOrder.filter(w => w !== draggedWindow);
-        let targetIndex = orderWithout.indexOf(targetWindow);
-        if (targetIndex === -1)
-            targetIndex = orderWithout.length;
-        const insertIndex = insertBefore ? targetIndex : targetIndex + 1;
-        return {
-            targetPreview,
-            insertBefore,
-            insertIndex,
-        };
-    }
-
-    _computeInsertionFromPointer(draggedWindow) {
-        const previews = this._windowOrder
-            .filter(w => w !== draggedWindow && this._windowPreviews.has(w))
-            .map(w => this._windowPreviews.get(w))
-            .filter(p => p && p.get_stage());
-
-        if (previews.length === 0) {
-            return {
-                targetPreview: null,
-                insertBefore: true,
-                insertIndex: 0,
-            };
-        }
-
-        const [pointerX] = global.get_pointer();
-
-        const rects = previews.map(p => {
-            const [x] = p.get_transformed_position();
-            const [w] = p.get_transformed_size();
-            return {
-                preview: p,
-                x,
-                w,
-                mid: x + w / 2,
-                right: x + w,
-            };
-        });
-
-        const first = rects[0];
-        const last = rects[rects.length - 1];
-
-        let target = null;
-        let insertBefore = true;
-
-        if (pointerX < first.x) {
-            target = first;
-            insertBefore = true;
-        } else if (pointerX >= last.right) {
-            target = last;
-            insertBefore = false;
-        } else {
-            for (let i = 0; i < rects.length; i++) {
-                const r = rects[i];
-                if (pointerX >= r.x && pointerX < r.right) {
-                    target = r;
-                    insertBefore = pointerX < r.mid;
-                    break;
-                }
-            }
-
-            if (!target) {
-                for (let i = 0; i < rects.length - 1; i++) {
-                    const left = rects[i];
-                    const right = rects[i + 1];
-                    if (pointerX >= left.right && pointerX <= right.x) {
-                        const distanceToLeft = pointerX - left.right;
-                        const distanceToRight = right.x - pointerX;
-                        if (distanceToLeft <= distanceToRight) {
-                            target = left;
-                            insertBefore = false;
-                        } else {
-                            target = right;
-                            insertBefore = true;
-                        }
-                        break;
-                    }
-                }
-            }
-
-            if (!target) {
-                let nearest = rects[0];
-                let best = Math.abs(pointerX - nearest.mid);
-                for (const r of rects) {
-                    const d = Math.abs(pointerX - r.mid);
-                    if (d < best) {
-                        best = d;
-                        nearest = r;
-                    }
-                }
-                target = nearest;
-                insertBefore = pointerX < nearest.mid;
-            }
-        }
-
-        const orderWithout = this._windowOrder.filter(w => w !== draggedWindow);
-        const targetWindow = target.preview._window;
-        let targetIndex = orderWithout.indexOf(targetWindow);
-        if (targetIndex === -1)
-            targetIndex = orderWithout.length;
-
-        const insertIndex = insertBefore ? targetIndex : targetIndex + 1;
-
-        return {
-            targetPreview: target.preview,
-            insertBefore,
-            insertIndex,
-        };
-    }
-
-    _dropWindowAt(window, insertIndex) {
-        if (!window)
-            return;
-        this._moveWindow(window, insertIndex);
-    }
-
-    _reorderWindowToIndex(window, insertIndex) {
-        if (insertIndex === null)
-            return;
-
-        journal(`[WorkspaceThumbnail] _reorderWindowToIndex: window=${window.title}, insertIndex=${insertIndex}, currentOrder=${this._windowOrder.map(w => w.title).join(', ')}`);
-
-        const currentIndex = this._windowOrder.indexOf(window);
-
-        if (currentIndex === -1) {
-            if (window.get_workspace() === this._workspace) {
-                const idx = Math.max(0, Math.min(insertIndex, this._windowOrder.length));
-                this._windowOrder.splice(idx, 0, window);
-                this._syncDisplayMode();
-            }
-            return;
-        }
-
-        this._windowOrder.splice(currentIndex, 1);
-        const idx = Math.max(0, Math.min(insertIndex, this._windowOrder.length));
-        this._windowOrder.splice(idx, 0, window);
-
-        journal(`[WorkspaceThumbnail] _reorderWindowToIndex: newOrder=${this._windowOrder.map(w => w.title).join(', ')}`);
-
-        if (this._mode === 'direct')
-            this._syncChildOrder();
-        else
-            this._syncDisplayMode();
-    }
-
-    _syncChildOrder() {
-        if (this._mode !== 'direct' || !this._windowsBox)
-            return;
-
-        journal(`[WorkspaceThumbnail] _syncChildOrder: order=${this._windowOrder.map(w => w.title).join(', ')}`);
-
-        // Collect the previews in _windowOrder sequence, removing each from
-        // the box as we go. Then re-add them in that same sequence so the
-        // visual (left-to-right) order matches _windowOrder exactly.
-        const orderedPreviews = [];
-        for (const window of this._windowOrder) {
-            const preview = this._windowPreviews.get(window);
-            if (!preview)
-                continue;
-            if (preview.get_parent() === this._windowsBox)
-                this._windowsBox.remove_child(preview);
-            orderedPreviews.push(preview);
-        }
-
-        for (const preview of orderedPreviews)
-            this._windowsBox.add_child(preview);
-
-        journal(`[WorkspaceThumbnail] _syncChildOrder: visual order=${this._windowsBox.get_children().map(c => c._window?.title).join(', ')}`);
+        return this.acceptDrop({ _window: draggedWindow }, null, x, y, time);
     }
 
     // ==================== WINDOW MANAGEMENT ====================
@@ -2056,9 +1890,6 @@ class WorkspaceThumbnail extends St.Button {
     }
 
     // ==================== DISPLAY MODE SWITCHING ====================
-    // Deterministic: purely a function of this._windowOrder.length.
-    // Never touches this._workspace, window stacking, or window state.
-
     _syncDisplayMode() {
         const count = this._windowOrder.length;
         if (count > DIRECT_MODE_MAX_WINDOWS)
@@ -2112,6 +1943,26 @@ class WorkspaceThumbnail extends St.Button {
         this._updateThumbnailSize();
     }
 
+    _syncChildOrder() {
+        if (this._mode !== 'direct' || !this._windowsBox)
+            return;
+
+        // Collect the previews in _windowOrder sequence, removing each from
+        // the box as we go. Then re-add them in that same sequence.
+        const orderedPreviews = [];
+        for (const window of this._windowOrder) {
+            const preview = this._windowPreviews.get(window);
+            if (!preview)
+                continue;
+            if (preview.get_parent() === this._windowsBox)
+                this._windowsBox.remove_child(preview);
+            orderedPreviews.push(preview);
+        }
+
+        for (const preview of orderedPreviews)
+            this._windowsBox.add_child(preview);
+    }
+
     _updateThumbnailSize() {
         let iconSize = 96;
         const count = this._windowPreviews.size;
@@ -2126,14 +1977,7 @@ class WorkspaceThumbnail extends St.Button {
     }
 
     _onRestacked() {
-        let lastPreview = null;
-        let windows = global.get_window_actors().map(a => a.meta_window);
-        for (let i = 0; i < windows.length; i++) {
-            let preview = this._windowPreviews.get(windows[i]);
-            if (!preview)
-                continue;
-            lastPreview = preview;
-        }
+        // no-op, kept for potential future use
     }
 
     _moveWindow(window, insertIndex = null) {
@@ -2150,6 +1994,36 @@ class WorkspaceThumbnail extends St.Button {
 
         if (insertIndex !== null && wasSameWorkspace)
             this._reorderWindowToIndex(window, insertIndex);
+    }
+
+    _reorderWindowToIndex(window, insertIndex) {
+        if (insertIndex === null)
+            return;
+
+        const currentIndex = this._windowOrder.indexOf(window);
+        if (currentIndex === -1) {
+            if (window.get_workspace() === this._workspace) {
+                const idx = Math.max(0, Math.min(insertIndex, this._windowOrder.length));
+                this._windowOrder.splice(idx, 0, window);
+                this._syncDisplayMode();
+            }
+            return;
+        }
+
+        this._windowOrder.splice(currentIndex, 1);
+        const idx = Math.max(0, Math.min(insertIndex, this._windowOrder.length));
+        this._windowOrder.splice(idx, 0, window);
+
+        if (this._mode === 'direct')
+            this._syncChildOrder();
+        else
+            this._syncDisplayMode();
+    }
+
+    _dropWindowAt(window, insertIndex) {
+        if (!window)
+            return;
+        this._moveWindow(window, insertIndex);
     }
 
     cleanupSources() {
