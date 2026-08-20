@@ -406,66 +406,7 @@ function getDraggedWindow(source) {
     return null;
 }
 
-// (Legacy ReorderManager – kept but not used; could be removed later)
-const ReorderManager = {
-    _source: null,
-    _target: null,
-    _insertBefore: false,
-
-    setSource(source) {
-        if (this._source && this._source !== source)
-            this.clearSource();
-        this._source = source;
-        if (source && typeof source.add_style_class_name === 'function')
-            source.add_style_class_name('reorder-drag-source');
-    },
-
-    clearSource() {
-        if (!this._source)
-            return;
-        try {
-            this._source.remove_style_class_name('reorder-drag-source');
-        } catch (e) { }
-        this._source = null;
-    },
-
-    showTarget(target, insertBefore) {
-        if (this._target === target && this._insertBefore === insertBefore)
-            return;
-        this.clearTarget();
-        this._target = target;
-        this._insertBefore = insertBefore;
-        if (target && typeof target.add_style_class_name === 'function') {
-            const cls = insertBefore ? 'reorder-insert-before' : 'reorder-insert-after';
-            target.add_style_class_name(cls);
-        }
-    },
-
-    clearTarget() {
-        if (!this._target)
-            return;
-        try {
-            this._target.remove_style_class_name('reorder-insert-before');
-            this._target.remove_style_class_name('reorder-insert-after');
-        } catch (e) { }
-        this._target = null;
-        this._insertBefore = false;
-    },
-
-    clear() {
-        this.clearTarget();
-    },
-
-    clearIfRelated(actor) {
-        if (this._target === actor)
-            this.clearTarget();
-        if (this._source === actor)
-            this.clearSource();
-    },
-};
-
 // ==================== TITLE BAR DRAG MONITOR ====================
-// (Unchanged – kept as is)
 class TitleBarDragMonitor {
     constructor() {
         this._grabbedWindow = null;
@@ -591,7 +532,6 @@ class TitleBarDragMonitor {
 }
 
 // ==================== PREVIEW REGISTRY WITH CTRL POLLING ====================
-// (Unchanged)
 const PreviewRegistry = {
     activePreview: null,
     _ctrlPollId: null,
@@ -678,7 +618,6 @@ const PreviewRegistry = {
 };
 
 // ==================== WINDOW PREVIEW CLASS ====================
-// (Unchanged except for a minor adjustment: _getThumbnail now uses a helper)
 class WindowPreview extends St.Button {
     static {
         GObject.registerClass(this);
@@ -1280,7 +1219,6 @@ class WindowPreview extends St.Button {
 }
 
 // ==================== WINDOW COLLECTION OVERLAY ====================
-// (Unchanged)
 class WindowCollectionOverlay {
     constructor(windows) {
         journal(`[CollectionOverlay] Opening with ${windows.length} windows`);
@@ -1626,7 +1564,6 @@ class WindowCollectionOverlay {
 }
 
 // ==================== WINDOW COLLECTION ICON ====================
-// (Unchanged)
 class WindowCollectionIcon extends St.Button {
     static {
         GObject.registerClass(this);
