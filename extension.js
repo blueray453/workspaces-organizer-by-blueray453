@@ -188,6 +188,116 @@ function createClonePreviewActor(window, targetHeight, options = {}) {
     return { actor: wrapper, inner: container, width: targetWidth, height: targetHeight };
 }
 
+// ==================== DRAG & DROP MANAGER ====================
+// Single owner of every "reorder while dragging" visual. WindowPreview
+// only reports drag-begin/drag-end; WorkspaceThumbnail only reports
+// "here's the box and the index the dragged window would land at".
+// Nobody else creates, styles, or positions the placeholder actor.
+const DragDropManager = {
+    _sourcePreview: null,
+    _placeholder: null,
+    _placeholderBox: null,
+    _placeholderIndex: -1,
+
+    // ---- drag lifecycle (called by WindowPreview) ----
+    beginDrag(sourcePreview) {
+        if (this._sourcePreview && this._sourcePreview !== sourcePreview)
+            this.endDrag();
+        this._sourcePreview = sourcePreview;
+        if (typeof sourcePreview.add_style_class_name === 'function')
+            sourcePreview.add_style_class_name('reorder-drag-source');
+        // Vacate its slot — the placeholder takes over showing "where it is".
+        sourcePreview.hide();
+    },
+
+    endDrag() {
+        this._destroyPlaceholder();
+        if (this._sourcePreview) {
+            try {
+                this._sourcePreview.remove_style_class_name('reorder-drag-source');
+                this._sourcePreview.show();
+            } catch (e) {
+                // actor may already be destroyed
+            }
+        }
+        this._sourcePreview = null;
+    },
+
+    // Called by destroy() paths so a destroyed actor is never touched again.
+    clearIfRelated(actor) {
+        if (this._sourcePreview === actor) {
+            this._destroyPlaceholder();
+            this._sourcePreview = null;
+            return;
+        }
+        if (this._placeholderBox === actor)
+            this._destroyPlaceholder();
+    },
+
+    // ---- target placement (called by WorkspaceThumbnail) ----
+    // `box` is the WorkspaceThumbnail._windowsBox the placeholder should
+    // live in; `index` is where among its *current real* children it
+    // should land.
+    showTarget(box, index) {
+        if (!this._sourcePreview || !box)
+            return;
+        if (this._placeholderBox === box && this._placeholderIndex === index)
+            return;
+
+        const placeholder = this._ensurePlaceholder();
+        if (!placeholder)
+            return;
+
+        if (placeholder.get_parent())
+            placeholder.get_parent().remove_child(placeholder);
+
+        const count = box.get_children().length;
+        const clamped = Math.max(0, Math.min(index, count));
+        box.insert_child_at_index(placeholder, clamped);
+
+        this._placeholderBox = box;
+        this._placeholderIndex = clamped;
+    },
+
+    clearTarget() {
+        this._destroyPlaceholder();
+    },
+
+    // ---- internals ----
+    _ensurePlaceholder() {
+        if (this._placeholder)
+            return this._placeholder;
+        if (!this._sourcePreview)
+            return null;
+
+        const size = this._sourcePreview.icon_size ?? 96;
+        const placeholder = new St.Bin({
+            style_class: 'window-preview-icon drag-placeholder-icon',
+            width: size,
+            height: size,
+        });
+        placeholder.opacity = 140; // semi-transparent
+
+        const iconActor = this._sourcePreview.get_child();
+        if (iconActor)
+            placeholder.set_child(new Clutter.Clone({ source: iconActor }));
+
+        this._placeholder = placeholder;
+        return placeholder;
+    },
+
+    _destroyPlaceholder() {
+        if (!this._placeholder)
+            return;
+        if (this._placeholder.get_parent())
+            this._placeholder.get_parent().remove_child(this._placeholder);
+        this._placeholder.destroy();
+        this._placeholder = null;
+        this._placeholderBox = null;
+        this._placeholderIndex = -1;
+    },
+};
+
 // ==================== THUMBNAIL REGISTRY ====================
 // Tracks all live WorkspaceThumbnail actors so native (title-bar) window
 // drags can be hit-tested against them on drop, independent of our own
@@ -552,13 +662,12 @@ class WindowPreview extends St.Button {
 
         this._draggable.connect('drag-begin', () => {
             journal(`[WindowPreview] Drag began for ${this._window.title}`);
-            ReorderManager.setSource(this);
+            DragDropManager.beginDrag(this);
         });
 
         this._draggable.connect('drag-end', () => {
             journal(`[WindowPreview] Drag ended for ${this._window.title}`);
-            ReorderManager.clear();
-            ReorderManager.clearSource();
+            DragDropManager.endDrag();
 
             const thumbnail = this._getThumbnail();
             if (thumbnail && typeof thumbnail._syncChildOrder === 'function') {
@@ -1079,7 +1188,7 @@ class WindowPreview extends St.Button {
 
     destroy() {
         journal(`[WindowPreview] Destroying`);
-        ReorderManager.clearIfRelated(this);
+        DragDropManager.clearIfRelated(this);
         this._forceHide('destroy');
 
         if (this._hoverSignalId) {
@@ -1646,11 +1755,10 @@ class WorkspaceThumbnail extends St.Button {
             return DND.DragMotionResult.MOVE_DROP;
 
         const insertion = this._computeInsertionFromPointer(draggedWindow);
-
-        if (insertion && insertion.targetPreview)
-            ReorderManager.showTarget(insertion.targetPreview, insertion.insertBefore);
+        if (insertion)
+            DragDropManager.showTarget(this._windowsBox, insertion.insertIndex);
         else
-            ReorderManager.clearTarget();
+            DragDropManager.clearTarget();
 
         return DND.DragMotionResult.MOVE_DROP;
     }
@@ -1662,61 +1770,47 @@ class WorkspaceThumbnail extends St.Button {
 
         const insertion = this._computeInsertionFromPointer(draggedWindow);
         this._dropWindowAt(draggedWindow, insertion ? insertion.insertIndex : null);
-        ReorderManager.clearTarget();
+        DragDropManager.clearTarget();
         return true;
     }
 
     // ==================== WINDOW REORDERING ====================
     handleWindowDragOver(draggedWindow, targetPreview, x, y, time) {
-        journal(`[WorkspaceThumbnail] handleWindowDragOver mode=${this._mode}, dragged=${draggedWindow?.title}, target=${targetPreview?._window?.title}`);
-
-        if (this._mode !== 'direct') {
-            journal(`[WorkspaceThumbnail] Not in direct mode, skipping`);
+        if (this._mode !== 'direct')
             return DND.DragMotionResult.MOVE_DROP;
-        }
 
         if (!targetPreview || targetPreview._window === draggedWindow) {
-            journal(`[WorkspaceThumbnail] Drop on self or null target, clearing`);
-            ReorderManager.clearTarget();
+            DragDropManager.clearTarget();
             return DND.DragMotionResult.MOVE_DROP;
         }
 
         const [pointerX] = global.get_pointer();
         const [px] = targetPreview.get_transformed_position();
         const [pw] = targetPreview.get_transformed_size();
-        const mid = px + pw / 2;
+        const insertBefore = pointerX < (px + pw / 2);
 
-        const insertBefore = pointerX < mid;
-        journal(`[WorkspaceThumbnail] pointerX=${pointerX}, iconX=${px}, iconW=${pw}, mid=${mid}, insertBefore=${insertBefore}`);
-
-        ReorderManager.showTarget(targetPreview, insertBefore);
+        const insertion = this._insertionForTarget(draggedWindow, targetPreview, insertBefore);
+        DragDropManager.showTarget(this._windowsBox, insertion.insertIndex);
         return DND.DragMotionResult.MOVE_DROP;
     }
 
     acceptWindowDrop(draggedWindow, targetPreview, x, y, time) {
-        journal(`[WorkspaceThumbnail] acceptWindowDrop dragged=${draggedWindow?.title}, target=${targetPreview?._window?.title}`);
-
         if (!draggedWindow)
             return false;
 
-        let insertion = null;
-
-        if (this._mode === 'direct' &&
-            targetPreview &&
-            targetPreview._window !== draggedWindow) {
+        let insertion;
+        if (this._mode === 'direct' && targetPreview && targetPreview._window !== draggedWindow) {
             const [pointerX] = global.get_pointer();
             const [px] = targetPreview.get_transformed_position();
             const [pw] = targetPreview.get_transformed_size();
-
             const insertBefore = pointerX < (px + pw / 2);
             insertion = this._insertionForTarget(draggedWindow, targetPreview, insertBefore);
-            journal(`[WorkspaceThumbnail] Insertion: index=${insertion.insertIndex}, before=${insertion.insertBefore}`);
         } else {
             insertion = this._computeInsertionFromPointer(draggedWindow);
         }
 
         this._dropWindowAt(draggedWindow, insertion ? insertion.insertIndex : null);
-        ReorderManager.clearTarget();
+        DragDropManager.clearTarget();
         return true;
     }
 
@@ -2084,6 +2178,7 @@ class WorkspaceThumbnail extends St.Button {
             this._collectionIcon.destroy();
             this._collectionIcon = null;
         }
+        DragDropManager.clearIfRelated(this._windowsBox);
         ThumbnailRegistry.unregister(this);
         super.destroy();
     }
