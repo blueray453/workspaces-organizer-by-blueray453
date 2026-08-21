@@ -5,12 +5,10 @@
     "paypal": "MarkoMiskovic"
   },
   "name": "Workspaces Organizer by blueray453",
-  "shell-version": [
-    "46",
-    "47",
-    "48"
-  ],
+  "shell-version": ["46", "47", "48"],
   "url": "https://github.com/blueray453/workspaces-organizer-by-blueray453",
   "uuid": "workspaces-organizer-by-blueray453",
-  "version": 5
+  "version": 5,
+  "prefs": "prefs.js",
+  "settings-schema": "org.gnome.shell.extensions.workspaces-organizer-by-blueray453"
 }

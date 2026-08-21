@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.workspaces-organizer-by-blueray453"
+          path="/org/gnome/shell/extensions/workspaces-organizer-by-blueray453/">
+    <key name="icon-size" type="i">
+      <default>96</default>
+      <summary>Default icon size for window previews</summary>
+      <description>Size of each window icon in the workspace thumbnails (pixels).</description>
+    </key>
+    <key name="thumbnail-min-width" type="i">
+      <default>50</default>
+      <summary>Minimum width of each workspace thumbnail</summary>
+      <description>Minimum width of each workspace thumbnail in the panel (pixels).</description>
+    </key>
+    <key name="workspace-name-font-size" type="i">
+      <default>40</default>
+      <summary>Font size of the workspace name label</summary>
+      <description>Font size of the workspace name displayed in the panel (pixels).</description>
+    </key>
+    <key name="hover-preview-height" type="i">
+      <default>800</default>
+      <summary>Height of the hover preview window clone</summary>
+      <description>Height of the live preview shown when hovering over a window icon (pixels).</description>
+    </key>
+    <key name="title-popup-font-size" type="i">
+      <default>16</default>
+      <summary>Font size of the title popup (Ctrl‑held)</summary>
+      <description>Font size of the title popup shown while holding Ctrl (points).</description>
+    </key>
+    <key name="collection-search-font-size" type="i">
+      <default>18</default>
+      <summary>Font size of the collection overlay search entry</summary>
+      <description>Font size of the search entry in the window collection overlay (points).</description>
+    </key>
+    <key name="collection-result-font-size" type="i">
+      <default>13</default>
+      <summary>Font size of the collection overlay result items</summary>
+      <description>Font size of the search result items in the collection overlay (points).</description>
+    </key>
+    <key name="clone-title-font-size" type="i">
+      <default>32</default>
+      <summary>Font size of the window title overlay on preview clones</summary>
+      <description>Font size of the window title shown on hover previews and collection overlay previews (pixels).</description>
+    </key>
+    <key name="close-button-size" type="i">
+      <default>32</default>
+      <summary>Size of the close button on previews</summary>
+      <description>Size of the close button icon on previews (pixels).</description>
+    </key>
+  </schema>
+</schemalist>

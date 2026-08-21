@@ -1,6 +1,5 @@
 .workspace-indicator-class .workspace-thumbnail {
-    /* make workspace thumbnails slightly smaller so more previews fit */
-    min-width: 50px;
+    /* min-width is now set via JavaScript from GSettings */
     height: 100%;
     padding: 10px;
     padding-top: 25px;
@@ -10,17 +9,8 @@
 }
 
 .workspace-indicator-class .workspace-thumbnail.active {
-    /* highlight color */
-	/* background-color: #2aa198;
-    background-color: rgba(42, 161, 152, 0.15); */
     background-color: rgba(42, 161, 152, 0.50);
-    /* background-color: rgba(42, 161, 152, 0.50);
-    background-color: rgba(42, 161, 152, 1); */
 }
-
-/* .workspace-indicator .workspace-thumbnail:hover {
-    background-color: rgba(38, 139, 210, 0.50)
-} */
 
 .hover-preview-wrapper {
     border: 4px solid #268bd2;
@@ -30,7 +20,7 @@
 
 .workspace-name-label {
     padding: 20px;
-    font-size: 40px;
+    /* font-size is now set via JavaScript from GSettings */
     font-weight: bold;
 }
 
@@ -39,44 +29,11 @@
     color: white;
     padding: 6px 12px;
     border-radius: 12px;
-    font-size: 16pt;
+    /* font-size is now set via JavaScript from GSettings */
 }
-
-/* .workspace-thumbnail.large-thumbnail {
-    min-width: 70px;
-}
-
-.workspace-thumbnail.medium-thumbnail {
-    min-width: 50px;
-}
-
-.workspace-thumbnail.small-thumbnail {
-    min-width: 30px;
-}
-
-.workspace-thumbnail.small-thumbnail .window-preview {
-    min-width: 32px;
-}
-
-.workspace-thumbnail.medium-thumbnail .window-preview {
-    min-width: 40px;
-}
-
-.workspace-thumbnail.large-thumbnail .window-preview {
-    min-width: 50px;
-}
-
-.workspace-thumbnail.active {
-    background-color: rgba(255, 255, 255, 0.15);
-} */
-
-/* .workspace-context-menu .popup-menu-item {
-  font-size: 16pt !important;
-  padding: 10px 15px !important;
-} */
 
 .workspace-context-menu .popup-menu-item StLabel {
-  font-size: 16pt !important;
+    font-size: 16pt !important;
 }
 
 /* ===== Window collection icon ===== */
@@ -89,10 +46,6 @@
     background-color: #268bd2;
     box-shadow: inset 0 0 4px 2px #268bd2;
     border-radius: 30px;
-}
-
-.workspace-thumbnail-collection-icon:hover {
-    /* background-color: rgba(38, 139, 210, 0.30); */
 }
 
 .collection-icon-label {
@@ -114,7 +67,7 @@
     border: 2px solid #268bd2; /* blue */
     border-radius: 8px;
     padding: 12px 16px;
-    font-size: 18pt;
+    /* font-size is now set via JavaScript from GSettings */
 }
 
 .collection-search-entry StLabel.hint-text {
@@ -130,7 +83,7 @@
 .collection-result-item {
     color: #93a1a1; /* base1 */
     padding: 10px 14px;
-    font-size: 13pt;
+    /* font-size is now set via JavaScript from GSettings */
     border-bottom: 1px solid rgba(88, 110, 117, 0.3);
 }
 
@@ -162,11 +115,9 @@
     background-color: rgba(220, 50, 47, 1);
 }
 
-.window-close-button StIcon {
-    icon-size: 32px;
-}
+/* icon-size is now set via JavaScript from GSettings */
 
-/* ===== Additional rules from the duplicated block (unique) ===== */
+/* ===== Additional rules ===== */
 
 .collection-results-scroll {
     background-color: #073642;
@@ -174,14 +125,10 @@
     border-radius: 8px;
 }
 
-.collection-preview-inner {
-    /* clone container inside the preview box */
-}
-
 .clone-title-overlay {
     color: #fdf6e3;                     /* base3 */
     background-color: rgba(0, 0, 0, 0.55);
-    font-size: 32px;
+    /* font-size is now set via JavaScript from GSettings */
     font-weight: bold;
     padding: 8px 16px;
 }
@@ -192,7 +139,6 @@
     transition-duration: 120ms;
 }
 
-/* Optional: slightly highlight the dragged source icon */
 .window-preview-icon.reorder-drag-source {
     opacity: 0.70;
     border: 3px solid #268bd2;

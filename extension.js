@@ -5,7 +5,6 @@ import { setLogging, setLogFn, journal } from './utils.js';
 import { WorkspaceIndicator } from './lib/workspaceIndicator.js';
 import { TitleBarMoveMonitor } from './lib/titleBarMoveMonitor.js';
 
-// ==================== EXTENSION ENTRY POINT ====================
 export default class TopNotchWorkspaces extends Extension {
     constructor(metadata) {
         super(metadata);
@@ -29,7 +28,9 @@ export default class TopNotchWorkspaces extends Extension {
         setLogging(true);
         journal(`Enabled`);
 
-        this._indicator = new WorkspaceIndicator();
+        const settings = this.getSettings(); // Reads settings-schema from metadata.json
+
+        this._indicator = new WorkspaceIndicator(settings);
         Main.panel.addToStatusArea('workspace-indicator', this._indicator, 0, 'left');
 
         this._titleBarMoveMonitor = new TitleBarMoveMonitor();
