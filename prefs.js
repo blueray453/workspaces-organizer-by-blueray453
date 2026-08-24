@@ -18,6 +18,7 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
             { key: 'icon-size', label: 'Icon size', min: 16, max: 256, step: 2 },
             { key: 'thumbnail-min-width', label: 'Thumbnail minimum width', min: 20, max: 200, step: 2 },
             { key: 'workspace-name-font-size', label: 'Workspace name', min: 10, max: 100, step: 1 },
+            { key: 'toolbar-icon-size', label: 'Panel toolbar icon size', min: 16, max: 64, step: 2 },
             { key: 'title-popup-font-size', label: 'Title popup (Ctrl+hold)', min: 8, max: 48, step: 1 },
             { key: 'collection-search-font-size', label: 'Collection search entry', min: 8, max: 48, step: 1 },
             { key: 'collection-result-font-size', label: 'Collection result items', min: 8, max: 48, step: 1 },
@@ -53,7 +54,7 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
             description: 'Sizes and dimensions',
         });
         page.add(layoutGroup);
-        ['thumbnail-min-width', 'hover-preview-height', 'close-button-size'].forEach(key => {
+        ['thumbnail-min-width', 'toolbar-icon-size', 'hover-preview-height', 'close-button-size'].forEach(key => {
             const def = allKeys.find(k => k.key === key);
             this._addSpinRow(layoutGroup, def, settings);
         });

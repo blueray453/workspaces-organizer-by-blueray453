@@ -17,6 +17,11 @@
       <summary>Show workspace name label and drag-over hint</summary>
       <description>Whether to show the workspace name in the panel and as a hint while dragging a window over a thumbnail.</description>
     </key>
+    <key name="toolbar-icon-size" type="i">
+      <default>56</default>
+      <summary>Icon size for panel toolbar buttons</summary>
+      <description>Size of the 'apps' and 'all windows' button icons in the panel (pixels).</description>
+    </key>
     <key name="icon-size" type="i">
       <default>96</default>
       <summary>Default icon size for window previews</summary>
