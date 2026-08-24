@@ -171,3 +171,32 @@
 .workspace-toolbar-button:hover {
     background-color: rgba(255, 255, 255, 0.08);
 }
+
+/* ===== App search overlay (AppSearchOverlay) ===== */
+
+.app-pin-marker {
+    color: #b58900; /* solarized yellow, matches gdmenu's pin marker */
+    padding-left: 8px;
+}
+
+.app-description-label {
+    color: #93a1a1; /* base1 */
+    font-size: 12pt;
+    padding: 12px 24px;
+    text-align: center;
+}
+
+.app-preview-pin-button,
+.app-preview-action-button {
+    background-color: #073642; /* base02 */
+    color: #eee8d5;            /* base2 */
+    border: 1px solid #268bd2; /* blue */
+    border-radius: 8px;
+    padding: 10px 18px;
+    margin: 6px;
+}
+
+.app-preview-pin-button:hover,
+.app-preview-action-button:hover {
+    background-color: rgba(38, 139, 210, 0.25);
+}

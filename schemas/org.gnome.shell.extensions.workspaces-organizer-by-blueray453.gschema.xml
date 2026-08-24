@@ -22,6 +22,10 @@
       <summary>Icon size for panel toolbar buttons</summary>
       <description>Size of the 'apps' and 'all windows' button icons in the panel (pixels).</description>
     </key>
+    <key name="app-preview-icon-size" type="i">
+      <default>128</default>
+      <summary>Icon size in the app search overlay's preview panel</summary>
+    </key>
     <key name="icon-size" type="i">
       <default>96</default>
       <summary>Default icon size for window previews</summary>
