@@ -58,6 +58,25 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
             this._addSpinRow(layoutGroup, def, settings);
         });
 
+        const visibilityGroup = new Adw.PreferencesGroup({
+            title: 'Visibility',
+            description: 'Toggle panel elements — changes apply immediately, no restart needed',
+        });
+        page.add(visibilityGroup);
+
+        for (const [key, title] of [
+            ['show-drun-button', 'Show "apps" button'],
+            ['show-window-button', 'Show "all windows" button'],
+            ['show-workspace-names', 'Show workspace names'],
+        ]) {
+            const row = new Adw.ActionRow({ title });
+            const toggle = new Gtk.Switch({ valign: Gtk.Align.CENTER });
+            settings.bind(key, toggle, 'active', Gio.SettingsBindFlags.DEFAULT);
+            row.add_suffix(toggle);
+            row.set_activatable_widget(toggle);
+            visibilityGroup.add(row);
+        }
+
         // Group: Reset and notes
         const miscGroup = new Adw.PreferencesGroup();
         page.add(miscGroup);

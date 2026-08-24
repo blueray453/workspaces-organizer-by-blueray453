@@ -2,6 +2,21 @@
 <schemalist>
   <schema id="org.gnome.shell.extensions.workspaces-organizer-by-blueray453"
           path="/org/gnome/shell/extensions/workspaces-organizer-by-blueray453/">
+    <key name="show-drun-button" type="b">
+      <default>true</default>
+      <summary>Show the "show apps" panel button</summary>
+      <description>Whether to show the button that opens `gdmenu --drun --fullscreen`.</description>
+    </key>
+    <key name="show-window-button" type="b">
+      <default>true</default>
+      <summary>Show the "all windows" panel button</summary>
+      <description>Whether to show the button that opens `gdmenu --window --fullscreen`.</description>
+    </key>
+    <key name="show-workspace-names" type="b">
+      <default>true</default>
+      <summary>Show workspace name label and drag-over hint</summary>
+      <description>Whether to show the workspace name in the panel and as a hint while dragging a window over a thumbnail.</description>
+    </key>
     <key name="icon-size" type="i">
       <default>96</default>
       <summary>Default icon size for window previews</summary>

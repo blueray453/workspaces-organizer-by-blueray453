@@ -154,3 +154,20 @@
 .collection-result-icon {
     margin-right: 12px;
 }
+
+.workspace-drag-name-hint {
+    background-color: rgba(0, 0, 0, 0.85);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 12pt;
+}
+
+.workspace-toolbar-button {
+    padding: 6px;
+    border-radius: 6px;
+}
+
+.workspace-toolbar-button:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
