@@ -37,6 +37,11 @@
       <summary>Font size of the collection overlay result items</summary>
       <description>Font size of the search result items in the collection overlay (points).</description>
     </key>
+    <key name="collection-result-icon-size" type="i">
+      <default>48</default>
+      <summary>Icon size for search result items</summary>
+      <description>Size of application icons shown in the search results overlay (pixels).</description>
+    </key>
     <key name="clone-title-font-size" type="i">
       <default>32</default>
       <summary>Font size of the window title overlay on preview clones</summary>

@@ -21,6 +21,7 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
             { key: 'title-popup-font-size', label: 'Title popup (Ctrl+hold)', min: 8, max: 48, step: 1 },
             { key: 'collection-search-font-size', label: 'Collection search entry', min: 8, max: 48, step: 1 },
             { key: 'collection-result-font-size', label: 'Collection result items', min: 8, max: 48, step: 1 },
+            { key: 'collection-result-icon-size', label: 'Search result icon size', min: 16, max: 128, step: 2 },
             { key: 'clone-title-font-size', label: 'Clone preview title', min: 10, max: 80, step: 1 },
             { key: 'hover-preview-height', label: 'Hover preview height', min: 200, max: 1200, step: 10 },
             { key: 'close-button-size', label: 'Close button size', min: 16, max: 64, step: 2 }
@@ -41,8 +42,7 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
         });
         page.add(fontGroup);
         ['workspace-name-font-size', 'title-popup-font-size',
-            'collection-search-font-size', 'collection-result-font-size',
-            'clone-title-font-size'].forEach(key => {
+            'collection-search-font-size', 'collection-result-font-size', 'collection-result-icon-size', 'clone-title-font-size'].forEach(key => {
                 const def = allKeys.find(k => k.key === key);
                 this._addSpinRow(fontGroup, def, settings);
             });
