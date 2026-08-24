@@ -150,3 +150,7 @@
     border-radius: 6px;
     background-color: rgba(38, 139, 210, 0.12);
 }
+
+.collection-result-icon {
+    margin-right: 12px;
+}
