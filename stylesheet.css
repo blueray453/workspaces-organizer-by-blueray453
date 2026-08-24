@@ -200,3 +200,8 @@
 .app-preview-action-button:hover {
     background-color: rgba(38, 139, 210, 0.25);
 }
+
+.dmenu-pinned-bar {
+    spacing: 12px;
+    padding: 20px;
+}
