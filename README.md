@@ -205,7 +205,7 @@ workspaces-organizer-by-blueray453/
 ├── extension.js           # Main extension code with all components
 ├── metadata.json          # Extension metadata
 ├── stylesheet.css         # Theme and styling
-├── utils.js              # Utility functions and logging
+├── logger.js              # Utility functions and logging
 ├── signals.adoc           # D-Bus signal documentation
 ├── README.md             # This file
 └── LICENSE.txt           # GPL v2 license

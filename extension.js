@@ -1,9 +1,15 @@
 import GLib from 'gi://GLib';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import { setLogging, setLogFn, journal } from './utils.js';
 import { WorkspaceIndicator } from './lib/workspaceIndicator.js';
 import { TitleBarMoveMonitor } from './lib/titleBarMoveMonitor.js';
+
+import {
+    initLogging,
+    createLogger,
+} from './logger.js';
+
+const journal = createLogger(import.meta.url);
 
 export default class TopNotchWorkspaces extends Extension {
     constructor(metadata) {
@@ -13,19 +19,7 @@ export default class TopNotchWorkspaces extends Extension {
     }
 
     enable() {
-        setLogFn((msg, error = false) => {
-            const level = error ? GLib.LogLevelFlags.LEVEL_CRITICAL : GLib.LogLevelFlags.LEVEL_MESSAGE;
-            GLib.log_structured(
-                'workspaces-organizer-by-blueray453',
-                level,
-                {
-                    MESSAGE: `${msg}`,
-                    SYSLOG_IDENTIFIER: 'workspaces-organizer-by-blueray453',
-                    CODE_FILE: GLib.filename_from_uri(import.meta.url)[0],
-                }
-            );
-        });
-        setLogging(true);
+        initLogging(this.uuid, 'both', false);
         journal(`Enabled`);
 
         const settings = this.getSettings(); // Reads settings-schema from metadata.json
