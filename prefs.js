@@ -25,7 +25,9 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
             { key: 'collection-result-icon-size', label: 'Search result icon size', min: 16, max: 128, step: 2 },
             { key: 'clone-title-font-size', label: 'Clone preview title', min: 10, max: 80, step: 1 },
             { key: 'hover-preview-height', label: 'Hover preview height', min: 200, max: 1200, step: 10 },
-            { key: 'close-button-size', label: 'Close button size', min: 16, max: 64, step: 2 }
+            { key: 'close-button-size', label: 'Close button size', min: 16, max: 64, step: 2 },
+            { key: 'app-preview-icon-size', label: 'App search preview icon size', min: 32, max: 256, step: 2 },
+            { key: 'tooltip-font-size', label: 'Tooltip text', min: 6, max: 32, step: 1 },
         ];
 
         // Group: Icon Sizes (now just one row)
@@ -35,6 +37,8 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
         });
         page.add(iconGroup);
         this._addSpinRow(iconGroup, allKeys.find(k => k.key === 'icon-size'), settings);
+        this._addSpinRow(iconGroup, allKeys.find(k => k.key === 'app-preview-icon-size'), settings);
+
 
         // Group: Font Sizes
         const fontGroup = new Adw.PreferencesGroup({
@@ -43,7 +47,8 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
         });
         page.add(fontGroup);
         ['workspace-name-font-size', 'title-popup-font-size',
-            'collection-search-font-size', 'collection-result-font-size', 'collection-result-icon-size', 'clone-title-font-size'].forEach(key => {
+            'collection-search-font-size', 'collection-result-font-size', 'collection-result-icon-size',
+            'clone-title-font-size', 'tooltip-font-size'].forEach(key => {
                 const def = allKeys.find(k => k.key === key);
                 this._addSpinRow(fontGroup, def, settings);
             });

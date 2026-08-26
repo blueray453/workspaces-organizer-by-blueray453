@@ -7,6 +7,11 @@
       <summary>Show the "show apps" panel button</summary>
       <description>Whether to show the button that opens `gdmenu --drun --fullscreen`.</description>
     </key>
+    <key name="tooltip-font-size" type="i">
+      <default>14</default>
+      <summary>Font size of floating tooltips</summary>
+      <description>Font size of the workspace name hint, pinned-app hover tooltip, and pinned-app drag insertion hint (points).</description>
+    </key>
     <key name="show-window-button" type="b">
       <default>true</default>
       <summary>Show the "all windows" panel button</summary>
