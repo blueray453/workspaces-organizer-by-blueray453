@@ -8,6 +8,7 @@ import * as DND from 'resource:///org/gnome/shell/ui/dnd.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import { WorkspaceManager, Display, TimeoutDelay, DIRECT_MODE_MAX_WINDOWS } from './shellGlobals.js';
 import { WorkspaceThumbnailRegistry } from './workspaceThumbnailRegistry.js';
+import { WindowActorRegistry } from './windowActorRegistry.js';
 import { WindowReorderDragController } from './windowReorderDragController.js';
 import { getDraggedWindow } from './dragHelpers.js';
 import { WindowIconButton } from './windowIconButton.js';
@@ -19,10 +20,8 @@ import { createLogger } from '../logger.js';
 const journal = createLogger(import.meta.url);
 
 // ==================== WINDOW ORDER STORE ====================
-// Pure bookkeeping for one workspace's window list and its user-defined
-// display order. WindowReorderDragController is the only external caller
-// of setSuppressSync()/insertWindowImmediate() — those exist to let it
-// perform an atomic cross-thumbnail transplant without a double rebuild.
+// Bookkeeping for one workspace's window list and user-defined order.
+// It deliberately knows nothing about actors, dragging, or rendering.
 class WindowOrderStore {
     constructor(workspace) {
         this._workspace = workspace;
@@ -30,7 +29,6 @@ class WindowOrderStore {
         this._pendingInsertIndices = new Map();
         this._addWindowTimeoutIds = new Map();
         this._onOrderChanged = null;
-        this._suppressSync = false;
 
         this._windowAddedId = workspace.connect('window-added', (ws, win) => this._addWindow(win));
         this._windowRemovedId = workspace.connect('window-removed', (ws, win) => this._removeWindow(win));
@@ -47,23 +45,33 @@ class WindowOrderStore {
 
     reorderWindowToIndex(window, insertIndex) {
         if (insertIndex === null) return;
+
         const currentIndex = this._order.indexOf(window);
+
         if (currentIndex === -1) {
             if (window.get_workspace() === this._workspace) {
-                this._order.splice(Math.max(0, Math.min(insertIndex, this._order.length)), 0, window);
-                this._emitOrderChanged();
+                const clamped = Math.max(0, Math.min(insertIndex, this._order.length));
+                this._order.splice(clamped, 0, window);
+                this._emitOrderChanged('reorder-add');
             }
             return;
         }
+
         this._order.splice(currentIndex, 1);
-        this._order.splice(Math.max(0, Math.min(insertIndex, this._order.length)), 0, window);
-        this._emitOrderChanged();
+        const clamped = Math.max(0, Math.min(insertIndex, this._order.length));
+        this._order.splice(clamped, 0, window);
+        this._emitOrderChanged('reorder');
     }
 
-    setPendingInsertIndex(window, index) { this._pendingInsertIndices.set(window, index); }
+    // Explicit workspace moves use this intent before change_workspace().
+    // The actual model update still happens through the normal window-added signal.
+    setPendingInsertIndex(window, index) {
+        this._pendingInsertIndices.set(window, index);
+    }
 
     cleanupSources() {
-        for (const [, id] of this._addWindowTimeoutIds) GLib.Source.remove(id);
+        for (const [, id] of this._addWindowTimeoutIds)
+            GLib.Source.remove(id);
         this._addWindowTimeoutIds.clear();
     }
 
@@ -73,32 +81,45 @@ class WindowOrderStore {
         if (this._windowAddedId) this._workspace.disconnect(this._windowAddedId);
         if (this._windowRemovedId) this._workspace.disconnect(this._windowRemovedId);
         if (this._windowCreatedId) Display.disconnect(this._windowCreatedId);
+        this._onOrderChanged = null;
     }
 
     _addWindow(window) {
         if (window.skip_taskbar) return;
-        if (this._order.includes(window)) { this._pendingInsertIndices.delete(window); return; }
+
+        if (this._order.includes(window)) {
+            this._pendingInsertIndices.delete(window);
+            return;
+        }
+
         if (this._addWindowTimeoutIds.has(window)) {
             GLib.Source.remove(this._addWindowTimeoutIds.get(window));
             this._addWindowTimeoutIds.delete(window);
         }
-        // Debounced: mutter's frame rect isn't reliably settled the
-        // instant window-added fires — this gives it TimeoutDelay to
-        // finish before we build an icon from it. Removing this caused
-        // intermittent icon-geometry bugs previously; keep it.
+
+        // Keep the existing geometry-settling debounce for ordinary newly
+        // created windows. Explicit drag moves consume their placement intent
+        // immediately once Mutter reports the new workspace membership.
+        if (this._pendingInsertIndices.has(window)) {
+            const index = this._pendingInsertIndices.get(window);
+            this._pendingInsertIndices.delete(window);
+            if (window.get_workspace() === this._workspace) {
+                const clamped = Math.max(0, Math.min(index, this._order.length));
+                this._order.splice(clamped, 0, window);
+                this._emitOrderChanged('explicit-move');
+            }
+            return;
+        }
+
         const sourceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, TimeoutDelay, () => {
             this._addWindowTimeoutIds.delete(window);
-            if (window.get_workspace() !== this._workspace) return GLib.SOURCE_REMOVE;
+            if (window.get_workspace() !== this._workspace)
+                return GLib.SOURCE_REMOVE;
+
             if (!this._order.includes(window)) {
-                if (this._pendingInsertIndices.has(window)) {
-                    const idx = Math.max(0, Math.min(this._pendingInsertIndices.get(window), this._order.length));
-                    this._order.splice(idx, 0, window);
-                } else {
-                    this._order.push(window);
-                }
+                this._order.push(window);
+                this._emitOrderChanged('window-added');
             }
-            this._pendingInsertIndices.delete(window);
-            this._emitOrderChanged();
             return GLib.SOURCE_REMOVE;
         });
         this._addWindowTimeoutIds.set(window, sourceId);
@@ -106,27 +127,25 @@ class WindowOrderStore {
 
     _removeWindow(window) {
         this._pendingInsertIndices.delete(window);
+
         if (this._addWindowTimeoutIds.has(window)) {
             GLib.Source.remove(this._addWindowTimeoutIds.get(window));
             this._addWindowTimeoutIds.delete(window);
         }
+
         const idx = this._order.indexOf(window);
         if (idx === -1) return;
+
         this._order.splice(idx, 1);
-        this._emitOrderChanged();
+        this._emitOrderChanged('window-removed');
     }
 
-    setSuppressSync(suppress) { this._suppressSync = suppress; }
-    _emitOrderChanged() { if (!this._suppressSync) this._onOrderChanged?.(); }
-
-    insertWindowImmediate(window, index) {
-        if (this._order.includes(window)) return;
-        if (this._addWindowTimeoutIds.has(window)) {
-            GLib.Source.remove(this._addWindowTimeoutIds.get(window));
-            this._addWindowTimeoutIds.delete(window);
-        }
-        this._pendingInsertIndices.delete(window);
-        this._order.splice(Math.max(0, Math.min(index, this._order.length)), 0, window);
+    _emitOrderChanged(reason) {
+        this._onOrderChanged?.({
+            workspace: this._workspace,
+            order: this._order.slice(),
+            reason,
+        });
     }
 }
 
@@ -154,6 +173,9 @@ class WindowOverflowButton extends St.Button {
 }
 
 // ==================== THUMBNAIL DISPLAY MODE CONTROLLER ====================
+// Reconciles the actor tree from WindowOrderStore. Actor lifetime is governed
+// by WindowActorRegistry so an actor owned by an active drag is never destroyed
+// merely because Mutter has temporarily removed the window from this workspace.
 class ThumbnailDisplayModeController {
     constructor(box, orderStore, settings, { onIconClicked } = {}) {
         this._box = box;
@@ -165,107 +187,265 @@ class ThumbnailDisplayModeController {
         this._mode = 'direct';
 
         this._settingsChangeId = this._settings.connect('changed::icon-size', () => this._updateAllIconSizes());
-        this._orderStore.setOnOrderChanged(() => this.sync());
-        this.sync();
+        this._orderStore.setOnOrderChanged(() => this._reconcile());
+        this._leaseRelease = WindowActorRegistry.onReleased((window, actor, handoff) => {
+            if (!actor)
+                return;
+
+            const destinationWorkspace = handoff?.destination ?? null;
+            const isDestination = destinationWorkspace === this._orderStore.workspace;
+            const isCurrentWorkspace = window.get_workspace?.() === this._orderStore.workspace;
+            const ownsWindow = this._orderStore.order.includes(window);
+
+            if (!isDestination && !isCurrentWorkspace && !ownsWindow)
+                return;
+
+            this._reconcile();
+
+            // On a successful move the destination display is the owner. On a
+            // failed/cancelled move the original display becomes the owner.
+            // The handoff state prevents either side from destroying the actor
+            // before one of them claims it.
+            if ((isDestination || isCurrentWorkspace) && ownsWindow)
+                this._claimReleasedActor(window, actor, handoff?.index);
+        });
+
+        this._reconcile();
     }
 
     get mode() { return this._mode; }
 
-    wouldStayDirect(prospectiveCount) { return prospectiveCount <= DIRECT_MODE_MAX_WINDOWS; }
-
-    sync() {
-        const count = this._orderStore.order.length;
-        if (count > DIRECT_MODE_MAX_WINDOWS) this._enterCollectionMode(count);
-        else this._enterDirectMode();
+    _windowsInWorkspace() {
+        return this._orderStore.order.filter(window => {
+            try {
+                return window.get_workspace() === this._orderStore.workspace;
+            } catch (e) {
+                return false;
+            }
+        });
     }
 
-    syncChildOrder() {
-        if (this._mode !== 'direct' || !this._box) return;
-        const orderedPreviews = [];
-        for (const window of this._orderStore.order) {
-            const preview = this._windowPreviews.get(window);
-            if (!preview) continue;
-            if (preview.get_parent() === this._box) this._box.remove_child(preview);
-            orderedPreviews.push(preview);
-        }
-        for (const preview of orderedPreviews) this._box.add_child(preview);
+    _reconcile() {
+        const windows = this._windowsInWorkspace();
+
+        if (windows.length > DIRECT_MODE_MAX_WINDOWS)
+            this._reconcileCollectionMode(windows);
+        else
+            this._reconcileDirectMode(windows);
     }
 
     destroy() {
-        if (this._settingsChangeId) { this._settings.disconnect(this._settingsChangeId); this._settingsChangeId = null; }
-        for (const preview of this._windowPreviews.values()) {
-            if (preview.get_parent() === this._box) this._box.remove_child(preview);
-            preview.destroy();
+        if (this._settingsChangeId) {
+            this._settings.disconnect(this._settingsChangeId);
+            this._settingsChangeId = null;
+        }
+        if (this._leaseRelease) {
+            this._leaseRelease();
+            this._leaseRelease = null;
+        }
+
+        for (const [window, preview] of this._windowPreviews) {
+            if (preview.get_parent() === this._box)
+                this._box.remove_child(preview);
+            WindowActorRegistry.unregister(window, preview);
+            if (!WindowActorRegistry.isLeased(window, preview)) {
+                try { preview.destroy(); } catch (e) { }
+            }
         }
         this._windowPreviews.clear();
+
         if (this._collectionIcon) {
-            if (this._collectionIcon.get_parent() === this._box) this._box.remove_child(this._collectionIcon);
+            if (this._collectionIcon.get_parent() === this._box)
+                this._box.remove_child(this._collectionIcon);
             this._collectionIcon.destroy();
             this._collectionIcon = null;
         }
     }
 
-    _enterCollectionMode(count) {
-        for (const preview of this._windowPreviews.values()) {
-            if (preview.get_parent() === this._box) this._box.remove_child(preview);
-            preview.destroy();
+    _createPreview(window) {
+        if (!this._box || !this._box.get_stage())
+            return null;
+
+        const preview = new WindowIconButton(window, this._settings);
+        preview.connect('clicked', () => this._onIconClicked(window));
+        WindowActorRegistry.register(window, preview);
+        return preview;
+    }
+
+    _destroyPreview(window, preview) {
+        this._windowPreviews.delete(window);
+
+        // DND lease/handoff owns the actor. Detach it from this box if needed,
+        // but never destroy it. The destination/current display will claim it.
+        if (WindowActorRegistry.isProtected(window, preview)) {
+            if (preview.get_parent() === this._box)
+                this._box.remove_child(preview);
+            return;
         }
-        this._windowPreviews.clear();
+
+        // Another display may already own this canonical actor. In that case
+        // this display is only discarding a stale local map entry.
+        if (WindowActorRegistry.get(window) !== preview || preview.get_parent() !== this._box)
+            return;
+
+        WindowActorRegistry.unregister(window, preview);
+
+        try {
+            preview.destroy();
+        } catch (e) {
+            // Shell shutdown / actor already destroyed.
+        }
+    }
+
+    _reconcileCollectionMode(windows) {
+        for (const [window, preview] of [...this._windowPreviews])
+            this._destroyPreview(window, preview);
+
+        // If a dragged actor landed in collection mode, there is no direct
+        // button to adopt it into. Claim the handoff and let the registry
+        // destroy that now-unneeded direct-mode actor safely.
+        for (const window of windows) {
+            const actor = WindowActorRegistry.get(window);
+            if (actor && WindowActorRegistry.isProtected(window, actor))
+                WindowActorRegistry.claim(window, actor);
+            if (actor && this._orderStore.order.includes(window))
+                WindowActorRegistry.destroyWindow(window);
+        }
+
         if (!this._collectionIcon) {
-            this._collectionIcon = new WindowOverflowButton(() => this._orderStore.order.slice(), this._settings);
+            this._collectionIcon = new WindowOverflowButton(
+                () => this._windowsInWorkspace().slice(),
+                this._settings
+            );
             this._box.add_child(this._collectionIcon);
         }
-        this._collectionIcon.setCount(count);
+
+        this._collectionIcon.setCount(windows.length);
         this._mode = 'collection';
     }
 
-    _enterDirectMode() {
+    _reconcileDirectMode(windows) {
         if (this._collectionIcon) {
-            if (this._collectionIcon.get_parent() === this._box) this._box.remove_child(this._collectionIcon);
+            if (this._collectionIcon.get_parent() === this._box)
+                this._box.remove_child(this._collectionIcon);
             this._collectionIcon.destroy();
             this._collectionIcon = null;
         }
-        const currentWindows = new Set(this._orderStore.order);
-        for (const [window, preview] of this._windowPreviews) {
-            if (!currentWindows.has(window)) {
-                if (preview.get_parent() === this._box) this._box.remove_child(preview);
-                preview.destroy();
-                this._windowPreviews.delete(window);
+
+        const desired = new Set(windows);
+
+        for (const [window, preview] of [...this._windowPreviews]) {
+            if (!desired.has(window))
+                this._destroyPreview(window, preview);
+        }
+
+        for (const window of windows) {
+            const actor = WindowActorRegistry.get(window);
+
+            if (WindowActorRegistry.isLeased(window))
+                continue;
+
+            if (WindowActorRegistry.isProtected(window)) {
+                // A post-DND handoff belongs here. Claim it only when this
+                // display is actually the window's current workspace.
+                if (actor && window.get_workspace() === this._orderStore.workspace)
+                    this._claimReleasedActor(
+                        window,
+                        actor,
+                        WindowActorRegistry.getDestination(window)?.index ?? null
+                    );
+                continue;
             }
+
+            if (this._windowPreviews.has(window))
+                continue;
+
+            if (actor) {
+                this._windowPreviews.set(window, actor);
+                continue;
+            }
+
+            const preview = this._createPreview(window);
+            if (preview)
+                this._windowPreviews.set(window, preview);
         }
-        for (const window of this._orderStore.order) {
-            if (this._windowPreviews.has(window)) continue;
-            if (!this._box || !this._box.get_stage()) continue;
-            const preview = new WindowIconButton(window, this._settings);
-            preview.connect('clicked', () => this._onIconClicked(window));
-            this._windowPreviews.set(window, preview);
-            this._box.add_child(preview);
-        }
+
+        this._placeInOrder(windows);
         this._mode = 'direct';
-        this.syncChildOrder();
         this._updateAllIconSizes();
+    }
+
+    _placeInOrder(windows) {
+        const orderedPreviews = [];
+        for (const window of windows) {
+            const preview = this._windowPreviews.get(window);
+            if (!preview || WindowActorRegistry.isLeased(window, preview))
+                continue;
+
+            if (preview.get_parent() === this._box)
+                this._box.remove_child(preview);
+
+            orderedPreviews.push(preview);
+        }
+
+        for (const preview of orderedPreviews)
+            this._box.add_child(preview);
+    }
+
+    _claimReleasedActor(window, actor, requestedIndex = null) {
+        try {
+            if (window.get_workspace() !== this._orderStore.workspace)
+                return false;
+        } catch (e) {
+            return false;
+        }
+
+        if (!this._orderStore.order.includes(window))
+            return false;
+
+        const handoff = WindowActorRegistry.getDestination(window);
+        const protectedActor = WindowActorRegistry.isProtected(window, actor);
+
+        if (protectedActor && !WindowActorRegistry.claim(window, actor))
+            return false;
+
+        if (this._mode === 'collection') {
+            this._windowPreviews.delete(window);
+            WindowActorRegistry.destroyWindow(window);
+            return true;
+        }
+
+        this._windowPreviews.set(window, actor);
+
+        try {
+            const parent = actor.get_parent();
+            if (parent && parent !== this._box)
+                parent.remove_child(actor);
+
+            if (actor.get_parent() !== this._box)
+                this._box.add_child(actor);
+        } catch (e) {
+            journal(`[ThumbnailDisplayModeController] failed to attach released actor: ${e}`);
+            return false;
+        }
+
+        const windows = this._windowsInWorkspace();
+        const preferredIndex = requestedIndex ?? handoff?.index ?? null;
+        const orderIndex = preferredIndex === null
+            ? windows.indexOf(window)
+            : Math.max(0, Math.min(preferredIndex, windows.length - 1));
+
+        if (actor.get_parent() === this._box)
+            this._box.remove_child(actor);
+        this._box.insert_child_at_index(actor, Math.max(0, orderIndex));
+        actor.setIconSize(this._settings.get_int('icon-size'));
+        return true;
     }
 
     _updateAllIconSizes() {
         const iconSize = this._settings.get_int('icon-size');
-        for (const preview of this._windowPreviews.values()) preview.setIconSize(iconSize);
-    }
-
-    releasePreview(window) {
-        journal(`[ThumbnailDisplayModeController] releasePreview called for window "${window.title}"`);
-        const preview = this._windowPreviews.get(window);
-        if (!preview) {
-            journal('[ThumbnailDisplayModeController] releasePreview: preview not found');
-            return null;
-        }
-        this._windowPreviews.delete(window);
-        if (preview.get_parent() === this._box) {
-            this._box.remove_child(preview);
-            journal('[ThumbnailDisplayModeController] releasePreview: removed from box');
-        } else {
-            journal(`[ThumbnailDisplayModeController] releasePreview: preview parent is not box (${preview.get_parent()})`);
-        }
-        return preview;
+        for (const preview of this._windowPreviews.values())
+            preview.setIconSize(iconSize);
     }
 }
 
@@ -350,16 +530,33 @@ export class WorkspaceThumbnail extends St.Button {
     get workspace() { return this._workspace; }
     get workspaceIndex() { return this._workspace.index(); }
 
+    getDropIndex(draggedWindow) {
+        if (this._displayMode.mode !== 'direct')
+            return this._orderStore.order.length;
+
+        const [pointerX] = global.get_pointer();
+        return WindowReorderDragController.computeInsertionFromPointer(
+            draggedWindow,
+            this._orderStore.order,
+            pointerX,
+            this._windowsBox
+        ).insertIndex;
+    }
+
     moveWindowHere(window, insertIndex = null) {
         const wasSameWorkspace = window.get_workspace() === this._workspace;
         const monitorIndex = Main.layoutManager.findIndexForActor(this);
-        if (monitorIndex !== window.get_monitor()) window.move_to_monitor(monitorIndex);
-        if (insertIndex !== null && !wasSameWorkspace) this._orderStore.setPendingInsertIndex(window, insertIndex);
-        window.change_workspace(this._workspace);
-        if (insertIndex !== null && wasSameWorkspace) this._orderStore.reorderWindowToIndex(window, insertIndex);
-    }
+        if (monitorIndex !== window.get_monitor())
+            window.move_to_monitor(monitorIndex);
 
-    syncChildOrder() { this._displayMode.syncChildOrder(); }
+        if (insertIndex !== null && !wasSameWorkspace)
+            this._orderStore.setPendingInsertIndex(window, insertIndex);
+
+        window.change_workspace(this._workspace);
+
+        if (insertIndex !== null && wasSameWorkspace)
+            this._orderStore.reorderWindowToIndex(window, insertIndex);
+    }
     cleanupSources() { this._orderStore.cleanupSources(); }
 
     showNameHint() {

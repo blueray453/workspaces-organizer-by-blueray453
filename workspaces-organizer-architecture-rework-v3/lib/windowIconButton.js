@@ -9,7 +9,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as AppFavorites from 'resource:///org/gnome/shell/ui/appFavorites.js';
 
-import { WorkspaceManager, Display, TimeoutDelay, screenWidth, screenHeight } from './shellGlobals.js';
+import { WorkspaceManager, Display, TimeoutDelay } from './shellGlobals.js';
 import { WindowReorderDragController } from './windowReorderDragController.js';
 import { createWindowIconTexture, getWindowApp } from './windowIconTexture.js';
 import { createClonePreviewActor } from './clonePreviewActor.js';
@@ -294,7 +294,7 @@ class WindowHoverPreview {
         const anchorWidth = this._anchor.get_width();
         const [anchorX] = this._anchor.get_transformed_position();
         const previewX = Math.max(0, anchorX + (anchorWidth - built.width) / 2);
-
+        const { screenHeight } = getScreenDims();
         const previewY = screenHeight - previewHeight - 200 + 55;
 
         built.actor.set_position(previewX, previewY);
@@ -337,6 +337,7 @@ class WindowTitlePopup {
     show() {
         if (this._isShowing) return;
 
+        const { screenWidth, screenHeight } = getScreenDims();
         const title = this._window.get_title() || 'Untitled Window';
         const label = new St.Label({ text: title, style_class: 'hover-title-popup', reactive: true, track_hover: true });
         label.set_style(`font-size: ${this._settings.get_int('title-popup-font-size')}pt;`);
@@ -374,6 +375,10 @@ class WindowTitlePopup {
     destroy() { this.hide(); }
 }
 
+function getScreenDims() {
+    return { screenWidth: global.get_screen_width(), screenHeight: global.get_screen_height() };
+}
+
 // ==================== WINDOW ICON BUTTON ====================
 export class WindowIconButton extends St.Button {
     static {
@@ -404,7 +409,7 @@ export class WindowIconButton extends St.Button {
         this._delegate = this;
         this._draggable = DND.makeDraggable(this, { restoreOnSuccess: false });
 
-        this._draggable.connect('drag-begin', () => WindowReorderDragController.beginDrag(this));
+        this._draggable.connect('drag-begin', () => WindowReorderDragController.beginDrag(this, this._window));
         this._draggable.connect('drag-end', () => WindowReorderDragController.endDrag());
 
         this._hoverSignalId = this.connect('notify::hover', () => this._onIconHoverChange());
@@ -418,6 +423,34 @@ export class WindowIconButton extends St.Button {
 
     get window() { return this._window; }
     get realWindow() { return this._window.get_compositor_private(); }
+
+    // GNOME Shell's DND implementation destroys the drag actor after a
+    // successful drop when restoreOnSuccess is false. The canonical
+    // WindowIconButton must therefore NEVER be the drag actor. Return a
+    // disposable visual proxy instead; the real button stays owned by the
+    // ThumbnailDisplayModeController and is leased by the drag controller.
+    getDragActor() {
+        const source = this.get_child();
+        if (!source)
+            return new St.Bin({ width: this.width, height: this.height });
+
+        const proxy = new St.Bin({
+            width: this.width,
+            height: this.height,
+            reactive: false,
+            style_class: 'window-preview-icon',
+        });
+        proxy.set_child(new Clutter.Clone({ source }));
+        proxy.icon_size = this.icon_size;
+        return proxy;
+    }
+
+    // Keep the canonical source available to GNOME Shell for drag-source
+    // positioning. The returned actor is NOT destroyed by DND; only the
+    // proxy from getDragActor() is disposable.
+    getDragActorSource() {
+        return this;
+    }
 
     onCtrlChanged(ctrlPressed) {
         if (ctrlPressed) { this._titlePopup.show(); this._hoverPreview.hide(); }
@@ -495,6 +528,7 @@ export class WindowIconButton extends St.Button {
     }
 
     handleDragOver(source, actor, x, y, time) {
+        journal(`[WindowIconButton] handleDragOver from ${source.constructor.name}`);
         if (source instanceof WindowIconButton) {
             const thumbnail = this._getThumbnail();
             if (thumbnail?.handleWindowDragOver)
@@ -506,6 +540,7 @@ export class WindowIconButton extends St.Button {
     }
 
     acceptDrop(source, actor, x, y, time) {
+        journal(`[WindowIconButton] acceptDrop from ${source.constructor.name}`);
         if (source instanceof WindowIconButton) {
             const thumbnail = this._getThumbnail();
             if (thumbnail?.acceptWindowDrop)
@@ -559,6 +594,12 @@ export class WindowIconButton extends St.Button {
 
     destroy() {
         journal(`[WindowIconButton] destroying "${this._window.title}" (live before: ${WindowIconButton._liveCount})`);
+
+        try {
+            throw new Error('Destroy stack trace');
+        } catch (e) {
+            journal(`[WindowIconButton] destroy stack: ${e.stack}`);
+        }
 
         WindowReorderDragController.clearIfRelated(this);
         this.forceHidePreview('destroy');

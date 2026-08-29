@@ -57,6 +57,9 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         this._mainBox.add_child(this._thumbnailsBox);
         this.add_child(this._mainBox);
 
+        this._workspaceSection = new PopupMenu.PopupMenuSection();
+        this.menu.addMenuItem(this._workspaceSection);
+
         this._workspaceManagerSignals = [
             WorkspaceManager.connect_after('notify::n-workspaces', this._updateThumbnails.bind(this)),
             WorkspaceManager.connect_after('workspace-switched', this._onWorkspaceSwitched.bind(this)),
