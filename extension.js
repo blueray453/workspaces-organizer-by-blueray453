@@ -1,13 +1,10 @@
-import GLib from 'gi://GLib';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { WorkspaceIndicator } from './lib/workspaceIndicator.js';
 import { TitleBarMoveMonitor } from './lib/titleBarMoveMonitor.js';
+import { initOverlayService, destroyOverlayService } from './lib/overlayService.js';
 
-import {
-    initLogging,
-    createLogger,
-} from './logger.js';
+import { initLogging, createLogger } from './logger.js';
 
 const journal = createLogger(import.meta.url);
 
@@ -22,7 +19,10 @@ export default class TopNotchWorkspaces extends Extension {
         initLogging(this.uuid, 'file', false);
         journal(`Enabled`);
 
-        const settings = this.getSettings(); // Reads settings-schema from metadata.json
+        const settings = this.getSettings();
+
+        // Before the indicator — its toolbar buttons call into the service.
+        initOverlayService(settings);
 
         this._indicator = new WorkspaceIndicator(settings);
         Main.panel.addToStatusArea('workspace-indicator', this._indicator, 0, 'left');
@@ -31,6 +31,8 @@ export default class TopNotchWorkspaces extends Extension {
     }
 
     disable() {
+        destroyOverlayService();
+
         if (this._titleBarMoveMonitor) {
             this._titleBarMoveMonitor.destroy();
             this._titleBarMoveMonitor = null;
