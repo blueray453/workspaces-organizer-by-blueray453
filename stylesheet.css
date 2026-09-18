@@ -239,3 +239,12 @@
 .app-preview-action-button:hover {
     background-color: rgba(38, 139, 210, 0.25);
 }
+
+.collection-result-item.collection-result-item-focused {
+    border-left: 4px solid #859900;
+    background-color: rgba(133, 153, 0, 0.12);
+}
+
+.collection-result-item.collection-result-item-focused.selected {
+    background-color: rgba(133, 153, 0, 0.30);
+}
