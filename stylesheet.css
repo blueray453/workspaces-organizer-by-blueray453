@@ -28,14 +28,10 @@
    doesn't shift the layout. Scoped to the indicator so drag-icon
    actors elsewhere are unaffected. */
 .workspace-indicator-class .window-preview-icon {
-    border-bottom: 3px solid transparent;
 }
 
-/* Focused window: green underline + soft tint (same green as the
-   focused row in the search overlay). */
 .workspace-indicator-class .window-preview-icon.focused {
-    border-bottom: 3px solid #859900;
-    background-color: rgba(133, 153, 0, 0.22);
+    background-color: rgba(133, 153, 0, 0.45);
 }
 
 .workspace-name-label {
