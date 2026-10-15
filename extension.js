@@ -4,6 +4,8 @@ import { WorkspaceIndicator } from './lib/workspaceIndicator.js';
 import { TitleBarMoveMonitor } from './lib/titleBarMoveMonitor.js';
 import { initOverlayService, destroyOverlayService } from './lib/overlayService.js';
 
+import { connectModelSignals, disconnectModelSignals } from './lib/model.js';
+
 import { initLogging, createLogger } from './logger.js';
 
 const journal = createLogger(import.meta.url);
@@ -20,6 +22,10 @@ export default class TopNotchWorkspaces extends Extension {
         journal(`Enabled`);
 
         const settings = this.getSettings();
+
+        // Model owns its own world/state subscriptions. Enabled here so it
+        // outlives the indicator's actor and is independent of UI lifetime.
+        connectModelSignals(settings);
 
         // Before the indicator — its toolbar buttons call into the service.
         initOverlayService(settings);
@@ -41,5 +47,7 @@ export default class TopNotchWorkspaces extends Extension {
             this._indicator.destroy();
             this._indicator = null;
         }
+
+        disconnectModelSignals();
     }
 }
