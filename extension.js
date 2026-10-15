@@ -49,5 +49,6 @@ export default class TopNotchWorkspaces extends Extension {
         }
 
         disconnectModelSignals();
+        destroyTooltip();
     }
 }
