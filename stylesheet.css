@@ -50,10 +50,6 @@
     background-color: rgba(38, 139, 210, 0.18);
 }
 
-.workspace-context-menu .popup-menu-item StLabel {
-    font-size: 16pt !important;
-}
-
 /* ===== Window collection icon (thumbnail overflow button) ===== */
 
 .workspace-thumbnail-collection-icon {
@@ -214,12 +210,6 @@
 
 .dmenu-pinned-icon:hover {
     background-color: rgba(38, 139, 210, 0.15);
-}
-
-.dmenu-context-menu {
-    background-color: #073642;
-    border: 1px solid #268bd2;
-    border-radius: 10px;
 }
 
 .app-pin-marker {
