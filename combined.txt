@@ -1,0 +1,3277 @@
+// ===== FILE: ./stylesheet.css =====
+/* ============================================================
+   Solarized Dark palette reference:
+   base03 #002b36  base02 #073642  base01 #586e75  base00 #657b83
+   base0  #839496  base1  #93a1a1  base2  #eee8d5  base3  #fdf6e3
+   yellow #b58900  orange #cb4b16  red #dc322f  magenta #d33682
+   violet #6c71c4  blue #268bd2  cyan #2aa198  green #859900
+   ============================================================ */
+
+/* ===== Workspace indicator / thumbnails ===== */
+
+.workspace-indicator-class .workspace-thumbnail {
+    height: 100%;
+    padding: 10px;
+    padding-top: 25px;
+    background-color: rgba(7, 54, 66, 0.65);
+    border: 1px solid rgba(88, 110, 117, 0.4);
+    border-radius: 10px;
+    box-shadow: inset 0 0 0 2px rgba(38, 139, 210, 0.55);
+    transition-duration: 150ms;
+}
+
+.workspace-indicator-class .workspace-thumbnail.active {
+    background-color: rgba(42, 161, 152, 0.28);
+    box-shadow: inset 0 0 0 2px #2aa198;
+}
+
+/* Reserve the indicator's space in every thumbnail icon so focusing
+   doesn't shift the layout. Scoped to the indicator so drag-icon
+   actors elsewhere are unaffected. */
+.workspace-indicator-class .window-preview-icon {
+}
+
+.workspace-indicator-class .window-preview-icon.focused {
+    background-color: rgba(133, 153, 0, 0.45);
+}
+
+.workspace-name-label {
+    padding: 20px;
+    font-weight: bold;
+    color: #eee8d5;
+}
+
+.workspace-toolbar-button {
+    padding: 6px;
+    border-radius: 8px;
+    transition-duration: 120ms;
+}
+
+.workspace-toolbar-button:hover {
+    background-color: rgba(38, 139, 210, 0.18);
+}
+
+/* ===== Window collection icon (thumbnail overflow button) ===== */
+
+.workspace-thumbnail-collection-icon {
+    min-width: 50px;
+    height: 100%;
+    padding: 10px;
+    padding-top: 25px;
+    background-color: #268bd2;
+    border-radius: 30px;
+    box-shadow: inset 0 0 4px 2px rgba(0, 0, 0, 0.3);
+    transition-duration: 120ms;
+}
+
+.workspace-thumbnail-collection-icon:hover {
+    background-color: #2b95e0;
+}
+
+.collection-icon-label {
+    color: #fdf6e3;
+    font-size: 18pt;
+    font-weight: bold;
+}
+
+/* ===== Full-screen search/collection overlay ===== */
+
+.window-collection-overlay {
+    background-color: rgba(0, 43, 54, 0.96);
+}
+
+.collection-search-entry {
+    background-color: #073642;
+    color: #eee8d5;
+    border: 2px solid #268bd2;
+    border-radius: 10px;
+    padding: 12px 16px;
+}
+
+.collection-search-entry StLabel.hint-text {
+    color: #586e75;
+}
+
+.collection-results-scroll,
+.collection-results-box {
+    background-color: #073642;
+    border: 1px solid #586e75;
+    border-radius: 10px;
+}
+
+.collection-result-item {
+    color: #93a1a1;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(88, 110, 117, 0.25);
+    transition-duration: 100ms;
+}
+
+.collection-result-item:hover {
+    background-color: rgba(38, 139, 210, 0.15);
+    color: #eee8d5;
+}
+
+.collection-result-item.selected {
+    background-color: rgba(38, 139, 210, 0.35);
+    color: #fdf6e3;
+}
+
+.collection-result-icon {
+    margin-right: 12px;
+}
+
+.collection-preview-box {
+    background-color: #002b36;
+    border: 1px solid #586e75;
+    border-radius: 10px;
+}
+
+.collection-preview-inner {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.clone-title-overlay {
+    color: #fdf6e3;
+    background-color: rgba(0, 0, 0, 0.55);
+    font-weight: bold;
+    padding: 8px 16px;
+    border-radius: 6px;
+}
+
+/* ===== Window close button (hover preview + collection preview) ===== */
+
+.window-close-button {
+    background-color: rgba(220, 50, 47, 0.85);
+    border-radius: 6px;
+    padding: 4px;
+    transition-duration: 100ms;
+}
+
+.window-close-button:hover {
+    background-color: #dc322f;
+}
+
+/* ===== Hover preview / title popup ===== */
+
+.hover-preview-wrapper {
+    border: 3px solid #268bd2;
+    background-color: #268bd2;
+    border-radius: 10px;
+}
+
+.hover-title-popup {
+    background-color: rgba(0, 0, 0, 0.85);
+    color: #eee8d5;
+    padding: 6px 12px;
+    border-radius: 12px;
+}
+
+/* ===== Reorderable icon strips (window icons AND pinned app icons) ===== */
+
+.window-preview-icon {
+    border-radius: 8px;
+    transition-duration: 120ms;
+}
+
+.reorder-drag-source {
+    opacity: 0.70;
+    border: 3px solid #268bd2;
+    border-radius: 8px;
+}
+
+.drag-placeholder-icon {
+    border: 3px dashed #268bd2;
+    border-radius: 8px;
+    background-color: rgba(38, 139, 210, 0.12);
+}
+
+/* ===== Shared floating tooltip/hint (workspace name hint, pinned-icon
+   hover name, pinned-drag "Move before/after" hint) ===== */
+
+.dmenu-tooltip {
+    background-color: rgba(0, 0, 0, 0.85);
+    color: #eee8d5;
+    border: 1px solid rgba(38, 139, 210, 0.5);
+    border-radius: 6px;
+    padding: 4px 10px;
+}
+
+/* ===== App search overlay (AppSearchOverlay) ===== */
+
+.dmenu-pinned-bar {
+    spacing: 12px;
+    padding: 20px;
+}
+
+.dmenu-pinned-icon {
+    border-radius: 12px;
+    transition-duration: 120ms;
+}
+
+.dmenu-pinned-icon:hover {
+    background-color: rgba(38, 139, 210, 0.15);
+}
+
+.app-pin-marker {
+    color: #b58900;
+    padding-left: 8px;
+}
+
+.app-description-label {
+    color: #93a1a1;
+    font-size: 12pt;
+    padding: 12px 24px;
+    text-align: center;
+}
+
+.app-preview-pin-button,
+.app-preview-action-button {
+    background-color: #073642;
+    color: #eee8d5;
+    border: 1px solid #268bd2;
+    border-radius: 8px;
+    padding: 10px 18px;
+    margin: 6px;
+    transition-duration: 100ms;
+}
+
+.app-preview-pin-button:hover,
+.app-preview-action-button:hover {
+    background-color: rgba(38, 139, 210, 0.25);
+}
+
+.collection-result-item.collection-result-item-focused {
+    border-left: 4px solid #859900;
+    background-color: rgba(133, 153, 0, 0.12);
+}
+
+.collection-result-item.collection-result-item-focused.selected {
+    background-color: rgba(133, 153, 0, 0.30);
+}
+// ===== FILE: ./schemas/org.gnome.shell.extensions.workspaces-organizer-by-blueray453.gschema.xml =====
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.workspaces-organizer-by-blueray453"
+          path="/org/gnome/shell/extensions/workspaces-organizer-by-blueray453/">
+    <key name="show-drun-button" type="b">
+      <default>true</default>
+      <summary>Show the "show apps" panel button</summary>
+      <description>Whether to show the button that opens `gdmenu --drun --fullscreen`.</description>
+    </key>
+    <key name="tooltip-font-size" type="i">
+      <default>14</default>
+      <summary>Font size of floating tooltips</summary>
+      <description>Font size of the workspace name hint, pinned-app hover tooltip, and pinned-app drag insertion hint (points).</description>
+    </key>
+    <key name="show-window-button" type="b">
+      <default>true</default>
+      <summary>Show the "all windows" panel button</summary>
+      <description>Whether to show the button that opens `gdmenu --window --fullscreen`.</description>
+    </key>
+    <key name="show-workspace-names" type="b">
+      <default>true</default>
+      <summary>Show workspace name label and drag-over hint</summary>
+      <description>Whether to show the workspace name in the panel and as a hint while dragging a window over a thumbnail.</description>
+    </key>
+    <key name="toolbar-icon-size" type="i">
+      <default>56</default>
+      <summary>Icon size for panel toolbar buttons</summary>
+      <description>Size of the 'apps' and 'all windows' button icons in the panel (pixels).</description>
+    </key>
+    <key name="app-preview-icon-size" type="i">
+      <default>128</default>
+      <summary>Icon size in the app search overlay's preview panel</summary>
+    </key>
+    <key name="icon-size" type="i">
+      <default>96</default>
+      <summary>Default icon size for window previews</summary>
+      <description>Size of each window icon in the workspace thumbnails (pixels).</description>
+    </key>
+    <key name="thumbnail-min-width" type="i">
+      <default>50</default>
+      <summary>Minimum width of each workspace thumbnail</summary>
+      <description>Minimum width of each workspace thumbnail in the panel (pixels).</description>
+    </key>
+    <key name="workspace-name-font-size" type="i">
+      <default>40</default>
+      <summary>Font size of the workspace name label</summary>
+      <description>Font size of the workspace name displayed in the panel (pixels).</description>
+    </key>
+    <key name="hover-preview-height" type="i">
+      <default>800</default>
+      <summary>Height of the hover preview window clone</summary>
+      <description>Height of the live preview shown when hovering over a window icon (pixels).</description>
+    </key>
+    <key name="title-popup-font-size" type="i">
+      <default>16</default>
+      <summary>Font size of the title popup (Ctrl‑held)</summary>
+      <description>Font size of the title popup shown while holding Ctrl (points).</description>
+    </key>
+    <key name="collection-search-font-size" type="i">
+      <default>18</default>
+      <summary>Font size of the collection overlay search entry</summary>
+      <description>Font size of the search entry in the window collection overlay (points).</description>
+    </key>
+    <key name="collection-result-font-size" type="i">
+      <default>13</default>
+      <summary>Font size of the collection overlay result items</summary>
+      <description>Font size of the search result items in the collection overlay (points).</description>
+    </key>
+    <key name="collection-result-icon-size" type="i">
+      <default>48</default>
+      <summary>Icon size for search result items</summary>
+      <description>Size of application icons shown in the search results overlay (pixels).</description>
+    </key>
+    <key name="clone-title-font-size" type="i">
+      <default>32</default>
+      <summary>Font size of the window title overlay on preview clones</summary>
+      <description>Font size of the window title shown on hover previews and collection overlay previews (pixels).</description>
+    </key>
+    <key name="close-button-size" type="i">
+      <default>32</default>
+      <summary>Size of the close button on previews</summary>
+      <description>Size of the close button icon on previews (pixels).</description>
+    </key>
+  </schema>
+</schemalist>
+// ===== FILE: ./lib/shellGlobals.js =====
+// Shared handles to GNOME Shell singletons and tunable constants used
+// across the extension. Centralizing these means every module reads the
+// same live objects instead of each re-deriving them.
+export const screenWidth = global.get_screen_width();
+export const screenHeight = global.get_screen_height();
+export const WorkspaceManager = global.get_workspace_manager();
+export const WindowTracker = global.get_window_tracker();
+export const Display = global.get_display();
+
+// Generic UI timing used by hover/cleanup timers.
+export const TimeoutDelay = 200;
+
+// Above this many windows on a workspace, the thumbnail switches from
+// showing individual icons to a single "N windows" overflow button.
+export const DIRECT_MODE_MAX_WINDOWS = 5;
+
+export const SettleAnimationDuration = 300;
+// ===== FILE: ./lib/animationHelpers.js =====
+import Clutter from 'gi://Clutter';
+
+import { TimeoutDelay, SettleAnimationDuration } from './shellGlobals.js';
+
+import { createLogger } from '../logger.js';
+const journal = createLogger(import.meta.url);
+
+/**
+ * Fade in an actor from opacity 0 to 255.
+ * Safe: skips if actor is invalid or not on stage.
+ */
+export function fadeInActor(actor, duration = TimeoutDelay, mode = Clutter.AnimationMode.EASE_OUT_QUAD) {
+    if (!actor) {
+        journal('[fadeInActor] called with null actor');
+        return;
+    }
+    try {
+        // If the actor isn't on stage, it's likely being destroyed – skip
+        if (!actor.get_stage()) {
+            journal('[fadeInActor] actor not on stage, skipping');
+            return;
+        }
+        actor.remove_all_transitions();
+        actor.opacity = 0;
+        journal(`[fadeInActor] fading in ${actor} (0→255) duration ${duration}ms`);
+        actor.ease({
+            opacity: 255,
+            duration: duration,
+            mode: mode,
+        });
+    } catch (e) {
+        journal(`[fadeInActor] error: ${e}`);
+    }
+}
+
+/**
+ * "Settle" an icon: scale from 0.85 → 1.0, opacity 160 → 255.
+ * Safe: skips if actor is invalid or not on stage.
+ */
+export function settleIcon(actor, duration = SettleAnimationDuration, mode = Clutter.AnimationMode.EASE_OUT_QUAD) {
+    if (!actor) {
+        journal('[settleIcon] called with null actor');
+        return;
+    }
+    try {
+        const stage = actor.get_stage();
+        if (!stage) {
+            journal('[settleIcon] actor not on stage, skipping');
+            return;
+        }
+        journal(`[settleIcon] actor on stage, applying animation`);
+        // Remove any leftover drag styling – ignore errors
+        try {
+            actor.remove_style_class_name('reorder-drag-source');
+        } catch (e) {
+            // actor may not have the style or may be destroyed
+        }
+        actor.remove_all_transitions();
+        actor.set_pivot_point(0.5, 0.5);
+        actor.set_scale(0.85, 0.85);
+        actor.opacity = 160;
+        journal(`[settleIcon] animating ${actor} (scale 0.85→1.0, opacity 160→255) duration ${duration}ms`);
+        actor.ease({
+            scale_x: 1,
+            scale_y: 1,
+            opacity: 255,
+            duration: duration,
+            mode: mode,
+        });
+    } catch (e) {
+        journal(`[settleIcon] error: ${e}`);
+    }
+}
+// ===== FILE: ./lib/workspaceIndicator.js =====
+import Clutter from 'gi://Clutter';
+import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
+import Meta from 'gi://Meta';
+import Mtk from 'gi://Mtk';
+import St from 'gi://St';
+
+import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as AppFavorites from 'resource:///org/gnome/shell/ui/appFavorites.js';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
+
+import { showAllWindows, showAllApps, showWorkspaceWindows } from './overlayService.js';
+import {
+    intent, buildModel, placeWindow, setIntent, setDragTarget,
+    onIntentChange, requestRender, resetIntent,
+} from './model.js';
+import {
+    DragMotionResult, FloatingTooltip, computeInsertion, createClonePreviewActor,
+    createGhostIcon, createWindowIconTexture, getWindowApp, getWindowAppIcon,
+    makeWindowDraggable, openContextMenu, closeActiveMenu,
+} from './ui.js';
+import {
+    WorkspaceManager, Display, TimeoutDelay, DIRECT_MODE_MAX_WINDOWS, screenWidth, screenHeight,
+} from './shellGlobals.js';
+import { fadeInActor, settleIcon } from './animationHelpers.js';
+
+import { createLogger } from '../logger.js';
+const journal = createLogger(import.meta.url);
+
+let _instance = null;
+let _settleWindow = null; // transient: pop this window's icon in on next render
+
+// Used by TitleBarMoveMonitor.
+export function thumbnailAt(x, y) { return _instance?._thumbnailAt(x, y) ?? null; }
+export function settleOnNextRender(window) { _settleWindow = window; }
+
+// ==================== ACTIVE PREVIEW TRACKER ====================
+// Only one icon has its hover preview / title popup open at a time; the
+// CTRL poll (which swaps between them) only runs while one is active.
+class ActivePreviewTracker {
+    static activePreview = null;
+    static _ctrlPollId = null;
+    static _ctrlPressed = false;
+
+    static register(preview) {
+        if (this.activePreview && this.activePreview !== preview)
+            this.activePreview.forceHidePreview();
+        this.activePreview = preview;
+        this._startPoll();
+    }
+
+    static unregister(preview) {
+        if (this.activePreview === preview) {
+            this.activePreview = null;
+            this._stopPoll();
+        }
+    }
+
+    static _readCtrl() {
+        const [, , mods] = global.get_pointer();
+        return (mods & Clutter.ModifierType.CONTROL_MASK) !== 0;
+    }
+
+    static _startPoll() {
+        if (this._ctrlPollId || !this.activePreview) return;
+        this._ctrlPressed = this._readCtrl();
+        this._ctrlPollId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, TimeoutDelay, () => {
+            if (!this.activePreview) { this._ctrlPollId = null; return GLib.SOURCE_REMOVE; }
+            const ctrl = this._readCtrl();
+            if (ctrl !== this._ctrlPressed) {
+                this._ctrlPressed = ctrl;
+                this.activePreview?.onCtrlChanged(ctrl);
+            }
+            return GLib.SOURCE_CONTINUE;
+        });
+    }
+
+    static _stopPoll() {
+        if (this._ctrlPollId) { GLib.Source.remove(this._ctrlPollId); this._ctrlPollId = null; }
+    }
+}
+
+// Hovering an EXTERNAL drag (files, text) over an icon for ~400 ms raises its window.
+class ExternalDragAutoActivator {
+    constructor(window) { this._window = window; this._timeoutId = 0; this._lastHover = 0; }
+
+    notifyDragOver() {
+        this._lastHover = GLib.get_monotonic_time();
+        if (this._timeoutId) return;
+        this._timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 400, () => {
+            this._timeoutId = 0;
+            if ((GLib.get_monotonic_time() - this._lastHover) / 1000 > 500)
+                return GLib.SOURCE_REMOVE;
+            const win = this._window;
+            if (win.minimized) win.unminimize();
+            win.get_workspace().activate_with_focus(win, global.get_current_time());
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    destroy() {
+        if (this._timeoutId) { GLib.Source.remove(this._timeoutId); this._timeoutId = 0; }
+    }
+}
+
+// ==================== WINDOW ICON ====================
+// A plain object wrapping one St.Button. Created fresh on every render;
+// it owns hover preview / title popup / context menu for its window.
+class WindowIcon {
+    constructor(window, settings) {
+        this._window = window;
+        this._settings = settings;
+        this._hooks = null; // { handleDragOver, acceptDrop } from the owning thumbnail
+        this._preview = null;
+        this._popup = null;
+        this._hoverTimeoutId = 0;
+        this._cleanupId = 0;
+        this._dragActivator = new ExternalDragAutoActivator(window);
+
+        const actor = this.actor = new St.Button({
+            style_class: 'window-preview-icon', reactive: true, track_hover: true,
+        });
+        actor._icon = this;
+
+        const iconSize = settings.get_int('icon-size');
+        this._setIcon(iconSize);
+
+        // Forward DnD to the thumbnail behind us; the thumbnail classifies.
+        // NOTE: Shell passes the draggable's actor._delegate as `source`.
+        const delegate = {
+            handleDragOver: (source, a, x, y, time) => {
+                if (source === actor._delegate) return DragMotionResult.CONTINUE;
+                if (!source?._window) this._dragActivator.notifyDragOver();
+                return this._hooks?.handleDragOver(source, a, x, y, time) ?? DragMotionResult.CONTINUE;
+            },
+            acceptDrop: (source, a, x, y, time) =>
+                this._hooks?.acceptDrop(source, a, x, y, time) ?? false,
+        };
+        // Draggable must connect before our press handler so DND sees presses first.
+        makeWindowDraggable(actor, window, iconSize, { delegate, sourceIcon: true });
+
+        actor.connect('notify::hover', () => this._onHoverChange());
+        actor.connect('button-press-event', (a, event) => this._onButtonPressed(event));
+        actor.connect('button-release-event', (a, event) => this._onButtonReleased(event));
+        actor.connect('destroy', () => this._onDestroy());
+
+        // Anything that should change how this icon looks → full re-render.
+        this._winSignals = ['notify::wm-class', 'notify::mapped', 'notify::appears-focused']
+            .map(sig => window.connect(sig, () => requestRender()));
+
+        if (window.appears_focused)
+            actor.add_style_class_name('focused');
+    }
+
+    setHooks(hooks) { this._hooks = hooks; }
+
+    _setIcon(iconSize) {
+        const iconActor = createWindowIconTexture(this._window, iconSize);
+        this.actor.set_child(iconActor);
+        const id = iconActor.connect('stage-views-changed', () => {
+            const rect = new Mtk.Rectangle();
+            [rect.x, rect.y] = iconActor.get_transformed_position();
+            [rect.width, rect.height] = iconActor.get_transformed_size();
+            this._window.set_icon_geometry(rect);
+            iconActor.disconnect(id);
+        });
+    }
+
+    // ---------- hover preview / title popup ----------
+    _isShowing() { return !!(this._preview || this._popup); }
+
+    onCtrlChanged(ctrl) {
+        if (ctrl) { this._showPopup(); this._hidePreview(); }
+        else { this._showPreview(); this._hidePopup(); }
+    }
+
+    forceHidePreview() {
+        this._stopCleanup();
+        ActivePreviewTracker.unregister(this);
+        this._hidePreview();
+        this._hidePopup();
+    }
+
+    _onHoverChange() {
+        if (this._hoverTimeoutId) { GLib.Source.remove(this._hoverTimeoutId); this._hoverTimeoutId = 0; }
+        if (intent.drag) return;
+        if (this.actor.hover) {
+            this._stopCleanup();
+            if (this._isShowing()) { this.onCtrlChanged(ActivePreviewTracker._ctrlPressed); return; }
+            // 30 ms debounce: don't flash a preview while the pointer passes through.
+            this._hoverTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 30, () => {
+                this._hoverTimeoutId = 0;
+                ActivePreviewTracker.register(this);
+                if (this.actor.hover || this._isShowing()) {
+                    if (ActivePreviewTracker._ctrlPressed) this._showPopup();
+                    else this._showPreview();
+                }
+                return GLib.SOURCE_REMOVE;
+            });
+        } else if (this._isShowing()) {
+            this._startCleanup();
+        }
+    }
+
+    _onPreviewHover(isHovered) {
+        if (isHovered) this._stopCleanup();
+        else if (!this.actor.hover) this._startCleanup();
+    }
+
+    _startCleanup() {
+        this._stopCleanup();
+        this._cleanupId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, TimeoutDelay, () => {
+            this._cleanupId = 0;
+            if (this.actor.hover || this._preview?.hover || this._popup?.hover)
+                return GLib.SOURCE_REMOVE;
+            ActivePreviewTracker.unregister(this);
+            this._hidePreview();
+            this._hidePopup();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _stopCleanup() {
+        if (this._cleanupId) { GLib.Source.remove(this._cleanupId); this._cleanupId = 0; }
+    }
+
+    _showPreview() {
+        if (this._preview) return;
+        const win = this._window;
+        const previewHeight = this._settings.get_int('hover-preview-height');
+        const built = createClonePreviewActor(win, previewHeight, {
+            wrapperStyleClass: 'hover-preview-wrapper',
+            showTitle: false,
+            onClose: w => { w.delete(global.get_current_time()); this._hidePreview(); },
+            closeButtonSize: this._settings.get_int('close-button-size'),
+            closeButtonOffsetX: 60,
+            closeButtonOffsetY: 10,
+            onHoverChange: h => this._onPreviewHover(h),
+            onActivate: () => {
+                win.get_workspace().activate_with_focus(win, 0);
+                this._hidePreview();
+            },
+        });
+        if (!built) return;
+
+        const anchorWidth = this.actor.get_width();
+        const [anchorX] = this.actor.get_transformed_position();
+        const previewX = Math.max(0, anchorX + (anchorWidth - built.width) / 2);
+        const previewY = screenHeight - previewHeight - 200 + 55;
+
+        built.actor.set_position(previewX, previewY);
+        this._preview = built.actor;
+        Main.layoutManager.addChrome(this._preview);
+        fadeInActor(this._preview);
+    }
+
+    _hidePreview() {
+        if (!this._preview) return;
+        const actor = this._preview;
+        this._preview = null;
+        Main.layoutManager.removeChrome(actor);
+        actor.destroy();
+    }
+
+    _showPopup() {
+        if (this._popup) return;
+        const title = this._window.get_title() || 'Untitled Window';
+        const label = new St.Label({ text: title, style_class: 'hover-title-popup', reactive: true, track_hover: true });
+        label.set_style(`font-size: ${this._settings.get_int('title-popup-font-size')}pt;`);
+        Main.layoutManager.addChrome(label);
+
+        const [iconX] = this.actor.get_transformed_position();
+        const padding = 10;
+        const labelWidth = Math.min(label.width, screenWidth - 2 * padding);
+        let labelX = iconX + (this.actor.width - labelWidth) / 2;
+        labelX = Math.max(padding, Math.min(labelX, screenWidth - labelWidth - padding));
+        label.set_position(labelX, screenHeight - 200);
+
+        this._popup = label;
+        fadeInActor(label);
+        label.connect('notify::hover', () => this._onPreviewHover(label.hover));
+    }
+
+    _hidePopup() {
+        if (!this._popup) return;
+        const actor = this._popup;
+        this._popup = null;
+        Main.layoutManager.removeChrome(actor);
+        actor.destroy();
+    }
+
+    // ---------- clicks ----------
+    // Press: only the right-click menu. A primary press must NOT touch
+    // window state, or the resulting re-render destroys this icon mid-press
+    // and the drag never starts.
+    _onButtonPressed(event) {
+        const button = event.get_button();
+        if (button === Clutter.BUTTON_SECONDARY) {
+            this.forceHidePreview();
+            this._openMenu();
+            return Clutter.EVENT_STOP;
+        }
+        // Swallow primary so the thumbnail behind us doesn't also handle it.
+        return button === Clutter.BUTTON_PRIMARY ? Clutter.EVENT_STOP : Clutter.EVENT_PROPAGATE;
+    }
+
+    // Release: the actual click. After a real drag the release goes to
+    // DND's grab, so this only runs for genuine clicks.
+    _onButtonReleased(event) {
+        if (event.get_button() !== Clutter.BUTTON_PRIMARY)
+            return Clutter.EVENT_PROPAGATE;
+
+        this.forceHidePreview();
+        const win = this._window;
+        const winWs = win.get_workspace();
+        if (winWs === WorkspaceManager.get_active_workspace()) {
+            if (win.minimized) { win.unminimize(); win.activate_with_workspace(0, winWs); }
+            else if (!win.appears_focused || this._isCovered(win)) win.activate_with_workspace(0, winWs);
+            else win.minimize();
+        } else {
+            winWs.activate_with_focus(win, 0);
+        }
+        return Clutter.EVENT_STOP;
+    }
+
+    _openMenu() {
+        const win = this._window;
+        const menu = openContextMenu(this.actor, m => {
+            m.addAction(`Activate ${win.title}`, () => win.get_workspace().activate_with_focus(win, 0));
+            m.addAction(`Close ${win.title}`, () => win.delete(0));
+            m.addAction(`Close Except ${win.title}`, () => {
+                const wmClass = win.get_wm_class();
+                const others = Display.get_tab_list(Meta.TabList.NORMAL, win.get_workspace())
+                    .filter(w => w !== win && w.get_wm_class() === wmClass && w.get_wm_class_instance() !== 'file_progress');
+                const now = global.get_current_time();
+                for (const w of others) w.delete(now);
+            });
+
+            const app = getWindowApp(win);
+            if (!app) return;
+            m.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
+            const favorites = AppFavorites.getAppFavorites();
+            const isFav = favorites.isFavorite(app.get_id());
+            m.addAction(isFav ? `Unpin ${app.get_name()}` : `Pin ${app.get_name()}`, () => {
+                if (isFav) favorites.removeFavorite(app.get_id());
+                else favorites.addFavorite(app.get_id());
+            });
+
+            const appInfo = app.get_app_info();
+            const actions = appInfo?.list_actions();
+            if (actions && actions.length > 0) {
+                m.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+                for (const action of actions)
+                    m.addAction(`${appInfo.get_action_name(action)}`, () => app.launch_action(action, 0, -1));
+            }
+        });
+        if (menu._boxPointer)
+            menu._boxPointer.translation_y = -35;
+    }
+
+    // True if any visible window stacked above `window` overlaps it, even
+    // partially. Dialogs attached to the window itself don't count.
+    _isCovered(window) {
+        if (window.minimized) return false;
+        const workspace = WorkspaceManager.get_active_workspace();
+        const stacked = Display.sort_windows_by_stacking(
+            Display.list_all_windows().filter(w =>
+                !w.minimized &&
+                (w.get_window_type() === Meta.WindowType.NORMAL || w.get_window_type() === Meta.WindowType.DIALOG) &&
+                w.get_workspace() === workspace));
+
+        const index = stacked.indexOf(window);
+        if (index === -1) return false;
+
+        const area = workspace.get_work_area_for_monitor(window.get_monitor());
+        const clip = r => ({
+            l: Math.max(r.x, area.x), t: Math.max(r.y, area.y),
+            r: Math.min(r.x + r.width, area.x + area.width),
+            b: Math.min(r.y + r.height, area.y + area.height),
+        });
+
+        const t = clip(window.get_frame_rect());
+        if (t.r <= t.l || t.b <= t.t) return false;
+
+        for (let i = index + 1; i < stacked.length; i++) {
+            const other = stacked[i];
+            if (other.get_transient_for() === window) continue;
+            const o = clip(other.get_frame_rect());
+            if (o.r <= o.l || o.b <= o.t) continue;
+            if (t.l < o.r && t.r > o.l && t.t < o.b && t.b > o.t) return true;
+        }
+        return false;
+    }
+
+    _onDestroy() {
+        this.forceHidePreview();
+        if (this._hoverTimeoutId) { GLib.Source.remove(this._hoverTimeoutId); this._hoverTimeoutId = 0; }
+        for (const id of this._winSignals) {
+            try { this._window.disconnect(id); } catch (e) { /* window may be gone */ }
+        }
+        this._winSignals = [];
+        this._dragActivator.destroy();
+        this._hooks = null;
+    }
+}
+
+// ==================== WORKSPACE INDICATOR ====================
+// Immediate-mode: every state change schedules _render(), which destroys
+// the whole UI and rebuilds it as a pure function of buildModel().
+export class WorkspaceIndicator extends PanelMenu.Button {
+    static { GObject.registerClass(this); }
+
+    constructor(settings) {
+        super(0.0, _('Workspace Indicator'));
+        this.reactive = false;
+        this._settings = settings;
+        _instance = this;
+
+        this._renderId = 0;
+        this._renderDelay = 0;
+        this._leavePollId = 0;
+        this._nameHint = null;
+        this._thumbsBox = null;
+        this._signals = [];
+        this._wsSignals = [];
+
+        this._mainBox = new St.BoxLayout({
+            style_class: 'workspace-indicator-main-box', y_expand: true, x_expand: true, reactive: true,
+        });
+        this.add_child(this._mainBox);
+
+        onIntentChange(() => this._queueRender());
+
+        this._on(WorkspaceManager, 'notify::n-workspaces', () => { this._watchWorkspaces(); this._queueRender(); });
+        this._on(WorkspaceManager, 'workspace-switched', () => { closeActiveMenu(); this._queueRender(); });
+        this._on(Display, 'window-created', () => this._queueRender(TimeoutDelay));
+        this._on(Main.sessionMode, 'updated', () => {
+            journal('[WorkspaceIndicator] session mode updated, rebuilding');
+            this._queueRender();
+        });
+        this._on(this._settings, 'changed', () => this._queueRender());
+
+        this._watchWorkspaces();
+        this._render();
+    }
+
+    _on(obj, signal, cb) { this._signals.push([obj, obj.connect(signal, cb)]); }
+
+    _watchWorkspaces() {
+        for (const [obj, id] of this._wsSignals) obj.disconnect(id);
+        this._wsSignals = [];
+        for (let i = 0; i < WorkspaceManager.n_workspaces; i++) {
+            const ws = WorkspaceManager.get_workspace_by_index(i);
+            this._wsSignals.push([ws, ws.connect('window-added', () => this._queueRender(TimeoutDelay))]);
+            this._wsSignals.push([ws, ws.connect('window-removed', () => this._queueRender())]);
+        }
+    }
+
+    // ---------- scheduling ----------
+    _queueRender(delay = 0) {
+        if (this._renderId) {
+            if (delay >= this._renderDelay) return;
+            GLib.Source.remove(this._renderId);
+        }
+        this._renderDelay = delay;
+        const cb = () => { this._renderId = 0; this._render(); return GLib.SOURCE_REMOVE; };
+        this._renderId = delay
+            ? GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, cb)
+            : GLib.idle_add(GLib.PRIORITY_DEFAULT, cb);
+    }
+
+    // ==================== THE RENDER ====================
+    _render() {
+        if (intent.menuOpen) return; // re-queued when the menu closes
+        const model = buildModel();
+        const s = this._settings;
+
+        // The drag source icon must survive the rebuild — Shell DND holds it.
+        const keep = model.drag?.sourceIcon ?? null;
+        keep?.get_parent()?.remove_child(keep);
+        this._mainBox.destroy_all_children();
+        this._settleActor = null;
+
+        const iconSize = s.get_int('toolbar-icon-size');
+        if (s.get_boolean('show-drun-button'))
+            this._mainBox.add_child(this._toolbarButton('view-app-grid-symbolic', iconSize, 'Show apps', () => showAllApps()));
+        if (s.get_boolean('show-window-button'))
+            this._mainBox.add_child(this._toolbarButton('focus-windows-symbolic', iconSize, 'All windows', () => showAllWindows()));
+        if (s.get_boolean('show-workspace-names')) {
+            const name = new St.Label({
+                style_class: 'workspace-name-label',
+                y_expand: true,
+                y_align: Clutter.ActorAlign.CENTER,
+                text: Meta.prefs_get_workspace_name(WorkspaceManager.get_active_workspace_index()),
+            });
+            name.set_style(`font-size: ${s.get_int('workspace-name-font-size')}px;`);
+            this._mainBox.add_child(name);
+        }
+
+        this._thumbsBox = new St.BoxLayout({
+            style_class: 'workspace-indicator-class', y_expand: true, x_expand: true, reactive: true,
+        });
+        for (const entry of model.workspaces)
+            this._thumbsBox.add_child(this._buildThumbnail(entry, model, keep));
+        this._mainBox.add_child(this._thumbsBox);
+
+        if (keep && !keep.get_parent()) keep.destroy(); // its window left; nothing to keep alive
+        if (this._settleActor) settleIcon(this._settleActor);
+        this._syncHint(model);
+    }
+
+    _toolbarButton(iconName, size, accessibleName, onClicked) {
+        const button = new St.Button({
+            style_class: 'workspace-toolbar-button',
+            accessible_name: accessibleName,
+            can_focus: true,
+            track_hover: true,
+            child: new St.Icon({ icon_name: iconName, icon_size: size }),
+        });
+        button.connect('clicked', onClicked);
+        return button;
+    }
+
+    _buildThumbnail(entry, model, keep) {
+        const { workspace, index, windows } = entry;
+        const s = this._settings;
+        const drag = model.drag;
+
+        const thumb = new St.Button({ style_class: 'workspace-thumbnail', x_expand: true, y_expand: true });
+        thumb.set_style(`min-width: ${s.get_int('thumbnail-min-width')}px;`);
+        if (index === WorkspaceManager.get_active_workspace_index())
+            thumb.add_style_class_name('active');
+        thumb._wsEntry = { workspace, index };
+
+        const box = new St.BoxLayout();
+        thumb.set_child(box);
+        const direct = windows.length <= DIRECT_MODE_MAX_WINDOWS;
+
+        const hooks = {
+            handleDragOver: (source) => {
+                try {
+                    journal(`[handleDragOver] ws=${index} source._window=${source?._window?.title ?? 'none'} drag=${!!intent.drag}`);
+                    return this._handleDragOver(box, entry, direct, source);
+                } catch (e) {
+                    journal(`[handleDragOver] THREW: ${e.message}\n${e.stack}`, true);
+                    return DragMotionResult.MOVE_DROP;
+                }
+            },
+            acceptDrop: (source, actor) => {
+                try {
+                    journal(`[acceptDrop] ws=${index} source._window=${source?._window?.title ?? 'none'}`);
+                    return this._acceptDrop(thumb, box, entry, direct, source, actor);
+                } catch (e) {
+                    journal(`[acceptDrop] THREW: ${e.message}\n${e.stack}`, true);
+                    setIntent({ drag: null });
+                    return false;
+                }
+            },
+        };
+        thumb._delegate = hooks;
+
+        thumb.connect('button-press-event', (actor, event) => {
+            const b = event.get_button();
+            if (b === Clutter.BUTTON_PRIMARY) workspace.activate(0);
+            if (b === Clutter.BUTTON_SECONDARY) this._openThumbnailMenu(thumb, workspace);
+            return Clutter.EVENT_STOP;
+        });
+
+        if (!direct) {
+            const overflow = new St.Button({
+                style_class: 'workspace-thumbnail-collection-icon', reactive: true, track_hover: true, can_focus: true,
+            });
+            overflow.set_child(new St.Label({
+                style_class: 'collection-icon-label',
+                text: `▱ ${windows.length}`,
+                y_align: Clutter.ActorAlign.CENTER,
+                x_align: Clutter.ActorAlign.CENTER,
+            }));
+            overflow.connect('clicked', () => showWorkspaceWindows(index));
+            box.add_child(overflow);
+            return thumb;
+        }
+
+        // Direct mode: icons, plus the drag ghost if it targets this workspace.
+        const ghostAt = drag?.target?.wsIndex === index ? drag.target.index : null;
+        let n = 0, ghostPlaced = false;
+        const placeGhost = () => {
+            box.add_child(createGhostIcon(getWindowAppIcon(drag.window), s.get_int('icon-size')));
+            ghostPlaced = true;
+        };
+
+        for (const w of windows) {
+            if (w !== drag?.window) {
+                if (ghostAt === n) placeGhost();
+                n++;
+            }
+            const actor = (keep && keep._window === w) ? keep : new WindowIcon(w, s).actor;
+            actor._icon.setHooks(hooks);
+            // Experiment: keep the source in the layout, dimmed, rather than
+            // hiding it. The ghost marks the drop target next to it.
+            if (actor === keep) actor.opacity = 80;
+            box.add_child(actor);
+            if (w === _settleWindow) { _settleWindow = null; this._settleActor = actor; }
+        }
+        if (ghostAt !== null && !ghostPlaced) placeGhost();
+        return thumb;
+    }
+
+    _syncHint(model) {
+        const s = this._settings;
+        const target = model.hintWs !== null ? this._thumbsBox?.get_child_at_index(model.hintWs) : null;
+        if (!target || !s.get_boolean('show-workspace-names')) {
+            this._nameHint?.hide();
+            return;
+        }
+        if (!this._nameHint)
+            this._nameHint = new FloatingTooltip({ fontSize: s.get_int('tooltip-font-size') });
+        this._nameHint.showAbove(target, Meta.prefs_get_workspace_name(model.hintWs));
+    }
+
+    _openThumbnailMenu(anchor, workspace) {
+        const windows = Display.get_tab_list(Meta.TabList.NORMAL, workspace);
+        openContextMenu(anchor, menu => {
+            menu.addAction('Close all windows on all workspaces', () => {
+                const now = global.get_current_time();
+                for (const w of Display.get_tab_list(Meta.TabList.NORMAL, null)) w.delete(now);
+            });
+            if (windows.length > 0) {
+                menu.addAction(`Close all windows except workspace ${workspace.index()}`, () => {
+                    const now = global.get_current_time();
+                    for (const w of Display.get_tab_list(Meta.TabList.NORMAL, null).filter(w => w.get_workspace() !== workspace))
+                        w.delete(now);
+                });
+                menu.addAction(`Close all windows on workspace ${workspace.index()}`, () => {
+                    const now = global.get_current_time();
+                    for (const w of windows) w.delete(now);
+                });
+            }
+        });
+    }
+
+    // ==================== DnD ====================
+    // The thumbnail is the sole classifier. `source` is the draggable's
+    // _delegate (NOT the actor):
+    //   source._window set   → reorder / move a window (sets drag.target)
+    //   source._window unset → external drag (files, text): switch workspace on hover
+    _handleDragOver(box, entry, direct, source) {
+        this._ensureLeavePoll();
+        setIntent({ hintWs: entry.index });
+
+        if (!source?._window) {
+            if (entry.workspace !== WorkspaceManager.get_active_workspace())
+                entry.workspace.activate(global.get_current_time());
+            return DragMotionResult.MOVE_DROP;
+        }
+
+        if (direct) {
+            const [pointerX] = global.get_pointer();
+            setDragTarget({ wsIndex: entry.index, index: this._insertionIndex(box, pointerX) });
+        } else {
+            setDragTarget(null); // collection mode isn't a reorder target
+        }
+        return DragMotionResult.MOVE_DROP;
+    }
+
+    _acceptDrop(thumb, box, entry, direct, source, actor) {
+        setIntent({ hintWs: null });
+        const win = source?._window ?? null;
+        if (!win) return true; // external: workspace already switched on hover
+
+        const [pointerX] = global.get_pointer();
+        const index = direct ? this._insertionIndex(box, pointerX) : null; // null → end
+        const sameWs = win.get_workspace() === entry.workspace;
+
+        // Synthetic drag actor (not the real source icon): ours to discard.
+        if (actor && actor !== source._actor) {
+            actor.get_parent()?.remove_child(actor);
+            try { actor.destroy(); } catch (e) { /* ignore */ }
+        }
+
+        if (sameWs && !direct) { setIntent({ drag: null }); return true; }
+
+        placeWindow(win, entry.workspace, index);
+        if (!sameWs) {
+            const monitorIndex = Main.layoutManager.findIndexForActor(thumb);
+            if (monitorIndex !== win.get_monitor()) win.move_to_monitor(monitorIndex);
+            win.change_workspace(entry.workspace);
+        }
+        _settleWindow = win;
+        setIntent({ drag: null });
+        return true;
+    }
+
+    // Insertion index among the visible icons (excluding the dragged one),
+    // measured in "ghost-free" coordinates: icons after the ghost are
+    // shifted back by the ghost's slot width so the ghost can't make the
+    // result flip-flop.
+    _insertionIndex(box, pointerX) {
+        const kids = box.get_children();
+        const ghostPos = kids.findIndex(k => k._isGhost);
+        let shift = 0;
+        if (ghostPos >= 0) {
+            const next = kids.slice(ghostPos + 1).find(k => k.visible);
+            if (next)
+                shift = next.get_transformed_position()[0] - kids[ghostPos].get_transformed_position()[0];
+        }
+        const dragged = intent.drag?.window;
+        const rects = [];
+        kids.forEach((k, i) => {
+            if (!k._window || !k.visible || k._window === dragged) return;
+            let [x] = k.get_transformed_position();
+            const [w] = k.get_transformed_size();
+            if (ghostPos >= 0 && i > ghostPos) x -= shift;
+            rects.push({ item: k, x, width: w, mid: x + w / 2, right: x + w });
+        });
+        return computeInsertion(rects, pointerX).index;
+    }
+
+    // The Shell has no per-actor "drag left" signal and grabs suppress
+    // enter/leave, so poll while a drag hovers us: when the button is
+    // released or the pointer leaves every thumbnail, clear hint + ghost.
+    _ensureLeavePoll() {
+        if (this._leavePollId) return;
+        this._leavePollId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+            const [px, py, mods] = global.get_pointer();
+            const held = (mods & Clutter.ModifierType.BUTTON1_MASK) !== 0;
+            if (!held || !this._thumbnailAt(px, py)) {
+                this._leavePollId = 0;
+                setIntent({ hintWs: null });
+                setDragTarget(null);
+                return GLib.SOURCE_REMOVE;
+            }
+            return GLib.SOURCE_CONTINUE;
+        });
+    }
+
+    _thumbnailAt(x, y) {
+        if (!this._thumbsBox) return null;
+        for (const thumb of this._thumbsBox.get_children()) {
+            if (!thumb.get_stage() || !thumb._wsEntry) continue;
+            const [tx, ty] = thumb.get_transformed_position();
+            const [tw, th] = thumb.get_transformed_size();
+            if (x >= tx && x <= tx + tw && y >= ty && y <= ty + th)
+                return { ...thumb._wsEntry, actor: thumb };
+        }
+        return null;
+    }
+
+    // ==================== LIFECYCLE ====================
+    cleanupSources() {
+        if (this._renderId) { GLib.Source.remove(this._renderId); this._renderId = 0; }
+        if (this._leavePollId) { GLib.Source.remove(this._leavePollId); this._leavePollId = 0; }
+    }
+
+    destroy() {
+        this.cleanupSources();
+        onIntentChange(null);
+        resetIntent();
+        _instance = null;
+
+        for (const [obj, id] of this._signals) obj.disconnect(id);
+        for (const [obj, id] of this._wsSignals) obj.disconnect(id);
+        this._signals = [];
+        this._wsSignals = [];
+
+        this._nameHint?.destroy();
+        this._nameHint = null;
+        this._mainBox?.destroy();
+        Main.panel.set_offscreen_redirect(Clutter.OffscreenRedirect.ALWAYS);
+        super.destroy();
+    }
+}
+// ===== FILE: ./lib/searchOverlays.js =====
+import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+import Shell from 'gi://Shell';
+import St from 'gi://St';
+
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as AppFavorites from 'resource:///org/gnome/shell/ui/appFavorites.js';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import { AppMenu } from 'resource:///org/gnome/shell/ui/appMenu.js';
+
+import {
+    DragMotionResult, FloatingTooltip, computeInsertion, createClonePreviewActor,
+    createGhostIcon, createReorderDraggable, getWindowAppIcon, makeWindowDraggable,
+} from './ui.js';
+import { WindowTracker } from './shellGlobals.js';
+import { settleIcon } from './animationHelpers.js';
+
+import { createLogger } from '../logger.js';
+const journal = createLogger(import.meta.url);
+
+// ==================== FUZZY MATCHING ====================
+// Token-based: every whitespace-separated token must appear (substring,
+// falling back to fuzzy subsequence) somewhere in the text.
+function subsequenceMatch(query, text) {
+    let qi = 0, score = 0, consecutive = 0;
+    for (let ti = 0; ti < text.length && qi < query.length; ti++) {
+        if (text[ti] === query[qi]) { score += 1 + consecutive; consecutive++; qi++; }
+        else consecutive = 0;
+    }
+    return qi < query.length ? { matched: false, score: -1 } : { matched: true, score };
+}
+
+function fuzzyMatch(query, text) {
+    const trimmed = query.trim();
+    if (!trimmed) return { matched: true, score: 0 };
+    const lowerText = text.toLowerCase();
+    let score = 0;
+    for (const token of trimmed.toLowerCase().split(/\s+/).filter(t => t.length > 0)) {
+        const idx = lowerText.indexOf(token);
+        if (idx !== -1) { score += 50 - Math.min(idx, 40); continue; }
+        const sub = subsequenceMatch(token, lowerText);
+        if (!sub.matched) return { matched: false, score: -1 };
+        score += sub.score;
+    }
+    return { matched: true, score };
+}
+
+// ==================== SHARED OVERLAY BASE ====================
+export class SearchOverlayBase {
+    static _current = null;
+
+    // Self-clears once an overlay has marked itself closed (covers both
+    // _close() and the drag teardown that sets _closed directly).
+    static get current() {
+        if (SearchOverlayBase._current?._closed)
+            SearchOverlayBase._current = null;
+        return SearchOverlayBase._current;
+    }
+
+    static closeCurrent() {
+        const overlay = SearchOverlayBase.current;
+        if (!overlay) return false;
+        overlay._close();
+        return true;
+    }
+
+    constructor(settings) {
+        this._settings = settings;
+        this._results = [];
+        this._resultButtons = [];
+        this._selectedIndex = -1;
+        this._previewContent = null;
+        this._modalGrab = null;
+        this._closed = false;
+    }
+
+    // ---- Hooks subclasses MUST implement ----
+    _getHintText() { return 'Search…'; }
+    _getAllResultsSorted() { return []; }
+    _getSearchLabel(item) { return item.name ?? ''; }
+    _buildResultRow(item, index) { throw new Error('_buildResultRow must be implemented'); }
+    _updatePreviewContent(item) { }
+    _activateResult(index) { }
+
+    // ---- Hooks subclasses MAY override ----
+    _getRestoreKey(item) { return null; }
+    _onBeforeClose() { }
+    _onFocusWindowChanged() { }
+    _handleExtraKeys(event, symbol) { return undefined; }
+
+    _computeLayout(monitor) {
+        const margin = 40, entryHeight = 80, entryGap = 20;
+        const panelWidth = monitor.width - margin * 2;
+        const panelX = monitor.x + margin;
+        const entryY = monitor.y + margin;
+        const panelTop = entryY + entryHeight + entryGap;
+        const panelHeight = monitor.height - (panelTop - monitor.y) - margin;
+        const resultsWidth = Math.round(panelWidth * 0.32);
+        const previewWidth = panelWidth - resultsWidth - 20;
+        return { monitor, margin, entryHeight, entryGap, panelWidth, panelX, entryY, panelTop, panelHeight, resultsWidth, previewWidth };
+    }
+
+    _buildContainer(monitor) {
+        this._container = new St.Widget({
+            style_class: 'window-collection-overlay',
+            reactive: true, can_focus: true,
+            x: monitor.x, y: monitor.y, width: monitor.width, height: monitor.height,
+        });
+    }
+
+    _buildEntry(layout) {
+        this._entry = new St.Entry({
+            style_class: 'collection-search-entry',
+            hint_text: this._getHintText(),
+            can_focus: true,
+            x: layout.panelX, y: layout.entryY, width: layout.panelWidth, height: layout.entryHeight,
+        });
+        this._entry.set_style(`font-size: ${this._settings.get_int('collection-search-font-size')}pt;`);
+        this._entryChangedId = this._entry.clutter_text.connect('text-changed', () => this._onSearchChanged());
+        this._entryKeyPressId = this._entry.clutter_text.connect('key-press-event',
+            (actor, event) => this._onKeyPress(event));
+    }
+
+    _buildResultsAndPreview(layout, { previewVertical = false } = {}) {
+        this._resultsScroll = new St.ScrollView({
+            style_class: 'collection-results-scroll',
+            x: layout.panelX, y: layout.panelTop, width: layout.resultsWidth, height: layout.panelHeight,
+        });
+        this._resultsScroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
+
+        this._resultsBox = new St.BoxLayout({ style_class: 'collection-results-box', vertical: true, x_expand: true });
+        this._resultsScroll.set_child(this._resultsBox);
+
+        this._previewBox = new St.BoxLayout({
+            style_class: 'collection-preview-box',
+            vertical: previewVertical,
+            x: layout.panelX + layout.resultsWidth + 20, y: layout.panelTop,
+            width: layout.previewWidth, height: layout.panelHeight,
+        });
+    }
+
+    // -------------------- Lifecycle --------------------
+    _open() {
+        Main.layoutManager.addChrome(this._container, { affectsInputRegion: true, trackFullscreen: true });
+        Main.layoutManager.uiGroup.set_child_above_sibling(this._container, null);
+        this._modalGrab = Main.pushModal(this._container, { actionMode: Shell.ActionMode.NORMAL });
+        this._entry.grab_key_focus();
+        SearchOverlayBase._current = this;
+
+        // Mutter's workspace-activate focus restoration can fire AFTER our
+        // grab and steal key focus back to a window; reclaim it whenever
+        // the focused window changes while we're open.
+        this._focusWindowId = global.display.connect('notify::focus-window', () => {
+            if (this._closed) return;
+            this._entry.grab_key_focus();
+            this._onFocusWindowChanged();
+        });
+    }
+
+    _close() {
+        if (this._closed) return;
+        this._closed = true;
+        this._clearPreview();
+        this._onBeforeClose();
+
+        if (this._focusWindowId) { global.display.disconnect(this._focusWindowId); this._focusWindowId = null; }
+        if (this._modalGrab) { Main.popModal(this._modalGrab); this._modalGrab = null; }
+        if (this._entry?.clutter_text) {
+            this._entry.clutter_text.disconnect(this._entryChangedId);
+            this._entry.clutter_text.disconnect(this._entryKeyPressId);
+        }
+        Main.layoutManager.removeChrome(this._container);
+        this._container.destroy();
+    }
+
+    // -------------------- Search / results --------------------
+    _onSearchChanged() {
+        if (this._closed) return;
+        const query = this._entry.get_text();
+        const all = this._getAllResultsSorted();
+        if (!query.trim()) { this._setResults(all); return; }
+        const scored = [];
+        for (const item of all) {
+            const result = fuzzyMatch(query, this._getSearchLabel(item));
+            if (result.matched) scored.push({ ...item, score: result.score });
+        }
+        scored.sort((a, b) => b.score - a.score);
+        this._setResults(scored);
+    }
+
+    _setResults(results) {
+        const previousKey = this._selectedIndex >= 0
+            ? this._getRestoreKey(this._results[this._selectedIndex])
+            : null;
+
+        this._results = results;
+        this._resultsBox.destroy_all_children();
+        this._resultButtons = [];
+        this._selectedIndex = -1;
+
+        results.forEach((item, index) => {
+            const button = this._buildResultRow(item, index);
+            button.connect('clicked', () => this._activateResult(index));
+            button.connect('notify::hover', () => { if (button.hover) this._selectIndex(index); });
+            this._resultsBox.add_child(button);
+            this._resultButtons.push(button);
+        });
+
+        if (results.length === 0) { this._clearPreview(); return; }
+
+        const restoredIndex = previousKey !== null
+            ? results.findIndex(item => this._getRestoreKey(item) === previousKey)
+            : -1;
+        this._selectIndex(restoredIndex >= 0 ? restoredIndex : 0);
+    }
+
+    _selectIndex(index) {
+        if (this._closed) return;
+        if (index < 0 || index >= this._results.length) return;
+        if (this._selectedIndex >= 0 && this._resultButtons[this._selectedIndex])
+            this._resultButtons[this._selectedIndex].remove_style_class_name('selected');
+        this._selectedIndex = index;
+        this._resultButtons[index]?.add_style_class_name('selected');
+        this._updatePreview(this._results[index]);
+    }
+
+    _updatePreview(item) { this._clearPreview(); this._updatePreviewContent(item); }
+
+    _clearPreview() {
+        if (!this._previewContent) return;
+        if (this._previewContent.get_parent() === this._previewBox)
+            this._previewBox.remove_child(this._previewContent);
+        this._previewContent.destroy();
+        this._previewContent = null;
+    }
+
+    // -------------------- Keyboard --------------------
+    _onKeyPress(event) {
+        if (this._closed) return Clutter.EVENT_PROPAGATE;
+        const symbol = event.get_key_symbol();
+        const handled = this._handleExtraKeys(event, symbol);
+        if (handled !== undefined) return handled;
+
+        switch (symbol) {
+            case Clutter.KEY_Escape:
+                this._close();
+                return Clutter.EVENT_STOP;
+            case Clutter.KEY_Down:
+                if (this._selectedIndex < this._results.length - 1) this._selectIndex(this._selectedIndex + 1);
+                return Clutter.EVENT_STOP;
+            case Clutter.KEY_Up:
+                if (this._selectedIndex > 0) this._selectIndex(this._selectedIndex - 1);
+                return Clutter.EVENT_STOP;
+            case Clutter.KEY_Return:
+            case Clutter.KEY_KP_Enter:
+                if (this._selectedIndex >= 0) this._activateResult(this._selectedIndex);
+                return Clutter.EVENT_STOP;
+            default:
+                return Clutter.EVENT_PROPAGATE;
+        }
+    }
+}
+
+// ==================== WINDOW SEARCH OVERLAY ====================
+const NEMO_WM_CLASS = 'Nemo';
+const FILE_PROGRESS_INSTANCE = 'file_progress';
+
+export class WindowSearchOverlay extends SearchOverlayBase {
+    constructor(windows, settings, focusedWindow = null) {
+        super(settings);
+        journal(`[WindowSearchOverlay] Opening with ${windows.length} windows`);
+        this._windows = windows;
+        this._focusedWindow = focusedWindow ?? global.display.focus_window;
+        this._buildUI();
+        this._setResults(this._getAllResultsSorted());
+        this._open();
+    }
+
+    _getHintText() { return 'Search windows…'; }
+    _getSearchLabel(item) { return `${item.title} — ${item.appName}`; }
+
+    _getAppName(window) {
+        const app = WindowTracker.get_window_app(window);
+        return app ? app.get_name() : (window.get_wm_class() || 'Unknown');
+    }
+
+    _getAllResultsSorted() {
+        const deduped = this._dedupeNemoWindows(this._windows.filter(w => w && !w.skip_taskbar));
+        const items = deduped.map(w => ({
+            window: w,
+            title: w.get_title() || 'Untitled Window',
+            appName: this._getAppName(w),
+            icon: getWindowAppIcon(w),
+        }));
+
+        items.sort((a, b) => a.appName.localeCompare(b.appName) || a.title.localeCompare(b.title));
+
+        // Move-to-front for the focused window.
+        if (this._focusedWindow) {
+            const i = items.findIndex(item => item.window === this._focusedWindow);
+            if (i > 0) items.unshift(...items.splice(i, 1));
+        }
+        return items;
+    }
+
+    _dedupeNemoWindows(windows) {
+        const keptByTitle = new Map();
+        const result = [];
+
+        for (const w of windows) {
+            const isNemo = w.get_wm_class() === NEMO_WM_CLASS;
+            const isProgress = w.get_wm_class_instance() === FILE_PROGRESS_INSTANCE;
+            if (!isNemo || isProgress) { result.push(w); continue; }
+
+            const key = w.get_title();
+            const existing = keptByTitle.get(key);
+            if (!existing) { keptByTitle.set(key, w); result.push(w); continue; }
+
+            if (w.get_user_time() > existing.get_user_time()) {
+                const idx = result.indexOf(existing);
+                if (idx !== -1) result.splice(idx, 1);
+                journal(`[WindowSearchOverlay] Closing duplicate Nemo window: "${existing.get_title()}"`);
+                existing.delete(0);
+                keptByTitle.set(key, w);
+                result.push(w);
+            } else {
+                journal(`[WindowSearchOverlay] Closing duplicate Nemo window: "${w.get_title()}"`);
+                w.delete(0);
+            }
+        }
+        return result;
+    }
+
+    _buildUI() {
+        const layout = this._computeLayout(Main.layoutManager.primaryMonitor);
+        this._buildContainer(layout.monitor);
+        this._buildEntry(layout);
+        this._buildResultsAndPreview(layout);
+        this._container.add_child(this._entry);
+        this._container.add_child(this._resultsScroll);
+        this._container.add_child(this._previewBox);
+    }
+
+    _close() {
+        if (this._closed) return;
+        journal(`[WindowSearchOverlay] Closing`);
+        super._close();
+    }
+
+    _buildResultRow(item, index) {
+        const button = new St.Button({
+            style_class: 'collection-result-item',
+            x_expand: true, x_align: Clutter.ActorAlign.START, track_hover: true, reactive: true,
+        });
+        button.set_style(`font-size: ${this._settings.get_int('collection-result-font-size')}pt;`);
+        if (item.window === this._focusedWindow)
+            button.add_style_class_name('collection-result-item-focused');
+
+        const row = new St.BoxLayout({ vertical: false, x_expand: true });
+        if (item.icon) {
+            row.add_child(new St.Icon({
+                gicon: item.icon,
+                style_class: 'collection-result-icon',
+                icon_size: this._settings.get_int('collection-result-icon-size'),
+                y_align: Clutter.ActorAlign.CENTER,
+            }));
+        }
+        row.add_child(new St.Label({
+            text: `${item.title}  —  ${item.appName}`,
+            x_expand: true, y_align: Clutter.ActorAlign.CENTER,
+        }));
+        button.set_child(row);
+
+        // Same drag path as indicator icons: the indicator sees drag.window
+        // and its thumbnails accept the drop.
+        const draggable = makeWindowDraggable(button, item.window, this._settings.get_int('icon-size'));
+        button._draggable = draggable;
+        draggable.connect('drag-begin', () => this._onResultDragBegin(button));
+        return button;
+    }
+
+    _updateFocusedHighlight() {
+        this._results.forEach((item, index) => {
+            const button = this._resultButtons[index];
+            if (!button) return;
+            if (item.window === this._focusedWindow) button.add_style_class_name('collection-result-item-focused');
+            else button.remove_style_class_name('collection-result-item-focused');
+        });
+    }
+
+    // Only adopt the live focus-window if it's one of OUR windows —
+    // transient nulls / windows on other workspaces would otherwise
+    // wrongly clear a correct initial highlight.
+    _onFocusWindowChanged() {
+        if (this._closed) return;
+        const liveFocus = global.display.focus_window;
+        if (!liveFocus) return;
+        if (!this._results.some(item => item.window === liveFocus)) return;
+        this._focusedWindow = liveFocus;
+        this._updateFocusedHighlight();
+    }
+
+    _updatePreviewContent(item) {
+        const window = item.window;
+        const windowFrame = window.get_frame_rect();
+        if (windowFrame.height === 0) return;
+
+        const aspect = windowFrame.width / windowFrame.height;
+        let targetHeight = this._previewBox.height;
+        let targetWidth = targetHeight * aspect;
+        if (targetWidth > this._previewBox.width) {
+            targetWidth = this._previewBox.width;
+            targetHeight = targetWidth / aspect;
+        }
+
+        const built = createClonePreviewActor(window, targetHeight, {
+            onClose: win => this._closeWindowFromPreview(win),
+            closeButtonSize: this._settings.get_int('close-button-size'),
+        });
+        if (!built) return;
+
+        built.actor.set_position(
+            Math.max(0, (this._previewBox.width - built.width) / 2),
+            Math.max(0, (this._previewBox.height - built.height) / 2));
+        this._previewBox.add_child(built.actor);
+        this._previewContent = built.actor;
+    }
+
+    _closeWindowFromPreview(window) {
+        if (this._closed) return;
+        journal(`[WindowSearchOverlay] Closing window from preview: ${window.title}`);
+        window.delete(global.get_current_time());
+
+        const closedIndex = this._results.findIndex(item => item.window === window);
+        if (closedIndex === -1) return;
+
+        this._results.splice(closedIndex, 1);
+        this._windows = this._windows.filter(w => w !== window);
+
+        const button = this._resultButtons[closedIndex];
+        if (button) {
+            if (button.get_parent() === this._resultsBox) this._resultsBox.remove_child(button);
+            button.destroy();
+        }
+        this._resultButtons.splice(closedIndex, 1);
+
+        if (this._results.length === 0) {
+            this._selectedIndex = -1;
+            this._clearPreview();
+            return;
+        }
+        this._selectedIndex = -1;
+        this._selectIndex(Math.min(closedIndex, this._results.length - 1));
+    }
+
+    _activateResult(index) {
+        if (this._closed) return;
+        const item = this._results[index];
+        if (!item) return;
+        const window = item.window;
+        journal(`[WindowSearchOverlay] Activating: ${window.title}`);
+        if (window.minimized) window.unminimize();
+        window.get_workspace().activate_with_focus(window, global.get_current_time());
+        this._close();
+    }
+
+    // -------------------- DnD lifecycle --------------------
+    // Shell DND installs its own stage grab during drag-begin and releases
+    // it at drag-end; popModal / destroy() synchronously from inside those
+    // signals can leave the grab stuck (frozen cursor). So the overlay
+    // hides itself on an idle after drag-begin and destroys its actor tree
+    // on an idle after drag-end.
+    _onResultDragBegin(button) {
+        if (this._closed) return;
+        this._closed = true;
+        journal(`[WindowSearchOverlay] Drag started on result — closing overlay, drag continues`);
+
+        const draggable = button._draggable;
+        const destroyLater = () => GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            this._destroyContainerAfterDrag();
+            return GLib.SOURCE_REMOVE;
+        });
+        if (draggable) {
+            const endId = draggable.connect('drag-end', () => {
+                draggable.disconnect(endId);
+                destroyLater();
+            });
+        } else {
+            destroyLater();
+        }
+
+        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            this._teardownVisibleOverlay();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _teardownVisibleOverlay() {
+        if (!this._container) return;
+        this._clearPreview();
+        if (this._modalGrab) { Main.popModal(this._modalGrab); this._modalGrab = null; }
+        if (this._focusWindowId) { global.display.disconnect(this._focusWindowId); this._focusWindowId = null; }
+        if (this._entry?.clutter_text) {
+            if (this._entryChangedId) { this._entry.clutter_text.disconnect(this._entryChangedId); this._entryChangedId = null; }
+            if (this._entryKeyPressId) { this._entry.clutter_text.disconnect(this._entryKeyPressId); this._entryKeyPressId = null; }
+        }
+        Main.layoutManager.removeChrome(this._container);
+        this._container.hide();
+    }
+
+    _destroyContainerAfterDrag() {
+        if (this._modalGrab) { Main.popModal(this._modalGrab); this._modalGrab = null; }
+        if (this._container) { this._container.destroy(); this._container = null; }
+    }
+}
+
+// ==================== APP SEARCH OVERLAY ====================
+const PINNED_ICON_SIZE = 96;
+const PINNED_BAR_HEIGHT = 120;
+
+export class AppSearchOverlay extends SearchOverlayBase {
+    constructor(settings) {
+        super(settings);
+        this._favorites = AppFavorites.getAppFavorites();
+        this._menuManager = null;
+        this._openMenu = null;
+
+        // Pinned-bar drag state (the overlay is its own tiny surface; this
+        // ghost is local to it and unrelated to the workspace indicator).
+        this._pinnedGhost = null;
+        this._pinnedGhostIndex = null;
+        this._pinnedSnap = null;
+        this._pinnedDragHint = null;
+        this._pinnedDragActive = false;
+        this._justDroppedAppId = null;
+
+        // The alphabetical list is stable across keystrokes; only
+        // installed-changed / favorites-changed invalidate it.
+        this._allItemsCache = null;
+
+        this._buildUI();
+        this._setResults(this._getAllResultsSorted());
+        this._open();
+    }
+
+    _getHintText() { return 'Search apps… (Ctrl+P: pin/unpin)'; }
+    _getSearchLabel(item) { return item.name ?? ''; }
+    _getRestoreKey(item) { return item.app.get_id(); }
+
+    _handleExtraKeys(event, symbol) {
+        if (symbol === Clutter.KEY_p && (event.get_state() & Clutter.ModifierType.CONTROL_MASK)) {
+            if (this._selectedIndex >= 0) this._togglePin(this._results[this._selectedIndex]);
+            return Clutter.EVENT_STOP;
+        }
+        return undefined;
+    }
+
+    // -------------------- App enumeration --------------------
+    _getAllApps() {
+        const appSystem = Shell.AppSystem.get_default();
+        let appInfos = [];
+
+        if (appSystem && typeof appSystem.get_all === 'function') {
+            try {
+                appInfos = appSystem.get_all().filter(app => {
+                    try { return app.should_show(); } catch { return false; }
+                });
+            } catch (e) {
+                journal(`[AppSearchOverlay] Shell.AppSystem.get_all() failed: ${e.message}`);
+            }
+        }
+
+        if (appInfos.length === 0) {
+            try {
+                const gioApps = Gio.AppInfo.get_all().filter(app => {
+                    try { return app.should_show(); } catch { return false; }
+                });
+                for (const info of gioApps) {
+                    let shellApp = null;
+                    if (appSystem && typeof appSystem.lookup_app === 'function') {
+                        try { shellApp = appSystem.lookup_app(info.get_id()); } catch (e) { }
+                    }
+                    appInfos.push(shellApp || info);
+                }
+            } catch (e) {
+                journal(`[AppSearchOverlay] Gio.AppInfo fallback failed: ${e.message}`);
+                return [];
+            }
+        }
+        return appInfos;
+    }
+
+    // Cached. Callers must treat the returned array as read-only.
+    _getAllResultsSorted() {
+        if (this._allItemsCache) return this._allItemsCache;
+
+        try {
+            const apps = this._getAllApps();
+            if (!apps || apps.length === 0) {
+                journal('[AppSearchOverlay] No apps found');
+                return (this._allItemsCache = []);
+            }
+
+            const favoriteIds = new Set();
+            for (const fav of this._favorites.getFavorites()) {
+                try { const id = fav.get_id(); if (id) favoriteIds.add(id); }
+                catch (e) { journal(`[AppSearchOverlay] Fav error: ${e.message}`); }
+            }
+
+            const items = [];
+            for (const app of apps) {
+                try {
+                    const id = typeof app.get_id === 'function' ? app.get_id() : String(app);
+                    if (!id) continue;
+                    const name = typeof app.get_name === 'function' ? (app.get_name() || '') : (String(app) || '');
+                    const icon = typeof app.get_icon === 'function' ? (app.get_icon() || null) : null;
+                    items.push({ app, name, icon, pinned: favoriteIds.has(id) });
+                } catch (e) {
+                    journal(`[AppSearchOverlay] Skipping app: ${e.message}`);
+                }
+            }
+            items.sort((a, b) => a.name.localeCompare(b.name));
+            return (this._allItemsCache = items);
+        } catch (e) {
+            journal(`[AppSearchOverlay] CRITICAL ERROR: ${e.message}\n${e.stack}`);
+            return (this._allItemsCache = []);
+        }
+    }
+
+    _launchApp(app) {
+        const name = typeof app.get_name === 'function' ? app.get_name() : 'unknown';
+        try {
+            app.launch(global.get_current_time(), -1, 0);
+            journal(`[AppSearchOverlay] ✅ Launched successfully: ${name}`);
+            return true;
+        } catch (e) {
+            journal(`[AppSearchOverlay] ❌ Launch failed for ${name}: ${e.message}`, true);
+            return false;
+        }
+    }
+
+    // -------------------- UI --------------------
+    _buildUI() {
+        const layout = this._computeLayout(Main.layoutManager.primaryMonitor);
+        const { monitor, margin, panelWidth, panelX, entryY } = layout;
+
+        this._buildContainer(monitor);
+        this._buildEntry(layout);
+        this._buildResultsAndPreview(layout, { previewVertical: true });
+
+        this._pinnedBarBox = new St.BoxLayout({
+            style_class: 'dmenu-pinned-bar',
+            vertical: false, x_expand: true, y_expand: false,
+            height: PINNED_BAR_HEIGHT,
+            x_align: Clutter.ActorAlign.START, y_align: Clutter.ActorAlign.CENTER,
+            reactive: true,
+        });
+        this._pinnedBarBox._delegate = this._pinnedBarBox;
+        this._pinnedBarBox.handleDragOver = source => this._handlePinnedDragOver(source);
+        this._pinnedBarBox.acceptDrop = (source, actor) => this._acceptPinnedDrop(source, actor);
+        this._pinnedBarBox.hide();
+
+        const mainVertical = new St.BoxLayout({ vertical: true, x_expand: true, y_expand: true });
+
+        const pinnedWrapper = new St.BoxLayout({ vertical: false, x_expand: true, y_expand: false, style: 'padding: 0 0 8px 0;' });
+        pinnedWrapper.add_child(this._pinnedBarBox);
+
+        const entryWrapper = new St.BoxLayout({ vertical: false, x_expand: true, y_expand: false });
+        entryWrapper.add_child(this._entry);
+
+        const resultsPreviewRow = new St.BoxLayout({ vertical: false, x_expand: true, y_expand: true });
+        resultsPreviewRow.add_child(this._resultsScroll);
+        resultsPreviewRow.add_child(this._previewBox);
+
+        mainVertical.add_child(pinnedWrapper);
+        mainVertical.add_child(entryWrapper);
+        mainVertical.add_child(resultsPreviewRow);
+        mainVertical.set_position(panelX, entryY);
+        mainVertical.set_size(panelWidth, monitor.height - margin * 2);
+        this._container.add_child(mainVertical);
+
+        this._favoritesChangedId = this._favorites.connect('changed', () => this._onFavoritesChanged());
+        this._installedChangedId = Shell.AppSystem.get_default().connect('installed-changed', () => {
+            this._allItemsCache = null;
+        });
+
+        this._renderPinnedBar();
+    }
+
+    // -------------------- Pinned bar --------------------
+    _renderPinnedBar() {
+        this._pinnedBarBox.destroy_all_children();
+        const favorites = this._favorites.getFavorites();
+
+        if (!favorites || favorites.length === 0) { this._pinnedBarBox.hide(); return; }
+        this._pinnedBarBox.show();
+
+        for (const app of favorites) {
+            const icon = app.get_icon();
+            if (!icon) continue;
+
+            const id = app.get_id();
+            const name = app.get_name?.() || '';
+
+            const button = new St.Button({
+                style_class: 'dmenu-pinned-icon',
+                child: new St.Icon({ gicon: icon, icon_size: PINNED_ICON_SIZE }),
+                reactive: true, can_focus: true, track_hover: true,
+            });
+            button._appId = id;
+            button._appName = name;
+            button._gicon = icon;
+
+            const tooltip = new FloatingTooltip({
+                parent: this._container,
+                fontSize: this._settings.get_int('tooltip-font-size'),
+            });
+            button._tooltip = tooltip;
+
+            button.connect('notify::hover', () => {
+                if (this._pinnedDragActive || !button.hover) tooltip.hide();
+                else tooltip.showBelow(button, name);
+            });
+            button.connect('destroy', () => tooltip.destroy());
+            button.connect('clicked', () => { this._launchApp(app); this._close(); });
+            button.connect('button-press-event', (actor, event) => {
+                if (event.get_button() === Clutter.BUTTON_SECONDARY) {
+                    this._openContextMenuForApp(app, button);
+                    return Clutter.EVENT_STOP;
+                }
+                return Clutter.EVENT_PROPAGATE;
+            });
+
+            const draggable = createReorderDraggable(button, PINNED_ICON_SIZE);
+            draggable.connect('drag-begin', () => {
+                this._pinnedDragActive = true;
+                button.add_style_class_name('reorder-drag-source');
+                this._hideAllPinnedTooltips();
+            });
+            draggable.connect('drag-end', () => {
+                this._pinnedDragActive = false;
+                try { button.remove_style_class_name('reorder-drag-source'); }
+                catch (e) { /* button may already be destroyed after a drop */ }
+                this._clearPinnedGhost();
+                this._pinnedDragHint?.hide();
+            });
+            button._draggable = draggable;
+
+            button._delegate = button;
+            button.handleDragOver = source => source._appId ? this._handlePinnedDragOver(source) : DragMotionResult.NO_DROP;
+            button.acceptDrop = (source, actor) => source._appId ? this._acceptPinnedDrop(source, actor) : false;
+
+            this._pinnedBarBox.add_child(button);
+
+            if (id === this._justDroppedAppId) {
+                this._justDroppedAppId = null;
+                settleIcon(button);
+            }
+        }
+    }
+
+    _hideAllPinnedTooltips() {
+        for (const b of this._pinnedBarBox.get_children()) b._tooltip?.hide();
+    }
+
+    _showPinnedGhost(index, source) {
+        const box = this._pinnedBarBox;
+        const clamped = Math.max(0, Math.min(index, box.get_children().length));
+        if (this._pinnedGhost && this._pinnedGhostIndex === clamped) return;
+        this._pinnedGhostIndex = clamped;
+        if (!this._pinnedGhost)
+            this._pinnedGhost = createGhostIcon(source._gicon, PINNED_ICON_SIZE);
+        this._pinnedGhost.get_parent()?.remove_child(this._pinnedGhost);
+        box.insert_child_at_index(this._pinnedGhost, clamped);
+    }
+
+    _clearPinnedGhost() {
+        if (this._pinnedGhost) {
+            this._pinnedGhost.get_parent()?.remove_child(this._pinnedGhost);
+            this._pinnedGhost.destroy();
+        }
+        this._pinnedGhost = null;
+        this._pinnedGhostIndex = null;
+        this._pinnedSnap = null;
+    }
+
+    _handlePinnedDragOver(source) {
+        if (!source._appId) return DragMotionResult.NO_DROP;
+
+        const [pointerX] = global.get_pointer();
+
+        // Snapshot once per drag so the ghost can't shift what we measure.
+        if (!this._pinnedSnap) {
+            this._pinnedSnap = this._pinnedBarBox.get_children()
+                .filter(b => b._appId && b !== source && b.get_stage())
+                .map(b => {
+                    const [x] = b.get_transformed_position();
+                    const [width] = b.get_transformed_size();
+                    return { item: b, x, width, mid: x + width / 2, right: x + width };
+                });
+        }
+        const insertion = computeInsertion(this._pinnedSnap, pointerX);
+        this._showPinnedGhost(insertion.index, source);
+
+        if (!this._pinnedDragHint)
+            this._pinnedDragHint = new FloatingTooltip({
+                parent: this._container,
+                fontSize: this._settings.get_int('tooltip-font-size'),
+            });
+
+        let text = 'Pin here';
+        if (insertion.neighbor) {
+            const name = insertion.neighbor._appName ?? '';
+            text = insertion.insertBefore ? `Move before ${name}` : `Move after ${name}`;
+        }
+        this._pinnedDragHint.showAbove(insertion.neighbor ?? this._pinnedBarBox, text);
+        return DragMotionResult.MOVE_DROP;
+    }
+
+    _acceptPinnedDrop(source, actor) {
+        if (!source._appId) return false;
+
+        this._pinnedDragActive = false;
+        const index = this._pinnedGhostIndex;
+        this._clearPinnedGhost();
+        this._pinnedDragHint?.hide();
+        this._justDroppedAppId = source._appId;
+
+        try {
+            this._favorites.moveFavoriteToPos(source._appId, index ?? this._pinnedBarBox.get_children().length);
+        } catch (e) {
+            journal(`[AppSearchOverlay] Reorder failed: ${e.message}`);
+        }
+
+        if (actor) {
+            actor.get_parent()?.remove_child(actor);
+            actor.destroy();
+        }
+        return true;
+    }
+
+    _openContextMenuForApp(app, sourceActor) {
+        this._closeContextMenu();
+        if (!this._menuManager)
+            this._menuManager = new PopupMenu.PopupMenuManager(sourceActor);
+
+        const menu = new AppMenu(sourceActor, St.Side.BOTTOM, { favoritesSection: true, showSingleWindows: true });
+        Main.layoutManager.addChrome(menu.actor);
+        menu.actor.hide();
+        this._menuManager.addMenu(menu);
+        menu.setApp(app);
+        this._openMenu = menu;
+
+        menu.connect('open-state-changed', (o, isOpen) => {
+            if (isOpen) return;
+            if (menu === this._openMenu) this._openMenu = null;
+            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                if (!menu.is_destroyed) menu.destroy();
+                return GLib.SOURCE_REMOVE;
+            });
+        });
+        menu.open(true);
+    }
+
+    _closeContextMenu() {
+        if (this._openMenu) {
+            try { this._openMenu.close(); } catch (e) { }
+            this._openMenu = null;
+        }
+    }
+
+    // -------------------- Lifecycle --------------------
+    _onBeforeClose() {
+        this._closeContextMenu();
+        this._clearPinnedGhost();
+        this._pinnedDragHint?.destroy();
+        this._pinnedDragHint = null;
+
+        if (this._favoritesChangedId) { this._favorites.disconnect(this._favoritesChangedId); this._favoritesChangedId = null; }
+        if (this._installedChangedId) {
+            try { Shell.AppSystem.get_default().disconnect(this._installedChangedId); } catch (e) { }
+            this._installedChangedId = null;
+        }
+        this._allItemsCache = null;
+    }
+
+    _close() {
+        if (this._closed) return;
+        super._close();
+    }
+
+    _onFavoritesChanged() {
+        if (this._closed) return;
+        this._allItemsCache = null; // cached `pinned` flags are stale now
+        this._renderPinnedBar();
+        this._onSearchChanged();
+    }
+
+    // -------------------- Search --------------------
+    // Mirrors GNOME's AppSearchProvider: Shell.AppSystem.search() (GLib's
+    // indexed matcher), each equal-score group sorted by Shell.AppUsage.
+    // No result cap. Empty query → full alphabetical list.
+    _onSearchChanged() {
+        if (this._closed) return;
+        const query = this._entry.get_text().trim();
+        const all = this._getAllResultsSorted();
+        this._setResults(query ? this._searchApps(query, all) : all);
+    }
+
+    _searchApps(query, allItems) {
+        const appSystem = Shell.AppSystem.get_default();
+        const usage = Shell.AppUsage.get_default();
+
+        let groups;
+        try {
+            if (typeof Shell.AppSystem.search === 'function') groups = Shell.AppSystem.search(query);
+            else if (appSystem && typeof appSystem.search === 'function') groups = appSystem.search(query);
+            else { journal('[AppSearchOverlay] Shell.AppSystem.search is unavailable'); return []; }
+        } catch (e) {
+            journal(`[AppSearchOverlay] Shell.AppSystem.search() threw: ${e.message}`);
+            return [];
+        }
+        if (!groups || groups.length === 0) return [];
+
+        // Index by Shell.App identity (lookup_app returns canonical instances).
+        const itemByApp = new Map();
+        for (const item of allItems)
+            if (item.app) itemByApp.set(item.app, item);
+
+        const results = [];
+        for (const group of groups) {
+            if (!group || group.length === 0) continue;
+
+            const resolved = [];
+            for (const id of group) {
+                let app;
+                try { app = appSystem.lookup_app(id); } catch (e) { app = null; }
+                if (!app) continue;
+                const item = itemByApp.get(app);
+                if (item) resolved.push({ id, item });
+            }
+            if (resolved.length === 0) continue;
+
+            try { resolved.sort((a, b) => usage.compare(a.id, b.id)); }
+            catch (e) { /* keep GLib's ordering */ }
+
+            for (const { item } of resolved) results.push(item);
+        }
+        return results;
+    }
+
+    // -------------------- Results rendering --------------------
+    _buildResultRow(item, index) {
+        const button = new St.Button({
+            style_class: 'collection-result-item',
+            x_expand: true, x_align: Clutter.ActorAlign.START, track_hover: true, reactive: true,
+        });
+        button.set_style(`font-size: ${this._settings.get_int('collection-result-font-size')}pt;`);
+
+        const row = new St.BoxLayout({ vertical: false, x_expand: true });
+        if (item.icon) {
+            row.add_child(new St.Icon({
+                gicon: item.icon,
+                style_class: 'collection-result-icon',
+                icon_size: this._settings.get_int('collection-result-icon-size'),
+                y_align: Clutter.ActorAlign.CENTER,
+            }));
+        }
+        row.add_child(new St.Label({ text: item.name, x_expand: true, y_align: Clutter.ActorAlign.CENTER }));
+        if (item.pinned) {
+            row.add_child(new St.Label({ text: '📌', style_class: 'app-pin-marker', y_align: Clutter.ActorAlign.CENTER }));
+        }
+        button.set_child(row);
+        return button;
+    }
+
+    _updatePreviewContent(item) {
+        const { app } = item;
+
+        const wrapper = new St.BoxLayout({
+            vertical: true, x_expand: true, y_expand: true,
+            x_align: Clutter.ActorAlign.CENTER, y_align: Clutter.ActorAlign.CENTER,
+        });
+
+        wrapper.add_child(new St.Icon({
+            gicon: item.icon,
+            icon_size: this._settings.get_int('app-preview-icon-size') || 128,
+            x_align: Clutter.ActorAlign.CENTER,
+        }));
+        wrapper.add_child(new St.Label({
+            text: item.name, style_class: 'clone-title-overlay', x_align: Clutter.ActorAlign.CENTER,
+        }));
+
+        const appInfo = app.get_app_info?.();
+        const description = appInfo?.get_description?.();
+        if (description) {
+            const descLabel = new St.Label({
+                text: description, style_class: 'app-description-label', x_align: Clutter.ActorAlign.CENTER,
+            });
+            descLabel.clutter_text.set_line_wrap(true);
+            descLabel.clutter_text.set_width(this._previewBox.width - 80);
+            wrapper.add_child(descLabel);
+        }
+
+        const isFav = this._favorites.isFavorite(app.get_id());
+        const pinButton = new St.Button({
+            style_class: 'app-preview-pin-button',
+            label: isFav ? 'Unpin from favorites (Ctrl+P)' : 'Pin to favorites (Ctrl+P)',
+            can_focus: true,
+        });
+        pinButton.connect('clicked', () => this._togglePin(item));
+        wrapper.add_child(pinButton);
+
+        const actions = appInfo?.list_actions?.();
+        if (actions && actions.length > 0) {
+            const actionsBox = new St.BoxLayout({ vertical: true, x_align: Clutter.ActorAlign.CENTER });
+            for (const action of actions) {
+                const actionButton = new St.Button({
+                    style_class: 'app-preview-action-button',
+                    label: appInfo.get_action_name(action),
+                    can_focus: true,
+                });
+                actionButton.connect('clicked', () => { app.launch_action(action, 0, -1); this._close(); });
+                actionsBox.add_child(actionButton);
+            }
+            wrapper.add_child(actionsBox);
+        }
+
+        this._previewBox.add_child(wrapper);
+        this._previewContent = wrapper;
+    }
+
+    _togglePin(item) {
+        if (this._closed) return;
+        const id = item.app.get_id();
+        if (this._favorites.isFavorite(id)) this._favorites.removeFavorite(id);
+        else this._favorites.addFavorite(id);
+    }
+
+    _activateResult(index) {
+        if (this._closed) return;
+        const item = this._results[index];
+        if (!item) return;
+        this._launchApp(item.app);
+        this._close();
+    }
+}
+
+// ===== FILE: ./lib/titleBarMoveMonitor.js =====
+import Meta from 'gi://Meta';
+
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import { thumbnailAt, settleOnNextRender } from './workspaceIndicator.js';
+import { placeWindow, setIntent } from './model.js';
+import { WorkspaceManager } from './shellGlobals.js';
+
+import { createLogger } from '../logger.js';
+const journal = createLogger(import.meta.url);
+
+// ==================== TITLE BAR MOVE MONITOR ====================
+// Listens for native mutter window-move grabs (dragging by the title bar)
+// and, if the pointer is over one of our thumbnails, moves the window
+// there. Pointer updates come from Meta.CursorTracker's
+// `position-invalidated`, which fires on every motion event even during a
+// window-move grab.
+export class TitleBarMoveMonitor {
+    constructor() {
+        this._currentDragWindow = null;
+        this._lastSwitchedWorkspace = null;
+        this._cursorTracker = this._getCursorTracker();
+        this._cursorPositionId = 0;
+
+        this._beginId = global.display.connect('grab-op-begin',
+            (display, window, op) => this._onGrabOpBegin(window, op));
+        this._endId = global.display.connect('grab-op-end',
+            (display, window, op) => this._onGrabOpEnd(window, op));
+        this._sessionModeId = Main.sessionMode.connect('updated', () => {
+            if (Main.sessionMode.currentMode === 'unlock-dialog') {
+                journal('[TitleBarMoveMonitor] session locked, resetting drag state');
+                this.reset();
+            }
+        });
+    }
+
+    _getCursorTracker() {
+        try {
+            if (typeof Meta.CursorTracker.get_for_display === 'function')
+                return Meta.CursorTracker.get_for_display(global.display);
+        } catch (e) { journal(`[TitleBarMoveMonitor] get_for_display failed: ${e}`); }
+        try {
+            if (global.backend && typeof global.backend.get_cursor_tracker === 'function')
+                return global.backend.get_cursor_tracker();
+        } catch (e) { journal(`[TitleBarMoveMonitor] get_cursor_tracker failed: ${e}`); }
+        return null;
+    }
+
+    reset() {
+        this._currentDragWindow = null;
+        this._lastSwitchedWorkspace = null;
+        this._stopGrabTracking();
+        setIntent({ hintWs: null });
+    }
+
+    _isMoveOp(op) { return op === Meta.GrabOp.MOVING || op === Meta.GrabOp.KEYBOARD_MOVING; }
+
+    _onGrabOpBegin(window, op) {
+        if (!this._isMoveOp(op)) return;
+        this._currentDragWindow = window;
+        this._lastSwitchedWorkspace = null;
+        this._startGrabTracking();
+    }
+
+    _onGrabOpEnd(window, op) {
+        const grabbed = this._currentDragWindow;
+        this._currentDragWindow = null;
+        this._lastSwitchedWorkspace = null;
+        this._stopGrabTracking();
+        setIntent({ hintWs: null });
+
+        if (!grabbed || grabbed !== window || !this._isMoveOp(op)) return;
+
+        // Final check on release in case the last signal missed the release point.
+        const [x, y] = this._getPointerPosition();
+        const target = thumbnailAt(x, y);
+        if (target) this._moveWindowTo(target, window);
+    }
+
+    _startGrabTracking() {
+        this._stopGrabTracking();
+        if (!this._cursorTracker) return;
+        this._cursorPositionId = this._cursorTracker.connect('position-invalidated',
+            () => this._onCursorPositionInvalidated());
+    }
+
+    _stopGrabTracking() {
+        if (this._cursorPositionId && this._cursorTracker) {
+            this._cursorTracker.disconnect(this._cursorPositionId);
+            this._cursorPositionId = 0;
+        }
+    }
+
+    _onCursorPositionInvalidated() {
+        if (!this._currentDragWindow) return;
+
+        const [x, y] = this._getPointerPosition();
+        const thumb = thumbnailAt(x, y);
+        setIntent({ hintWs: thumb ? thumb.index : null });
+        if (!thumb) return;
+
+        const ws = thumb.workspace;
+        if (ws === WorkspaceManager.get_active_workspace() || ws === this._lastSwitchedWorkspace) return;
+        this._moveWindowTo(thumb, this._currentDragWindow);
+    }
+
+    _getPointerPosition() {
+        if (this._cursorTracker) {
+            try {
+                const [point] = this._cursorTracker.get_pointer();
+                return [point.x, point.y];
+            } catch (e) { journal(`[TitleBarMoveMonitor] get_pointer failed: ${e}`); }
+        }
+        return global.get_pointer();
+    }
+
+    // Append to the target's order, move the window, switch there. The
+    // indicator re-renders from the resulting workspace events — nothing
+    // to patch by hand.
+    _moveWindowTo(thumb, window) {
+        const ws = thumb.workspace;
+        const alreadyThere = window.get_workspace() === ws;
+
+        if (!alreadyThere) {
+            placeWindow(window, ws, null);
+            settleOnNextRender(window);
+        }
+        const monitorIndex = Main.layoutManager.findIndexForActor(thumb.actor);
+        if (monitorIndex !== window.get_monitor()) window.move_to_monitor(monitorIndex);
+        window.change_workspace(ws);
+        ws.activate(global.get_current_time());
+        this._lastSwitchedWorkspace = ws;
+    }
+
+    destroy() {
+        this._stopGrabTracking();
+        if (this._beginId) { global.display.disconnect(this._beginId); this._beginId = null; }
+        if (this._endId) { global.display.disconnect(this._endId); this._endId = null; }
+        if (this._sessionModeId) { Main.sessionMode.disconnect(this._sessionModeId); this._sessionModeId = null; }
+        this._currentDragWindow = null;
+    }
+}
+
+// ===== FILE: ./lib/ui.js =====
+import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+import Shell from 'gi://Shell';
+import St from 'gi://St';
+
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import * as DND from 'resource:///org/gnome/shell/ui/dnd.js';
+
+import { setIntent } from './model.js';
+
+export const DragMotionResult = DND.DragMotionResult;
+
+// ==================== WINDOW ICONS ====================
+function resolveApp(window) {
+    return Shell.WindowTracker.get_default().get_window_app(window) ||
+        Shell.AppSystem.get_default().lookup_app(window.get_wm_class());
+}
+
+export function getWindowApp(window) { return resolveApp(window); }
+
+export function getWindowAppIcon(window) {
+    const app = resolveApp(window);
+    if (app && app.get_app_info().get_icon())
+        return app.get_icon();
+    return window.get_gicon() || new Gio.ThemedIcon({ name: 'applications-system-symbolic' });
+}
+
+export function createWindowIconTexture(window, iconSize) {
+    const app = resolveApp(window);
+    if (app && app.get_app_info().get_icon())
+        return app.create_icon_texture(iconSize);
+    const icon = new St.Icon({ gicon: getWindowAppIcon(window), style_class: 'popup-menu-icon' });
+    return St.TextureCache.get_default().load_gicon(null, icon, iconSize);
+}
+
+export function createGhostIcon(gicon, size) {
+    const ghost = new St.Bin({ style_class: 'drag-placeholder-icon', width: size, height: size });
+    ghost.opacity = 140;
+    ghost._isGhost = true;
+    if (gicon)
+        ghost.set_child(new St.Icon({ gicon, icon_size: size }));
+    return ghost;
+}
+
+// ==================== INSERTION MATH ====================
+// rects: [{ item, x, right, mid }] in left-to-right order.
+export function computeInsertion(rects, pointerX) {
+    if (rects.length === 0)
+        return { index: 0, neighbor: null, insertBefore: true };
+
+    const first = rects[0];
+    const last = rects[rects.length - 1];
+    let target = last, before = false;
+
+    if (pointerX < first.x) {
+        target = first; before = true;
+    } else if (pointerX < last.right) {
+        for (let i = 0; i < rects.length; i++) {
+            const r = rects[i], next = rects[i + 1];
+            if (pointerX >= r.x && pointerX < r.right) {
+                target = r; before = pointerX < r.mid; break;
+            }
+            if (next && pointerX >= r.right && pointerX <= next.x) {
+                before = (pointerX - r.right) > (next.x - pointerX);
+                target = before ? next : r;
+                break;
+            }
+        }
+    }
+    const i = rects.indexOf(target);
+    return { index: before ? i : i + 1, neighbor: target.item, insertBefore: before };
+}
+
+// ==================== DRAG AND DROP ====================
+// Shared drag actor sizing / translucency for every reorderable icon.
+export function createReorderDraggable(actor, iconSize, extraOptions = {}) {
+    return DND.makeDraggable(actor, {
+        restoreOnSuccess: false,
+        dragActorMaxSize: iconSize,
+        dragActorOpacity: 178, // ≈ 0.70 alpha, matches .reorder-drag-source
+        ...extraOptions,
+    });
+}
+
+// Makes `actor` (a window icon OR an overlay result row) a drag source
+// for `window`. Dragging only sets a flag on the representation; the
+// indicator renders the ghost and hides the source from it.
+export function makeWindowDraggable(actor, window, iconSize, { delegate = {}, sourceIcon = false } = {}) {
+    actor._window = window;
+    // Shell passes actor._delegate as `source` to handleDragOver/acceptDrop,
+    // so the identifying fields must live on the delegate itself.
+    actor._delegate = Object.assign(delegate, {
+        _window: window,
+        _actor: actor,
+        getDragActorSource: () => actor,
+        getDragActor: () => {
+            const bin = new St.Bin({ style_class: 'window-preview-icon', width: iconSize, height: iconSize });
+            bin.set_child(new St.Icon({ gicon: getWindowAppIcon(window), icon_size: iconSize }));
+            bin.add_style_class_name('reorder-drag-source');
+            bin.opacity = 178; // CSS opacity isn't honored by St; set it directly
+            return bin;
+        },
+    });
+    const draggable = createReorderDraggable(actor, iconSize);
+    draggable.connect('drag-begin', () =>
+        setIntent({ drag: { window, sourceIcon: sourceIcon ? actor : null, target: null } }));
+    draggable.connect('drag-end', () => setIntent({ drag: null, hintWs: null }));
+    return draggable;
+}
+
+// ==================== CONTEXT MENU ====================
+let _activeMenu = null;
+
+export function closeActiveMenu() { _activeMenu?.close(); }
+
+export function openContextMenu(anchor, populate) {
+    closeActiveMenu();
+    const menu = new PopupMenu.PopupMenu(anchor, 0.0, St.Side.TOP);
+    new PopupMenu.PopupMenuManager(anchor).addMenu(menu);
+    Main.uiGroup.add_child(menu.actor);
+    populate(menu);
+
+    _activeMenu = menu;
+    menu.connect('open-state-changed', (m, isOpen) => {
+        if (isOpen) return;
+        if (_activeMenu === menu) _activeMenu = null;
+        setIntent({ menuOpen: false });
+        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => { menu.destroy(); return GLib.SOURCE_REMOVE; });
+    });
+    setIntent({ menuOpen: true }); // defers indicator renders while open
+    menu.open(true);
+    return menu;
+}
+
+// ==================== FLOATING TOOLTIP ====================
+export class FloatingTooltip {
+    constructor({ parent = null, styleClass = 'dmenu-tooltip', fontSize = null } = {}) {
+        this._parent = parent;
+        this._label = new St.Label({ style_class: styleClass, visible: false });
+        if (fontSize)
+            this._label.set_style(`font-size: ${fontSize}pt;`);
+        if (this._parent) this._parent.add_child(this._label);
+        else Main.layoutManager.addChrome(this._label);
+    }
+
+    showAbove(actor, text, gap = 8) { this._show(actor, text, gap, false); }
+    showBelow(actor, text, gap = 8) { this._show(actor, text, gap, true); }
+
+    _show(actor, text, gap, preferBelow) {
+        this._label.set_text(text);
+        this._label.show();
+
+        const [width, height] = this._label.get_size();
+        const [actorX, actorY] = actor.get_transformed_position();
+        const actorWidth = actor.get_width();
+        const actorHeight = actor.get_height();
+
+        const monitorIndex = Main.layoutManager.findIndexForActor(actor);
+        const monitor = Main.layoutManager.monitors[monitorIndex] ?? Main.layoutManager.primaryMonitor;
+
+        const edgePad = 6;
+        const minX = monitor.x + edgePad;
+        const maxX = monitor.x + monitor.width - width - edgePad;
+        const minY = monitor.y + edgePad;
+        const maxY = monitor.y + monitor.height - height - edgePad;
+
+        let x = Math.round(actorX + (actorWidth - width) / 2);
+        x = Math.max(minX, Math.min(x, maxX));
+
+        const above = Math.round(actorY - height - gap);
+        const below = Math.round(actorY + actorHeight + gap);
+
+        let y;
+        if (preferBelow) { y = below; if (y > maxY) y = above; }
+        else { y = above; if (y < minY) y = below; }
+        y = Math.max(minY, Math.min(y, maxY));
+
+        // Absolute stage coords → parent-relative when parented in an overlay.
+        if (this._parent) {
+            const [parentX, parentY] = this._parent.get_transformed_position();
+            x -= parentX;
+            y -= parentY;
+        }
+        this._label.set_position(x, y);
+    }
+
+    hide() { this._label.hide(); }
+
+    destroy() {
+        if (this._parent) {
+            if (this._label.get_parent() === this._parent)
+                this._parent.remove_child(this._label);
+        } else {
+            Main.layoutManager.removeChrome(this._label);
+        }
+        this._label.destroy();
+    }
+}
+
+// ==================== CLONE PREVIEW ====================
+const LAYOUT = { TITLE_HEIGHT_MIN: 40, TITLE_HEIGHT_MAX: 100, TITLE_HEIGHT_FRACTION: 0.2 };
+
+export function createClonePreviewActor(window, targetHeight, options = {}) {
+    if (!window) return null;
+    const windowActor = window.get_compositor_private();
+    if (!windowActor) return null;
+
+    const windowFrame = window.get_frame_rect();
+    const bufferFrame = window.get_buffer_rect();
+    if (windowFrame.height === 0) return null;
+
+    const targetWidth = targetHeight * (windowFrame.width / windowFrame.height);
+    const scale = targetHeight / windowFrame.height;
+    const scaledLeftShadow = (windowFrame.x - bufferFrame.x) * scale;
+    const scaledTopShadow = (windowFrame.y - bufferFrame.y) * scale;
+    const scaledRightShadow = ((bufferFrame.x + bufferFrame.width) - (windowFrame.x + windowFrame.width)) * scale;
+    const scaledBottomShadow = ((bufferFrame.y + bufferFrame.height) - (windowFrame.y + windowFrame.height)) * scale;
+
+    const container = new St.BoxLayout({
+        style_class: 'collection-preview-inner',
+        width: targetWidth,
+        height: targetHeight,
+        clip_to_allocation: true,
+    });
+
+    const clone = new Clutter.Clone({
+        source: windowActor,
+        width: targetWidth + scaledLeftShadow + scaledRightShadow,
+        height: targetHeight + scaledTopShadow + scaledBottomShadow,
+    });
+    clone.set_position(-scaledLeftShadow, -scaledTopShadow);
+
+    const cloneContainer = new Clutter.Actor();
+    cloneContainer.add_child(clone);
+    container.add_child(cloneContainer);
+
+    if (options.showTitle !== false) {
+        const titleText = window.get_title();
+        const label = titleText && titleText.trim() ? titleText : 'Untitled';
+        const titleHeight = Math.min(LAYOUT.TITLE_HEIGHT_MAX,
+            Math.max(LAYOUT.TITLE_HEIGHT_MIN, targetHeight * LAYOUT.TITLE_HEIGHT_FRACTION));
+        const title = new St.Label({
+            style_class: 'clone-title-overlay',
+            text: label,
+            x_align: Clutter.ActorAlign.FILL,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        title.clutter_text.set_x_align(Clutter.ActorAlign.CENTER);
+        title.clutter_text.set_y_align(Clutter.ActorAlign.CENTER);
+        title.clutter_text.set_line_wrap(true);
+        title.set_size(targetWidth, titleHeight);
+        title.set_position(0, (targetHeight - titleHeight) / 2);
+        cloneContainer.add_child(title);
+    }
+
+    if (options.onClose) {
+        const closeIconSize = options.closeButtonSize ?? 32;
+        const closeOffsetX = options.closeButtonOffsetX ?? (closeIconSize + 14);
+        const closeOffsetY = options.closeButtonOffsetY ?? 10;
+        const closeButton = new St.Button({
+            style_class: 'window-close-button',
+            child: new St.Icon({ icon_name: 'window-close-symbolic', icon_size: closeIconSize }),
+            x_align: Clutter.ActorAlign.END,
+            y_align: Clutter.ActorAlign.START,
+            reactive: true,
+        });
+        closeButton.set_position(targetWidth - closeOffsetX, closeOffsetY);
+        closeButton.connect('clicked', () => {
+            options.onClose(window);
+            return Clutter.EVENT_STOP;
+        });
+        cloneContainer.add_child(closeButton);
+    }
+
+    if (!options.wrapperStyleClass)
+        return { actor: container, width: targetWidth, height: targetHeight };
+
+    const wrapper = new St.BoxLayout({
+        style_class: options.wrapperStyleClass,
+        reactive: true,
+        track_hover: true,
+    });
+    wrapper.add_child(container);
+
+    if (options.onHoverChange)
+        wrapper.connect('notify::hover', () => options.onHoverChange(wrapper.hover));
+
+    if (options.onActivate) {
+        wrapper.connect('button-press-event', (actor, event) => {
+            if (event.get_button() === Clutter.BUTTON_PRIMARY) {
+                options.onActivate();
+                return Clutter.EVENT_STOP;
+            }
+            return Clutter.EVENT_PROPAGATE;
+        });
+    }
+    return { actor: wrapper, inner: container, width: targetWidth, height: targetHeight };
+}
+
+// ===== FILE: ./lib/model.js =====
+import { Display, WorkspaceManager } from './shellGlobals.js';
+
+// ==================== INTENT (transient UI flags) ====================
+// drag:     { window, sourceIcon, target: {wsIndex, index} | null } | null
+// hintWs:   workspace index whose name tooltip is showing
+// menuOpen: a context menu is open (renders are deferred)
+export const intent = { drag: null, hintWs: null, menuOpen: false };
+
+let _onChange = () => { };
+export function onIntentChange(cb) { _onChange = cb ?? (() => { }); }
+export function requestRender() { _onChange(); }
+export function resetIntent() { intent.drag = null; intent.hintWs = null; intent.menuOpen = false; }
+
+export function setIntent(patch) {
+    let dirty = false;
+    for (const key of Object.keys(patch)) {
+        if (intent[key] !== patch[key]) { intent[key] = patch[key]; dirty = true; }
+    }
+    if (dirty) _onChange();
+}
+
+export function setDragTarget(target) {
+    const drag = intent.drag;
+    if (!drag) return;
+    if (drag.target?.wsIndex === target?.wsIndex && drag.target?.index === target?.index) return;
+    intent.drag = { ...drag, target };
+    _onChange();
+}
+
+// ==================== USER ORDER (the only persistent state) ====================
+const ranks = new Map(); // Meta.Window -> number
+let nextRank = 1;
+
+function isEligible(w) {
+    return !w.skip_taskbar && !w.is_override_redirect();
+}
+
+// ==================== THE REPRESENTATION ====================
+// Rebuilt from scratch from Mutter's live windows on every call.
+export function buildModel() {
+    const live = Display.list_all_windows().filter(isEligible);
+
+    const liveSet = new Set(live);
+    for (const w of [...ranks.keys()])
+        if (!liveSet.has(w)) ranks.delete(w);
+    for (const w of live)
+        if (!ranks.has(w)) ranks.set(w, nextRank++);
+
+    const workspaces = [];
+    for (let i = 0; i < WorkspaceManager.n_workspaces; i++) {
+        const workspace = WorkspaceManager.get_workspace_by_index(i);
+        const windows = live
+            .filter(w => w.located_on_workspace(workspace))
+            .sort((a, b) => ranks.get(a) - ranks.get(b));
+        workspaces.push({ workspace, index: i, windows });
+    }
+    return { workspaces, drag: intent.drag, hintWs: intent.hintWs };
+}
+
+// Put `window` at `index` (null = end) in `workspace`'s order. This only
+// rewrites ranks; the caller moves the window itself. There's no
+// suppression, no pending map: the next buildModel() just sees the result.
+export function placeWindow(window, workspace, index = null) {
+    const list = buildModel().workspaces[workspace.index()].windows.filter(w => w !== window);
+    const at = index === null ? list.length : Math.max(0, Math.min(index, list.length));
+    list.splice(at, 0, window);
+    for (const w of list) ranks.set(w, nextRank++);
+}
+
+// ===== FILE: ./lib/overlayService.js =====
+
+import Gio from 'gi://Gio';
+import Meta from 'gi://Meta';
+
+import { SearchOverlayBase, WindowSearchOverlay, AppSearchOverlay } from './searchOverlays.js';
+import { buildModel } from './model.js';
+import { Display, WorkspaceManager } from './shellGlobals.js';
+
+import { createLogger } from '../logger.js';
+const journal = createLogger(import.meta.url);
+
+// ==================== OVERLAY SERVICE ====================
+// The single place any search overlay is opened or closed, and the only
+// place this extension talks to DBus. Only one overlay exists at a time
+// (each pushes a full-screen modal grab), so every show closes whatever
+// was open first. WindowSearchOverlay serves both "all windows" and "one
+// workspace", so instances are tagged with `_overlayContext` for toggles.
+
+const BUS_NAME = 'io.github.blueray453.TopNotchWorkspaces';
+const BUS_PATH = '/io/github/blueray453/TopNotchWorkspaces/Overlay';
+
+// dbus-send --print-reply=literal --session --dest=io.github.blueray453.TopNotchWorkspaces /io/github/blueray453/TopNotchWorkspaces/Overlay io.github.blueray453.TopNotchWorkspaces.Overlay.ShowWorkspaceWindows uint32:3
+
+const MR_DBUS_IFACE = `
+<node>
+   <interface name="io.github.blueray453.TopNotchWorkspaces.Overlay">
+      <method name="ShowAllWindows"/>
+      <method name="ShowAllApps"/>
+      <method name="ShowWorkspaceWindows">
+         <arg type="u" direction="in" name="workspace_num"/>
+      </method>
+      <method name="ToggleAllWindows"/>
+      <method name="ToggleAllApps"/>
+      <method name="ToggleWorkspaceWindows">
+         <arg type="u" direction="in" name="workspace_num"/>
+      </method>
+      <method name="CloseOverlay"/>
+   </interface>
+</node>`;
+
+let _settings = null;
+let _ownerId = 0;
+let _exported = null;
+
+// -------------------- Show / close --------------------
+export function showWindowOverlay(windows, context = null, focusedWindow = null) {
+    if (!_settings) {
+        journal('[overlayService] showWindowOverlay before init — ignoring', true);
+        return false;
+    }
+    SearchOverlayBase.closeCurrent();
+    const overlay = new WindowSearchOverlay(windows, _settings, focusedWindow);
+    overlay._overlayContext = context;
+    return true;
+}
+
+export function showAllWindows() {
+    return showWindowOverlay(
+        Display.get_tab_list(Meta.TabList.NORMAL, null),
+        { type: 'all-windows' },
+        Display.focus_window);
+}
+
+export function showAllApps() {
+    if (!_settings) {
+        journal('[overlayService] showAllApps before init — ignoring', true);
+        return false;
+    }
+    SearchOverlayBase.closeCurrent();
+    new AppSearchOverlay(_settings);
+    return true;
+}
+
+export function toggleAllApps() {
+    if (SearchOverlayBase.current instanceof AppSearchOverlay) {
+        SearchOverlayBase.closeCurrent();
+        return false;
+    }
+    return showAllApps();
+}
+
+export function toggleAllWindows() {
+    const current = SearchOverlayBase.current;
+    if (current instanceof WindowSearchOverlay && current._overlayContext?.type === 'all-windows') {
+        SearchOverlayBase.closeCurrent();
+        return false;
+    }
+    return showAllWindows();
+}
+
+// One workspace's windows, plus a workspace switch. Window list comes from
+// the model (user order); "focused" comes from Mutter's own per-workspace
+// MRU list, read BEFORE activating (workspace.activate() doesn't reliably
+// refocus on its own).
+export function showWorkspaceWindows(workspaceIndex) {
+    const workspace = WorkspaceManager.get_workspace_by_index(workspaceIndex);
+    if (!workspace)
+        throw new Error(`Workspace ${workspaceIndex} not found`);
+
+    const windows = buildModel().workspaces[workspaceIndex].windows;
+    const focusedWindow = Display.get_tab_list(Meta.TabList.NORMAL, workspace)[0] ?? null;
+
+    workspace.activate(global.get_current_time());
+    const opened = showWindowOverlay(windows, { type: 'workspace', workspaceIndex }, focusedWindow);
+    journal(`[overlayService] showWorkspaceWindows ${workspaceIndex} (${windows.length} windows)`);
+    return opened;
+}
+
+// Only recognizes an overlay opened via showWorkspaceWindows() — one opened
+// from the workspace's own overflow button is untagged on purpose... see
+// showWorkspaceWindows: both paths now go through it, so both tag.
+export function toggleWorkspaceWindows(workspaceIndex) {
+    const current = SearchOverlayBase.current;
+    if (current instanceof WindowSearchOverlay &&
+        current._overlayContext?.type === 'workspace' &&
+        current._overlayContext.workspaceIndex === workspaceIndex) {
+        SearchOverlayBase.closeCurrent();
+        return false;
+    }
+    return showWorkspaceWindows(workspaceIndex);
+}
+
+export function closeOverlay() { return SearchOverlayBase.closeCurrent(); }
+
+// -------------------- DBus --------------------
+const dbusObject = {
+    CloseOverlay() { closeOverlay(); },
+    ShowAllApps() { showAllApps(); },
+    ShowAllWindows() { showAllWindows(); },
+    ShowWorkspaceWindows(n) { showWorkspaceWindows(n); },
+    ToggleAllApps() { toggleAllApps(); },
+    ToggleAllWindows() { toggleAllWindows(); },
+    ToggleWorkspaceWindows(n) { toggleWorkspaceWindows(n); },
+};
+
+function _onBusAcquired(connection) {
+    try {
+        _exported = Gio.DBusExportedObject.wrapJSObject(MR_DBUS_IFACE, dbusObject);
+        _exported.export(connection, BUS_PATH);
+        journal(`[overlayService] Exported on ${BUS_PATH}`);
+    } catch (e) {
+        journal(`[overlayService] Failed to export: ${e.message}`, true);
+    }
+}
+
+function _unexport() {
+    if (!_exported) return;
+    try { _exported.flush(); _exported.unexport(); } catch (e) { /* not exported */ }
+    _exported = null;
+}
+
+// -------------------- Lifecycle --------------------
+export function initOverlayService(settings) {
+    _settings = settings;
+    _ownerId = Gio.bus_own_name(
+        Gio.BusType.SESSION, BUS_NAME, Gio.BusNameOwnerFlags.NONE,
+        connection => _onBusAcquired(connection),
+        (connection, name) => journal(`[overlayService] ${name}: name acquired`),
+        (connection, name) => { journal(`[overlayService] ${name}: name lost`, true); _unexport(); });
+}
+
+export function destroyOverlayService() {
+    closeOverlay(); // never leave a modal grab behind
+    _unexport();
+    if (_ownerId) { Gio.bus_unown_name(_ownerId); _ownerId = 0; }
+    _settings = null;
+}
+// ===== FILE: ./logger.js =====
+import GLib from 'gi://GLib';
+import Gio from 'gi://Gio';
+
+let loggingEnabled = false;
+let logOutput = 'journal';
+let uuid = null;
+let logFile = null;
+
+
+/*
+ * logger.js is in the extension root.
+ */
+const extensionDir = GLib.path_get_dirname(
+    GLib.filename_from_uri(import.meta.url)[0]
+);
+
+
+/*
+ * Initialize logging.
+ *
+ * output:
+ *   'journal' -> GNOME Journal only
+ *   'file'    -> file only
+ *   'both'    -> GNOME Journal + file
+ *
+ * enabled:
+ *   true  -> logging enabled
+ *   false -> logging disabled
+ */
+function initLogging(
+    extensionUuid,
+    output = 'journal',
+    enabled = true
+) {
+    uuid = extensionUuid;
+    logOutput = output;
+    loggingEnabled = enabled;
+
+    if (output === 'file' || output === 'both') {
+        logFile = GLib.build_filenamev([
+            GLib.get_home_dir(),
+            `${uuid}.log`,
+        ]);
+    } else {
+        logFile = null;
+    }
+}
+
+
+/*
+ * Create a logger for a source file.
+ *
+ * Usage:
+ *
+ * const journal = createLogger(import.meta.url);
+ */
+function createLogger(source) {
+    let sourceFile;
+
+    try {
+        sourceFile = GLib.filename_from_uri(source)[0];
+    } catch (e) {
+        sourceFile = source;
+    }
+
+    /*
+     * Convert absolute path into a path
+     * relative to the extension root.
+     */
+    const prefix = `${extensionDir}/`;
+
+    if (sourceFile.startsWith(prefix)) {
+        sourceFile = sourceFile.substring(prefix.length);
+    }
+
+    const relativeSource = sourceFile;
+
+
+    return function journal(msg) {
+
+        /*
+         * Logging disabled?
+         *
+         * Do absolutely nothing.
+         */
+        if (!loggingEnabled)
+            return;
+
+
+        /*
+         * Create timestamp once.
+         */
+        // const timestamp = GLib.DateTime
+        //     .new_now_local()
+        //     .format('%Y-%m-%d %H:%M:%S');
+
+
+        /*
+         * Create the complete message once.
+         *
+         * Both Journal and file receive
+         * exactly this same string.
+         */
+        // const output = `[${timestamp}] [${relativeSource}] ${msg}`;
+        const output = `[${relativeSource}] ${msg}`;
+
+
+        if (
+            logOutput === 'journal' ||
+            logOutput === 'both'
+        ) {
+            writeToJournal(output);
+        }
+
+
+        if (
+            logOutput === 'file' ||
+            logOutput === 'both'
+        ) {
+            writeToFile(output);
+        }
+    };
+}
+
+
+function writeToJournal(output) {
+    GLib.log_structured(
+        uuid,
+        GLib.LogLevelFlags.LEVEL_MESSAGE,
+        {
+            MESSAGE: output,
+            SYSLOG_IDENTIFIER: uuid,
+        }
+    );
+}
+
+
+function writeToFile(output) {
+    if (!logFile)
+        return;
+
+    try {
+        const file = Gio.File.new_for_path(logFile);
+
+        const stream = file.append_to(
+            Gio.FileCreateFlags.NONE,
+            null
+        );
+
+        const bytes =
+            new TextEncoder().encode(`${output}\n`);
+
+        stream.write_all(bytes, null);
+        stream.close(null);
+
+    } catch (e) {
+        /*
+         * Don't call journal() here.
+         */
+        console.error(
+            `[${uuid}] Failed to write log file: ${e}`
+        );
+    }
+}
+
+
+export {
+    initLogging,
+    createLogger,
+};
+// ===== FILE: ./prefs.js =====
+import Gio from 'gi://Gio';
+import Adw from 'gi://Adw';
+import Gtk from 'gi://Gtk';
+import { ExtensionPreferences } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
+
+export default class WorkspacesOrganizerPreferences extends ExtensionPreferences {
+    fillPreferencesWindow(window) {
+        const settings = this.getSettings();
+
+        const page = new Adw.PreferencesPage({
+            title: 'Appearance',
+            icon_name: 'preferences-desktop-font-symbolic',
+        });
+        window.add(page);
+
+        // Define all configuration keys (only one icon-size now)
+        const allKeys = [
+            { key: 'icon-size', label: 'Icon size', min: 16, max: 256, step: 2 },
+            { key: 'thumbnail-min-width', label: 'Thumbnail minimum width', min: 20, max: 200, step: 2 },
+            { key: 'workspace-name-font-size', label: 'Workspace name', min: 10, max: 100, step: 1 },
+            { key: 'toolbar-icon-size', label: 'Panel toolbar icon size', min: 16, max: 64, step: 2 },
+            { key: 'title-popup-font-size', label: 'Title popup (Ctrl+hold)', min: 8, max: 48, step: 1 },
+            { key: 'collection-search-font-size', label: 'Collection search entry', min: 8, max: 48, step: 1 },
+            { key: 'collection-result-font-size', label: 'Collection result items', min: 8, max: 48, step: 1 },
+            { key: 'collection-result-icon-size', label: 'Search result icon size', min: 16, max: 128, step: 2 },
+            { key: 'clone-title-font-size', label: 'Clone preview title', min: 10, max: 80, step: 1 },
+            { key: 'hover-preview-height', label: 'Hover preview height', min: 200, max: 1200, step: 10 },
+            { key: 'close-button-size', label: 'Close button size', min: 16, max: 64, step: 2 },
+            { key: 'app-preview-icon-size', label: 'App search preview icon size', min: 32, max: 256, step: 2 },
+            { key: 'tooltip-font-size', label: 'Tooltip text', min: 6, max: 32, step: 1 },
+        ];
+
+        // Group: Icon Sizes (now just one row)
+        const iconGroup = new Adw.PreferencesGroup({
+            title: 'Icon Sizes',
+            description: 'Size of window icons in workspace thumbnails',
+        });
+        page.add(iconGroup);
+        this._addSpinRow(iconGroup, allKeys.find(k => k.key === 'icon-size'), settings);
+        this._addSpinRow(iconGroup, allKeys.find(k => k.key === 'app-preview-icon-size'), settings);
+
+
+        // Group: Font Sizes
+        const fontGroup = new Adw.PreferencesGroup({
+            title: 'Font Sizes',
+            description: 'Text size in various UI elements',
+        });
+        page.add(fontGroup);
+        ['workspace-name-font-size', 'title-popup-font-size',
+            'collection-search-font-size', 'collection-result-font-size', 'collection-result-icon-size',
+            'clone-title-font-size', 'tooltip-font-size'].forEach(key => {
+                const def = allKeys.find(k => k.key === key);
+                this._addSpinRow(fontGroup, def, settings);
+            });
+
+        // Group: Layout
+        const layoutGroup = new Adw.PreferencesGroup({
+            title: 'Layout',
+            description: 'Sizes and dimensions',
+        });
+        page.add(layoutGroup);
+        ['thumbnail-min-width', 'toolbar-icon-size', 'hover-preview-height', 'close-button-size'].forEach(key => {
+            const def = allKeys.find(k => k.key === key);
+            this._addSpinRow(layoutGroup, def, settings);
+        });
+
+        const visibilityGroup = new Adw.PreferencesGroup({
+            title: 'Visibility',
+            description: 'Toggle panel elements — changes apply immediately, no restart needed',
+        });
+        page.add(visibilityGroup);
+
+        for (const [key, title] of [
+            ['show-drun-button', 'Show "apps" button'],
+            ['show-window-button', 'Show "all windows" button'],
+            ['show-workspace-names', 'Show workspace names'],
+        ]) {
+            const row = new Adw.ActionRow({ title });
+            const toggle = new Gtk.Switch({ valign: Gtk.Align.CENTER });
+            settings.bind(key, toggle, 'active', Gio.SettingsBindFlags.DEFAULT);
+            row.add_suffix(toggle);
+            row.set_activatable_widget(toggle);
+            visibilityGroup.add(row);
+        }
+
+        // Group: Reset and notes
+        const miscGroup = new Adw.PreferencesGroup();
+        page.add(miscGroup);
+
+        // Reset button
+        const resetRow = new Adw.ActionRow({ title: 'Reset all settings to defaults' });
+        const resetBtn = new Gtk.Button({
+            label: 'Reset',
+            css_classes: ['destructive-action'],
+        });
+        resetBtn.connect('clicked', () => {
+            for (const { key } of allKeys) {
+                settings.reset(key);
+            }
+            // Window stays open – spin buttons update automatically
+        });
+        resetRow.add_suffix(resetBtn);
+        resetRow.set_activatable_widget(resetBtn);
+        miscGroup.add(resetRow);
+
+        const note = new Adw.ActionRow({
+            title: 'Changes take effect after restarting the extension (disable & enable).',
+            subtitle: 'You may need to reload GNOME Shell (Alt+F2, r) for some changes.',
+        });
+        miscGroup.add(note);
+    }
+
+    _addSpinRow(group, { key, label, min, max, step }, settings) {
+        const row = new Adw.ActionRow({ title: label });
+        const spin = Gtk.SpinButton.new_with_range(min, max, step);
+        settings.bind(key, spin, 'value', Gio.SettingsBindFlags.DEFAULT);
+        row.add_suffix(spin);
+        row.set_activatable_widget(spin);
+        group.add(row);
+    }
+}
+// ===== FILE: ./extension.js =====
+import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import { WorkspaceIndicator } from './lib/workspaceIndicator.js';
+import { TitleBarMoveMonitor } from './lib/titleBarMoveMonitor.js';
+import { initOverlayService, destroyOverlayService } from './lib/overlayService.js';
+
+import { initLogging, createLogger } from './logger.js';
+
+const journal = createLogger(import.meta.url);
+
+export default class TopNotchWorkspaces extends Extension {
+    constructor(metadata) {
+        super(metadata);
+        this._indicator = null;
+        this._titleBarMoveMonitor = null;
+    }
+
+    enable() {
+        initLogging(this.uuid, 'file', false);
+        journal(`Enabled`);
+
+        const settings = this.getSettings();
+
+        // Before the indicator — its toolbar buttons call into the service.
+        initOverlayService(settings);
+
+        this._indicator = new WorkspaceIndicator(settings);
+        Main.panel.addToStatusArea('workspace-indicator', this._indicator, 0, 'left');
+
+        this._titleBarMoveMonitor = new TitleBarMoveMonitor();
+    }
+
+    disable() {
+        destroyOverlayService();
+
+        if (this._titleBarMoveMonitor) {
+            this._titleBarMoveMonitor.destroy();
+            this._titleBarMoveMonitor = null;
+        }
+        if (this._indicator) {
+            this._indicator.destroy();
+            this._indicator = null;
+        }
+    }
+}
