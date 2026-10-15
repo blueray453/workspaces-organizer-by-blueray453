@@ -1,9 +1,10 @@
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+
 import { WorkspaceIndicator } from './lib/workspaceIndicator.js';
 import { TitleBarMoveMonitor } from './lib/titleBarMoveMonitor.js';
 import { initOverlayService, destroyOverlayService } from './lib/overlayService.js';
-
+import { destroyTooltip } from './lib/interactions.js';
 import { connectModelSignals, disconnectModelSignals } from './lib/model.js';
 
 import { initLogging, createLogger } from './logger.js';

@@ -162,13 +162,6 @@
     border-radius: 10px;
 }
 
-.hover-title-popup {
-    background-color: rgba(0, 0, 0, 0.85);
-    color: #eee8d5;
-    padding: 6px 12px;
-    border-radius: 12px;
-}
-
 /* ===== Reorderable icon strips (window icons AND pinned app icons) ===== */
 
 .window-preview-icon {
@@ -177,7 +170,6 @@
 }
 
 .reorder-drag-source {
-    opacity: 0.70;
     border: 3px solid #268bd2;
     border-radius: 8px;
 }
@@ -187,7 +179,6 @@
     border: 3px dashed #268bd2;
     border-radius: 8px;
     background-color: rgba(38, 139, 210, 0.12);
-    transition: transform 80ms ease-out;
 }
 
 /* ===== Shared floating tooltip/hint (workspace name hint, pinned-icon
