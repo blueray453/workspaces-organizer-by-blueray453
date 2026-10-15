@@ -2,7 +2,10 @@ import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import { WorkspaceIndicator, TitleBarMoveMonitor } from './lib/workspaceIndicator.js';
-import { initOverlayService, destroyOverlayService } from './lib/overlayService.js';
+import {
+    initOverlayService, destroyOverlayService,
+    showAllApps, showAllWindows, showWorkspaceWindows,
+} from './lib/overlayService.js';
 import { destroyTooltip } from './lib/interactions.js';
 import { connectModelSignals, disconnectModelSignals } from './lib/model.js';
 
@@ -30,7 +33,14 @@ export default class TopNotchWorkspaces extends Extension {
         // Before the indicator — its toolbar buttons call into the service.
         initOverlayService(settings);
 
-        this._indicator = new WorkspaceIndicator(settings);
+        // Composition root: the indicator is given the overlay entry points
+        // as plain callbacks. It never imports overlayService, and
+        // overlayService never learns the indicator exists.
+        this._indicator = new WorkspaceIndicator(settings, {
+            showAllApps,
+            showAllWindows,
+            showWorkspaceWindows,
+        });
         Main.panel.addToStatusArea('workspace-indicator', this._indicator, 0, 'left');
 
         this._titleBarMoveMonitor = new TitleBarMoveMonitor();
