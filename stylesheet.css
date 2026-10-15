@@ -182,10 +182,7 @@
     border-radius: 8px;
 }
 
-/* ===== Drag ghost placeholder =====
-   The ghost is an absolutely-positioned overlay moved by transform, so
-   its movement is animated entirely by CSS — no re-render per pointer move.
-   The `transition` property is what makes the slide smooth. */
+/* ===== Drag ghost placeholder (in-layout, rebuilt on each drag move) ===== */
 .drag-placeholder-icon {
     border: 3px dashed #268bd2;
     border-radius: 8px;
