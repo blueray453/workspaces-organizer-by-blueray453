@@ -187,7 +187,7 @@
 /* Pinned section: full-width, no border/background of its own — the pinned
    row fades directly into the launcher overlay background. */
 .launcher-pinned-section {
-    padding: 4px 0 0 0;
+    padding: 8px 0 0 0;
 }
 
 /* Fades: no scrollbar is ever drawn (EXTERNAL policy in createPinnedRow).
