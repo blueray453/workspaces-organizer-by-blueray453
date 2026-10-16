@@ -76,57 +76,7 @@
     font-weight: bold;
 }
 
-/* ===== Full-screen search/collection overlay ===== */
-
-.window-collection-overlay {
-    background-color: rgba(0, 43, 54, 0.96);
-}
-
-.collection-search-entry {
-    background-color: #073642;
-    color: #eee8d5;
-    border: 2px solid #268bd2;
-    border-radius: 10px;
-    padding: 12px 16px;
-}
-
-.collection-search-entry StLabel.hint-text {
-    color: #586e75;
-}
-
-.collection-results-scroll,
-.collection-results-box {
-    background-color: #073642;
-    border: 1px solid #586e75;
-    border-radius: 10px;
-}
-
-.collection-result-item {
-    color: #93a1a1;
-    padding: 10px 14px;
-    border-bottom: 1px solid rgba(88, 110, 117, 0.25);
-    transition-duration: 100ms;
-}
-
-.collection-result-item:hover {
-    background-color: rgba(38, 139, 210, 0.15);
-    color: #eee8d5;
-}
-
-.collection-result-item.selected {
-    background-color: rgba(38, 139, 210, 0.35);
-    color: #fdf6e3;
-}
-
-.collection-result-icon {
-    margin-right: 12px;
-}
-
-.collection-preview-box {
-    background-color: #002b36;
-    border: 1px solid #586e75;
-    border-radius: 10px;
-}
+/* ===== Clone previews (hover preview) ===== */
 
 .collection-preview-inner {
     border-radius: 8px;
@@ -141,8 +91,6 @@
     border-radius: 6px;
 }
 
-/* ===== Window close button (hover preview + collection preview) ===== */
-
 .window-close-button {
     background-color: rgba(220, 50, 47, 0.85);
     border-radius: 6px;
@@ -154,15 +102,13 @@
     background-color: #dc322f;
 }
 
-/* ===== Hover preview / title popup ===== */
-
 .hover-preview-wrapper {
     border: 3px solid #268bd2;
     background-color: #268bd2;
     border-radius: 10px;
 }
 
-/* ===== Reorderable icon strips (window icons AND pinned app icons) ===== */
+/* ===== Reorderable icon strips ===== */
 
 .window-preview-icon {
     border-radius: 8px;
@@ -174,15 +120,13 @@
     border-radius: 8px;
 }
 
-/* ===== Drag ghost placeholder (in-layout, rebuilt on each drag move) ===== */
 .drag-placeholder-icon {
     border: 3px dashed #268bd2;
     border-radius: 8px;
     background-color: rgba(38, 139, 210, 0.12);
 }
 
-/* ===== Shared floating tooltip/hint (workspace name hint, pinned-icon
-   hover name, pinned-drag "Move before/after" hint) ===== */
+/* ===== Shared floating tooltip/hint ===== */
 
 .dmenu-tooltip {
     background-color: rgba(0, 0, 0, 0.85);
@@ -192,111 +136,195 @@
     padding: 4px 10px;
 }
 
-/* ===== App search overlay (AppSearchOverlay) ===== */
+/* ===== Shared search field (launcher + window selector) ===== */
 
-.dmenu-pinned-bar {
-    spacing: 12px;
-    padding: 20px;
-}
-
-.dmenu-pinned-icon {
-    border-radius: 12px;
-    transition-duration: 120ms;
-}
-
-.dmenu-pinned-icon:hover {
-    background-color: rgba(38, 139, 210, 0.15);
-}
-
-.app-pin-marker {
-    color: #b58900;
-    padding-left: 8px;
-}
-
-.app-description-label {
-    color: #93a1a1;
-    font-size: 12pt;
-    padding: 12px 24px;
+.overlay-search-entry {
+    background-color: rgba(0, 43, 54, 0.92);
+    color: #eee8d5;
+    border: 2px solid #586e75;
+    border-radius: 16px;
+    padding: 16px 26px;
+    font-size: 32px;
+    caret-color: #eee8d5;
+    selection-background-color: #2aa198;
+    selected-color: #002b36;
     text-align: center;
 }
 
-.app-preview-pin-button,
-.app-preview-action-button {
-    background-color: #073642;
-    color: #eee8d5;
-    border: 1px solid #268bd2;
-    border-radius: 8px;
-    padding: 10px 18px;
-    margin: 6px;
-    transition-duration: 100ms;
+.overlay-search-entry:focus {
+    border-color: #2aa198;
+    box-shadow: 0 0 0 3px rgba(42, 161, 152, 0.45);
 }
 
-.app-preview-pin-button:hover,
-.app-preview-action-button:hover {
-    background-color: rgba(38, 139, 210, 0.25);
+.overlay-search-icon {
+    color: #93a1a1;
+    icon-size: 34px;
 }
 
-.collection-result-item.collection-result-item-focused {
-    border-left: 4px solid #859900;
-    background-color: rgba(133, 153, 0, 0.12);
+.overlay-search-hint {
+    color: #839496;
+    font-size: 16px;
+    padding-top: 8px;
 }
 
-.collection-result-item.collection-result-item-focused.selected {
-    background-color: rgba(133, 153, 0, 0.30);
+/* ===== App launcher ===== */
+
+.launcher-overlay {
+    background-color: rgba(0, 43, 54, 0.94);
 }
 
-/* ---------- shared search field ---------- */
-.overlay-search-entry {
-    background-color: rgba(0, 43, 54, 0.88); color: #eee8d5;
-    border: 2px solid #586e75; border-radius: 12px; padding: 10px 18px;
-    font-size: 22px; caret-color: #eee8d5; selection-background-color: #2aa198;
-    selected-color: #002b36; text-align: center;
-}
-.overlay-search-entry:focus { border-color: #2aa198; box-shadow: 0 0 0 3px rgba(42, 161, 152, 0.45); }
-.overlay-search-icon { color: #93a1a1; icon-size: 26px; }
-.overlay-search-hint { color: #839496; font-size: 14px; padding-top: 6px; }
-
-/* ---------- app launcher ---------- */
-.launcher-overlay { background-color: rgba(0, 43, 54, 0.94); }
 .launcher-panel {
-    background-color: rgba(7, 54, 66, 0.72); border: 1px solid rgba(88, 110, 117, 0.9);
-    border-radius: 18px; padding: 14px 20px 0 20px;
+    background-color: rgba(7, 54, 66, 0.72);
+    border: 1px solid rgba(88, 110, 117, 0.9);
+    border-radius: 18px;
+    padding: 14px 20px 0 20px;
 }
+
 .launcher-pinned-section {
-    background-color: rgba(0, 43, 54, 0.38); border: 1px solid rgba(88, 110, 117, 0.7);
-    border-radius: 12px; padding: 8px 8px 10px 8px; margin-bottom: 12px;
+    background-color: rgba(0, 43, 54, 0.38);
+    border: 1px solid rgba(88, 110, 117, 0.7);
+    border-radius: 12px;
+    padding: 8px 8px 10px 8px;
+    margin-bottom: 12px;
 }
-.launcher-heading { color: #93a1a1; font-size: 13px; font-weight: bold; letter-spacing: 2px; padding: 2px 12px; }
-.launcher-divider { height: 1px; background-color: rgba(88, 110, 117, 0.85); margin: 0 6px; }
-.launcher-divider-heading { padding: 4px 0 8px 0; }
-.launcher-scroll { -st-vfade-offset: 36px; }
-.launcher-scroll StScrollBar { padding: 0 2px; }
-.launcher-scroll StScrollBar StBin#trough { background-color: rgba(88, 110, 117, 0.25); border-radius: 4px; }
-.launcher-scroll StScrollBar StButton#vhandle { background-color: rgba(147, 161, 161, 0.7); border-radius: 4px; }
-.launcher-scroll StScrollBar StButton#vhandle:hover { background-color: #93a1a1; }
 
-.launcher-tile { border: 2px solid transparent; border-radius: 12px; padding: 8px 4px; }
-.launcher-tile:hover { background-color: rgba(147, 161, 161, 0.14); }
-.launcher-tile.focused { background-color: rgba(42, 161, 152, 0.28); border: 2px solid #2aa198; }
-.launcher-tile.focused:hover { background-color: rgba(42, 161, 152, 0.38); }
-.launcher-tile-label { color: #eee8d5; font-size: 15px; text-align: center; max-height: 69px; padding-top: 6px; }
+.launcher-heading {
+    color: #93a1a1;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    padding: 2px 12px;
+}
 
-/* ---------- window selector ---------- */
-.window-selector-overlay { background-color: #002b36; }
-.selector-tint { background-color: rgba(0, 43, 54, 0.62); }
+.launcher-divider {
+    height: 1px;
+    background-color: rgba(88, 110, 117, 0.85);
+    margin: 0 6px;
+}
+
+.launcher-divider-heading {
+    padding: 4px 0 8px 0;
+}
+
+/* Scrollbars: same thick style for the app grid and the pinned row. */
+.launcher-scroll,
+.launcher-pinned-scroll {
+    -st-vfade-offset: 36px;
+}
+
+.launcher-scroll StScrollBar,
+.launcher-pinned-scroll StScrollBar {
+    min-width: 20px;
+    min-height: 20px;
+    padding: 4px;
+}
+
+.launcher-scroll StScrollBar StBin#trough,
+.launcher-pinned-scroll StScrollBar StBin#trough {
+    background-color: rgba(88, 110, 117, 0.3);
+    border-radius: 6px;
+}
+
+.launcher-scroll StScrollBar StButton#vhandle,
+.launcher-pinned-scroll StScrollBar StButton#hhandle {
+    background-color: rgba(147, 161, 161, 0.8);
+    border-radius: 6px;
+}
+
+.launcher-scroll StScrollBar StButton#vhandle:hover,
+.launcher-pinned-scroll StScrollBar StButton#hhandle:hover {
+    background-color: #eee8d5;
+}
+
+/* Hidden-items indicators at the left/right of the pinned row. */
+.launcher-pinned-arrow {
+    color: #2aa198;
+    font-size: 30px;
+    font-weight: bold;
+    padding: 0 12px;
+    margin: 0 4px;
+    background-color: rgba(42, 161, 152, 0.16);
+    border: 1px solid rgba(42, 161, 152, 0.65);
+    border-radius: 14px;
+}
+
+.launcher-pinned-arrow:hover {
+    background-color: rgba(42, 161, 152, 0.34);
+    color: #eee8d5;
+}
+
+.launcher-tile {
+    border: 2px solid transparent;
+    border-radius: 14px;
+    padding: 8px 4px;
+}
+
+.launcher-tile:hover {
+    background-color: rgba(147, 161, 161, 0.14);
+}
+
+.launcher-tile.focused {
+    background-color: rgba(42, 161, 152, 0.28);
+    border: 2px solid #2aa198;
+}
+
+.launcher-tile.focused:hover {
+    background-color: rgba(42, 161, 152, 0.38);
+}
+
+.launcher-tile-label {
+    color: #eee8d5;
+    font-size: 17px;
+    text-align: center;
+    max-height: 74px;
+    padding-top: 6px;
+}
+
+/* ===== Window selector ===== */
+
+.window-selector-overlay {
+    background-color: #002b36;
+}
+
+.selector-tint {
+    background-color: rgba(0, 43, 54, 0.62);
+}
+
 .selector-band {
-    background-color: #073642; padding: 12px 0 0 0;
-    border-top: 2px solid #2aa198; border-bottom: 2px solid #2aa198;
+    background-color: #073642;
+    padding: 12px 0 0 0;
+    border-top: 2px solid #2aa198;
+    border-bottom: 2px solid #2aa198;
 }
-.selector-row-icon { padding-right: 18px; }
-.selector-row-label { color: #93a1a1; font-size: 28px; }
-.selector-selected-label { color: #eee8d5; font-size: 44px; }
+
+.selector-row-icon {
+    padding-right: 20px;
+}
+
+.selector-row-label {
+    color: #b4c0c0;
+    font-size: 40px;
+}
+
+.selector-selected-label {
+    color: #fdf6e3;
+    font-size: 64px;
+}
+
 .selector-fade-top {
     background-gradient-direction: vertical;
-    background-gradient-start: rgba(0, 43, 54, 0.95); background-gradient-end: rgba(0, 43, 54, 0);
+    background-gradient-start: rgba(0, 43, 54, 0.95);
+    background-gradient-end: rgba(0, 43, 54, 0);
 }
+
 .selector-fade-bottom {
     background-gradient-direction: vertical;
-    background-gradient-start: rgba(0, 43, 54, 0); background-gradient-end: rgba(0, 43, 54, 0.95);
+    background-gradient-start: rgba(0, 43, 54, 0);
+    background-gradient-end: rgba(0, 43, 54, 0.95);
 }
-.selector-hint { color: #93a1a1; font-size: 16px; text-align: center; }
+
+.selector-hint {
+    color: #93a1a1;
+    font-size: 18px;
+    text-align: center;
+}
