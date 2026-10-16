@@ -244,3 +244,59 @@
 .collection-result-item.collection-result-item-focused.selected {
     background-color: rgba(133, 153, 0, 0.30);
 }
+
+/* ---------- shared search field ---------- */
+.overlay-search-entry {
+    background-color: rgba(0, 43, 54, 0.88); color: #eee8d5;
+    border: 2px solid #586e75; border-radius: 12px; padding: 10px 18px;
+    font-size: 22px; caret-color: #eee8d5; selection-background-color: #2aa198;
+    selected-color: #002b36; text-align: center;
+}
+.overlay-search-entry:focus { border-color: #2aa198; box-shadow: 0 0 0 3px rgba(42, 161, 152, 0.45); }
+.overlay-search-icon { color: #93a1a1; icon-size: 26px; }
+.overlay-search-hint { color: #839496; font-size: 14px; padding-top: 6px; }
+
+/* ---------- app launcher ---------- */
+.launcher-overlay { background-color: rgba(0, 43, 54, 0.94); }
+.launcher-panel {
+    background-color: rgba(7, 54, 66, 0.72); border: 1px solid rgba(88, 110, 117, 0.9);
+    border-radius: 18px; padding: 14px 20px 0 20px;
+}
+.launcher-pinned-section {
+    background-color: rgba(0, 43, 54, 0.38); border: 1px solid rgba(88, 110, 117, 0.7);
+    border-radius: 12px; padding: 8px 8px 10px 8px; margin-bottom: 12px;
+}
+.launcher-heading { color: #93a1a1; font-size: 13px; font-weight: bold; letter-spacing: 2px; padding: 2px 12px; }
+.launcher-divider { height: 1px; background-color: rgba(88, 110, 117, 0.85); margin: 0 6px; }
+.launcher-divider-heading { padding: 4px 0 8px 0; }
+.launcher-scroll { -st-vfade-offset: 36px; }
+.launcher-scroll StScrollBar { padding: 0 2px; }
+.launcher-scroll StScrollBar StBin#trough { background-color: rgba(88, 110, 117, 0.25); border-radius: 4px; }
+.launcher-scroll StScrollBar StButton#vhandle { background-color: rgba(147, 161, 161, 0.7); border-radius: 4px; }
+.launcher-scroll StScrollBar StButton#vhandle:hover { background-color: #93a1a1; }
+
+.launcher-tile { border: 2px solid transparent; border-radius: 12px; padding: 8px 4px; }
+.launcher-tile:hover { background-color: rgba(147, 161, 161, 0.14); }
+.launcher-tile.focused { background-color: rgba(42, 161, 152, 0.28); border: 2px solid #2aa198; }
+.launcher-tile.focused:hover { background-color: rgba(42, 161, 152, 0.38); }
+.launcher-tile-label { color: #eee8d5; font-size: 15px; text-align: center; max-height: 69px; padding-top: 6px; }
+
+/* ---------- window selector ---------- */
+.window-selector-overlay { background-color: #002b36; }
+.selector-tint { background-color: rgba(0, 43, 54, 0.62); }
+.selector-band {
+    background-color: #073642; padding: 12px 0 0 0;
+    border-top: 2px solid #2aa198; border-bottom: 2px solid #2aa198;
+}
+.selector-row-icon { padding-right: 18px; }
+.selector-row-label { color: #93a1a1; font-size: 28px; }
+.selector-selected-label { color: #eee8d5; font-size: 44px; }
+.selector-fade-top {
+    background-gradient-direction: vertical;
+    background-gradient-start: rgba(0, 43, 54, 0.95); background-gradient-end: rgba(0, 43, 54, 0);
+}
+.selector-fade-bottom {
+    background-gradient-direction: vertical;
+    background-gradient-start: rgba(0, 43, 54, 0); background-gradient-end: rgba(0, 43, 54, 0.95);
+}
+.selector-hint { color: #93a1a1; font-size: 16px; text-align: center; }
