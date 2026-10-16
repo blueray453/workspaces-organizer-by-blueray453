@@ -6,6 +6,7 @@ import {
     initOverlayService, destroyOverlayService,
     showAllApps, showAllWindows, showWorkspaceWindows,
 } from './lib/overlayService.js';
+import { initDBusService, destroyDBusService } from './lib/dbusService.js';
 import { destroyTooltip } from './lib/interactions.js';
 import { connectModelSignals, disconnectModelSignals } from './lib/model.js';
 
@@ -26,16 +27,16 @@ export default class TopNotchWorkspaces extends Extension {
 
         const settings = this.getSettings();
 
-        // Model owns its own world/state subscriptions. Enabled here so it
-        // outlives the indicator's actor and is independent of UI lifetime.
+        // Model owns its own world/state subscriptions.
         connectModelSignals(settings);
 
-        // Before the indicator — its toolbar buttons call into the service.
+        // Overlay logic first so _settings is set before any DBus handler
+        // can fire; the DBus adapter is a pure transport on top of it.
         initOverlayService(settings);
+        initDBusService();
 
         // Composition root: the indicator is given the overlay entry points
-        // as plain callbacks. It never imports overlayService, and
-        // overlayService never learns the indicator exists.
+        // as plain callbacks. It never imports overlayService.
         this._indicator = new WorkspaceIndicator(settings, {
             showAllApps,
             showAllWindows,
@@ -47,6 +48,7 @@ export default class TopNotchWorkspaces extends Extension {
     }
 
     disable() {
+        destroyDBusService();
         destroyOverlayService();
 
         if (this._titleBarMoveMonitor) {
