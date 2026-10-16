@@ -24,8 +24,6 @@
     box-shadow: inset 0 0 0 2px #2aa198;
 }
 
-/* Stable hit area: transparent border reserves space so focusing an icon
-   never shifts the layout. Focus toggles `.focused` in place (no rebuild). */
 .workspace-indicator-class .window-preview-icon {
     border: 1px solid transparent;
     transition-duration: 120ms;
@@ -132,8 +130,10 @@
     background-color: rgba(0, 0, 0, 0.85);
     color: #eee8d5;
     border: 1px solid rgba(38, 139, 210, 0.5);
-    border-radius: 6px;
-    padding: 4px 10px;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 22px;
+    font-weight: bold;
 }
 
 /* ===== Shared search field (launcher + window selector) ===== */
@@ -161,10 +161,14 @@
     icon-size: 42px;
 }
 
+/* "Press '/' to search" — same weight as the headings below it. */
 .overlay-search-hint {
-    color: #839496;
-    font-size: 16px;
+    color: #657b83;
+    font-size: 38px;
+    font-weight: bold;
+    letter-spacing: 4px;
     padding-top: 8px;
+    opacity: 0.7;
 }
 
 /* ===== App launcher ===== */
@@ -180,66 +184,82 @@
     padding: 14px 20px 0 20px;
 }
 
+/* Pinned section: full-width, no border/background of its own — the pinned
+   row fades directly into the launcher overlay background. */
 .launcher-pinned-section {
-    background-color: rgba(0, 43, 54, 0.38);
-    border: 1px solid rgba(88, 110, 117, 0.7);
-    border-radius: 12px;
-    padding: 8px 8px 10px 8px;
-    margin-bottom: 12px;
+    padding: 4px 0 0 0;
 }
 
+/* Fades: no scrollbar is ever drawn (EXTERNAL policy in createPinnedRow).
+   When the row overflows, a gradient strip on the offending side hints at
+   hidden items. */
+.launcher-pinned-fade-left {
+    background-gradient-direction: horizontal;
+    background-gradient-start: rgba(0, 43, 54, 0.98);
+    background-gradient-end: rgba(0, 43, 54, 0);
+}
+
+.launcher-pinned-fade-right {
+    background-gradient-direction: horizontal;
+    background-gradient-start: rgba(0, 43, 54, 0);
+    background-gradient-end: rgba(0, 43, 54, 0.98);
+}
+
+/* Pinned tiles have no label (name shows as a tooltip on hover). */
+.launcher-pinned-row .launcher-tile {
+    padding: 16px;
+}
+
+/* Section headings (PINNED APPS, ALL APPS, RESULTS). Big, bold, and
+   letter-spaced — they anchor the layout on wide monitors. */
 .launcher-heading {
-    color: #93a1a1;
-    font-size: 14px;
+    color: #657b83;
+    font-size: 38px;
     font-weight: bold;
-    letter-spacing: 2px;
-    padding: 2px 12px;
+    letter-spacing: 6px;
+    padding: 4px 12px;
+    opacity: 0.75;
 }
 
 .launcher-divider {
-    height: 1px;
+    height: 2px;
     background-color: rgba(88, 110, 117, 0.85);
-    margin: 0 6px;
+    margin: 0 8px;
 }
 
 .launcher-divider-heading {
-    padding: 4px 0 8px 0;
+    padding: 6px 0 10px 0;
 }
 
-/* Scrollbars: same thick style for the app grid and the pinned row. */
-.launcher-scroll,
-.launcher-pinned-scroll {
+/* Scrollbars: only the app grid uses AUTOMATIC policy. */
+.launcher-scroll {
     -st-vfade-offset: 36px;
 }
 
-.launcher-scroll StScrollBar,
-.launcher-pinned-scroll StScrollBar {
+.launcher-scroll StScrollBar {
     min-width: 20px;
     min-height: 20px;
     padding: 4px;
 }
 
-.launcher-scroll StScrollBar StBin#trough,
-.launcher-pinned-scroll StScrollBar StBin#trough {
+.launcher-scroll StScrollBar StBin#trough {
     background-color: rgba(88, 110, 117, 0.3);
     border-radius: 6px;
 }
 
-.launcher-scroll StScrollBar StButton#vhandle,
-.launcher-pinned-scroll StScrollBar StButton#hhandle {
+.launcher-scroll StScrollBar StButton#vhandle {
     background-color: rgba(147, 161, 161, 0.8);
     border-radius: 6px;
 }
 
-.launcher-scroll StScrollBar StButton#vhandle:hover,
-.launcher-pinned-scroll StScrollBar StButton#hhandle:hover {
+.launcher-scroll StScrollBar StButton#vhandle:hover {
     background-color: #eee8d5;
 }
 
 .launcher-tile {
     border: 2px solid transparent;
-    border-radius: 14px;
-    padding: 8px 4px;
+    border-radius: 18px;
+    padding: 12px 8px;
 }
 
 .launcher-tile:hover {
@@ -255,12 +275,14 @@
     background-color: rgba(42, 161, 152, 0.38);
 }
 
+/* App name under each tile: 2x the previous size. */
 .launcher-tile-label {
     color: #eee8d5;
-    font-size: 17px;
+    font-size: 52px;
+    font-weight: bold;
     text-align: center;
-    max-height: 74px;
-    padding-top: 6px;
+    max-height: 160px;
+    padding-top: 12px;
 }
 
 /* ===== Window selector (search-only) ===== */
@@ -269,7 +291,6 @@
     background-color: transparent;
 }
 
-/* Light dim over the real window behind the overlay, for legibility. */
 .selector-tint {
     background-color: rgba(0, 43, 54, 0.34);
 }
