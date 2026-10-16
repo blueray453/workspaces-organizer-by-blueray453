@@ -280,14 +280,19 @@
     padding-top: 6px;
 }
 
-/* ===== Window selector ===== */
+/* ===== Window selector: browse (solid) / search (transparent) ===== */
 
 .window-selector-overlay {
+    background-color: transparent;
+}
+
+.selector-solid {
     background-color: #002b36;
 }
 
+/* Light dim over the real window in search mode, only for legibility. */
 .selector-tint {
-    background-color: rgba(0, 43, 54, 0.62);
+    background-color: rgba(0, 43, 54, 0.34);
 }
 
 .selector-band {
@@ -327,4 +332,22 @@
     color: #93a1a1;
     font-size: 18px;
     text-align: center;
+}
+
+.window-selector-overlay.search-mode .selector-band {
+    background-color: rgba(7, 54, 66, 0.80);
+}
+
+.window-selector-overlay.search-mode .selector-row-label {
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95);
+}
+
+.window-selector-overlay.search-mode .selector-fade-top {
+    background-gradient-start: rgba(0, 43, 54, 0.55);
+    background-gradient-end: rgba(0, 43, 54, 0);
+}
+
+.window-selector-overlay.search-mode .selector-fade-bottom {
+    background-gradient-start: rgba(0, 43, 54, 0);
+    background-gradient-end: rgba(0, 43, 54, 0.55);
 }
