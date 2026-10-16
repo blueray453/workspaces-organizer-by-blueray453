@@ -280,23 +280,19 @@
     padding-top: 6px;
 }
 
-/* ===== Window selector: browse (solid) / search (transparent) ===== */
+/* ===== Window selector (search-only) ===== */
 
 .window-selector-overlay {
     background-color: transparent;
 }
 
-.selector-solid {
-    background-color: #002b36;
-}
-
-/* Light dim over the real window in search mode, only for legibility. */
+/* Light dim over the real window behind the overlay, for legibility. */
 .selector-tint {
     background-color: rgba(0, 43, 54, 0.34);
 }
 
 .selector-band {
-    background-color: #073642;
+    background-color: rgba(7, 54, 66, 0.80);
     padding: 12px 0 0 0;
     border-top: 2px solid #2aa198;
     border-bottom: 2px solid #2aa198;
@@ -309,6 +305,7 @@
 .selector-row-label {
     color: #b4c0c0;
     font-size: 40px;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95);
 }
 
 .selector-selected-label {
@@ -318,36 +315,18 @@
 
 .selector-fade-top {
     background-gradient-direction: vertical;
-    background-gradient-start: rgba(0, 43, 54, 0.95);
+    background-gradient-start: rgba(0, 43, 54, 0.55);
     background-gradient-end: rgba(0, 43, 54, 0);
 }
 
 .selector-fade-bottom {
     background-gradient-direction: vertical;
     background-gradient-start: rgba(0, 43, 54, 0);
-    background-gradient-end: rgba(0, 43, 54, 0.95);
+    background-gradient-end: rgba(0, 43, 54, 0.55);
 }
 
 .selector-hint {
     color: #93a1a1;
     font-size: 18px;
     text-align: center;
-}
-
-.window-selector-overlay.search-mode .selector-band {
-    background-color: rgba(7, 54, 66, 0.80);
-}
-
-.window-selector-overlay.search-mode .selector-row-label {
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95);
-}
-
-.window-selector-overlay.search-mode .selector-fade-top {
-    background-gradient-start: rgba(0, 43, 54, 0.55);
-    background-gradient-end: rgba(0, 43, 54, 0);
-}
-
-.window-selector-overlay.search-mode .selector-fade-bottom {
-    background-gradient-start: rgba(0, 43, 54, 0);
-    background-gradient-end: rgba(0, 43, 54, 0.55);
 }
