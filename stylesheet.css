@@ -3,7 +3,7 @@
    base03 #002b36  base02 #073642  base01 #586e75  base00 #657b83
    base0  #839496  base1  #93a1a1  base2  #eee8d5  base3  #fdf6e3
    yellow #b58900  orange #cb4b16  red #dc322f  magenta #d33682
-   violet #6c71c4  blue #268bd2  cyan #2aa198  green #859900
+   violet #6c71c4  blue   #268bd2  cyan #2aa198  green #859900
    ============================================================ */
 
 /* ===== Workspace indicator / thumbnails ===== */
@@ -51,26 +51,24 @@
     background-color: rgba(38, 139, 210, 0.18);
 }
 
-/* ===== Window collection icon (thumbnail overflow button) ===== */
+/* ===== Window collection icon (thumbnail overflow button) =====
+   The button lives inside the thumbnail's padded content area, so it must
+   NOT re-apply padding-top (that was clipping the count vertically). Wide
+   enough for three-digit counts; height left to content so the label's
+   natural size wins. */
 
 .workspace-thumbnail-collection-icon {
-    min-width: 50px;
     height: 100%;
-    padding: 10px;
-    padding-top: 25px;
+    padding: 12px 24px;
     background-color: #268bd2;
-    border-radius: 30px;
+    border-radius: 24px;
     box-shadow: inset 0 0 4px 2px rgba(0, 0, 0, 0.3);
     transition-duration: 120ms;
 }
 
-.workspace-thumbnail-collection-icon:hover {
-    background-color: #2b95e0;
-}
-
 .collection-icon-label {
     color: #fdf6e3;
-    font-size: 18pt;
+    font-size: 32px;
     font-weight: bold;
 }
 
@@ -161,7 +159,6 @@
     icon-size: 42px;
 }
 
-/* "Press '/' to search" — same weight as the headings below it. */
 .overlay-search-hint {
     color: #657b83;
     font-size: 38px;
@@ -184,15 +181,10 @@
     padding: 14px 20px 0 20px;
 }
 
-/* Pinned section: full-width, no border/background of its own — the pinned
-   row fades directly into the launcher overlay background. */
 .launcher-pinned-section {
     padding: 8px 0 0 0;
 }
 
-/* Fades: no scrollbar is ever drawn (EXTERNAL policy in createPinnedRow).
-   When the row overflows, a gradient strip on the offending side hints at
-   hidden items. */
 .launcher-pinned-fade-left {
     background-gradient-direction: horizontal;
     background-gradient-start: rgba(0, 43, 54, 0.98);
@@ -205,13 +197,10 @@
     background-gradient-end: rgba(0, 43, 54, 0.98);
 }
 
-/* Pinned tiles have no label (name shows as a tooltip on hover). */
 .launcher-pinned-row .launcher-tile {
     padding: 16px;
 }
 
-/* Section headings (PINNED APPS, ALL APPS, RESULTS). Big, bold, and
-   letter-spaced — they anchor the layout on wide monitors. */
 .launcher-heading {
     color: #657b83;
     font-size: 38px;
@@ -231,7 +220,6 @@
     padding: 6px 0 10px 0;
 }
 
-/* Scrollbars: only the app grid uses AUTOMATIC policy. */
 .launcher-scroll {
     -st-vfade-offset: 36px;
 }
@@ -275,7 +263,6 @@
     background-color: rgba(42, 161, 152, 0.38);
 }
 
-/* App name under each tile: 2x the previous size. */
 .launcher-tile-label {
     color: #eee8d5;
     font-size: 52px;
