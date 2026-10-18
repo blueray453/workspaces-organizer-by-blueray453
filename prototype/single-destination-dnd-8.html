@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Drag and drop: edge scroll, suggested row, grouped apps</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #001a22; color: #eee8d5;
+  font-family: 'Cantarell', 'Segoe UI', system-ui, sans-serif; }
+
+/* ---------- workspace (drag source) ---------- */
+#workspace { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 16px; text-align: center; padding: 40px;
+  transition: filter 200ms, transform 200ms; }
+#workspace h1 { font-size: clamp(22px, 3vw, 32px); font-weight: 600; }
+#workspace p { max-width: 600px; color: #93a1a1; line-height: 1.6; }
+#source-file { width: 128px; height: 128px; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 10px; border: 2px dashed #2b5a68; border-radius: 12px; background: #06303b;
+  cursor: grab; user-select: none; transition: border-color 150ms, transform 150ms; }
+#source-file:hover { border-color: #2aa198; transform: translateY(-2px); }
+#source-file .ic { font-size: 40px; }
+#source-file .nm { font-size: 12px; font-weight: 600; }
+.ctl { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #93a1a1; }
+.ctl span { min-width: 92px; text-align: right; }
+.ctl button { font: inherit; font-weight: 700; padding: 6px 12px; border-radius: 8px; cursor: pointer;
+  color: #eee8d5; background: transparent; border: 1px solid #2b5a68; }
+.ctl button:hover { border-color: #2aa198; }
+.ctl button.on { background: #0a4648; border-color: #2aa198; color: #fffaf0; }
+#count-note { font-size: 12px; color: #6f8486; min-height: 18px; }
+
+/* ---------- HUD ---------- */
+#hud { --band: 340px; --col: 96px; --fan: 300px;
+  position: fixed; inset: 0; z-index: 10; background: #001a22;
+  opacity: 0; pointer-events: none; transition: opacity 160ms; }
+#hud.active { opacity: 1; pointer-events: auto; }
+
+/* ---------- fullscreen window (bottom layer) ---------- */
+#win { --c: #268bd2; position: absolute; inset: 0; z-index: 0; display: flex; flex-direction: column;
+  overflow: hidden; background: #04212a; }
+#hud.has-suggest #win { top: 52px; }
+#win.swap { animation: swap 160ms ease-out; }
+@keyframes swap { from { opacity: 0.35; } to { opacity: 1; } }
+#win-bar { display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 16px; background: var(--c); color: #fdf6e3; }
+#win-bar i { width: 13px; height: 13px; border-radius: 50%; background: rgba(0, 0, 0, 0.35); }
+#win-title { flex: 1; text-align: center; font-size: 15px; font-weight: 700; white-space: nowrap; padding-right: var(--col); }
+#zones { position: relative; flex: 1; margin-right: var(--col); }
+.zone { position: absolute; margin: 8px; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 6px; padding: 12px; text-align: center; overflow: hidden;
+  border: 2px dashed color-mix(in srgb, var(--c) 70%, transparent); border-radius: 14px;
+  background: color-mix(in srgb, var(--c) 10%, transparent);
+  transition: background 100ms, border-color 100ms, transform 100ms, opacity 150ms; }
+.z-name { font-size: clamp(16px, 2vw, 26px); font-weight: 700; }
+.z-sub { font-size: 14px; color: #a9b8b8; }
+.z-go { height: 18px; font-size: 13px; font-weight: 700; color: #fffaf0; opacity: 0; }
+.zone.over { border-style: solid; border-color: var(--c);
+  background: color-mix(in srgb, var(--c) 38%, transparent); transform: scale(1.006); }
+.zone.over .z-go { opacity: 1; }
+#hud.browse .zone { opacity: 0.4; }
+
+#mode-hint { position: absolute; left: 0; right: var(--col); bottom: 16px; z-index: 3; text-align: center;
+  font-size: 13px; font-weight: 700; color: #fffaf0; pointer-events: none; text-shadow: 0 0 8px #001a22, 0 0 16px #001a22; }
+
+/* ---------- suggested row (top bar) ---------- */
+#suggest { position: absolute; top: 0; left: 0; right: var(--col); height: 52px; z-index: 3; display: none;
+  align-items: center; gap: 12px; padding: 0 14px; background: #001a22; border-bottom: 1px solid rgba(147, 161, 161, 0.22); }
+#hud.has-suggest #suggest { display: flex; }
+.s-label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #93a1a1; }
+#chips { display: flex; gap: 8px; min-width: 0; overflow: hidden; }
+.chip { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px 0 6px; border-radius: 10px;
+  border: 1px solid rgba(147, 161, 161, 0.3); background: rgba(255, 255, 255, 0.04); white-space: nowrap;
+  transition: background 120ms, border-color 120ms; }
+.chip.sel { background: rgba(10, 70, 72, 0.92); border-color: #2aa198; }
+.c-t { font-size: 13px; font-weight: 700; }
+.c-w { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #4fd1c5; }
+
+/* ---------- band: collapsed icon strip, expands when the pointer is in it ---------- */
+#band { position: absolute; top: 0; bottom: 0; right: 0; width: var(--col); z-index: 4;
+  display: flex; align-items: center; gap: 8px; padding: 0 8px; overflow: hidden;
+  background: rgba(0, 20, 28, 0.94); border-left: 1px solid rgba(147, 161, 161, 0.22);
+  transition: width 150ms ease, background 150ms ease; }
+#band.expanded { width: var(--band); padding: 0 12px; background: rgba(0, 20, 28, 0.74); }
+#band:not(.expanded) .exp-only { display: none; }
+#band-count { position: absolute; top: 20px; left: 12px; right: 12px; font-size: 13px; color: #cfd8d8;
+  font-variant-numeric: tabular-nums; text-shadow: 0 0 6px #001a22, 0 0 12px #001a22; }
+#band-hint { position: absolute; bottom: 20px; left: 12px; right: 12px; font-size: 12px; line-height: 1.5; color: #cfd8d8;
+  text-shadow: 0 0 6px #001a22, 0 0 12px #001a22; }
+
+/* edge scroll zones: from the list edge to the band edge. Farther out = faster. */
+.ez { position: absolute; left: 0; right: 0; display: none; justify-content: center; padding: 8px 0;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.04em; color: #93a1a1; pointer-events: none; --d: 0; }
+.ez.active { color: #fffaf0; }
+#zone-up { align-items: flex-end;
+  background: linear-gradient(to top, rgba(42, 161, 152, calc(var(--d) * 0.42)), rgba(42, 161, 152, 0)); }
+#zone-down { align-items: flex-start;
+  background: linear-gradient(to bottom, rgba(42, 161, 152, calc(var(--d) * 0.42)), rgba(42, 161, 152, 0)); }
+
+#rows { position: relative; flex: 1; min-width: 0; overflow: hidden; }
+.row { position: absolute; top: 3px; left: 0; right: 0; height: 46px; display: flex; align-items: center; gap: 10px;
+  padding: 0 10px; border: 1px solid transparent; border-radius: 10px; background: rgba(0, 20, 28, 0.45);
+  will-change: transform; transition: background 120ms, border-color 120ms; }
+#band:not(.expanded) .row { justify-content: center; padding: 0; }
+#band:not(.expanded) .r-tx { display: none; }
+.row.sel { background: rgba(10, 70, 72, 0.92); border-color: #2aa198; }
+.r-tx { display: flex; flex-direction: column; min-width: 0; }
+.r-t { font-size: 14px; font-weight: 600; white-space: nowrap; }
+.r-a { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #4fd1c5; }
+.r-n { margin-left: auto; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+  background: rgba(79, 209, 197, 0.16); color: #4fd1c5; white-space: nowrap; }
+.r-ic svg { display: block; }
+
+#rail { position: relative; flex: 0 0 28px; width: 28px; height: min(72vh, 560px); }
+#rail .track { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px;
+  background: rgba(238, 232, 213, 0.6); border-radius: 2px; box-shadow: 0 0 0 1px rgba(0, 22, 30, 0.6); }
+#rail .tick { position: absolute; left: 50%; width: 10px; height: 3px; margin: -1.5px 0 0 -5px; border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(0, 22, 30, 0.8); }
+#rail #marker { position: absolute; left: 50%; top: 0; width: 24px; height: 8px; margin: -4px 0 0 -12px;
+  border-radius: 4px; background: #fffaf0; box-shadow: 0 0 0 2px #001a22; }
+
+/* ---------- fan-out: windows of the hovered app (grouped layout) ---------- */
+#fan { position: absolute; z-index: 5; display: none; width: var(--fan); padding: 8px;
+  border: 1px solid rgba(147, 161, 161, 0.3); border-right: 0; border-radius: 12px 0 0 12px; background: rgba(0, 20, 28, 0.95); }
+#fan.open { display: block; }
+.fan-h { padding: 4px 8px 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #4fd1c5; }
+.fan-item { height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: 8px;
+  border: 1px solid transparent; font-size: 13px; font-weight: 600; white-space: nowrap;
+  transition: background 120ms, border-color 120ms; }
+.fan-item.sel { background: rgba(10, 70, 72, 0.92); border-color: #2aa198; }
+
+#toast { position: fixed; bottom: 24px; left: 50%; z-index: 30; max-width: calc(100vw - 32px); padding: 12px 18px;
+  border-radius: 12px; background: #a6e3a1; color: #11111b; font-size: 13px; font-weight: 700;
+  opacity: 0; transform: translate(-50%, 8px); pointer-events: none; transition: opacity 180ms, transform 180ms; }
+#toast.visible { opacity: 1; transform: translate(-50%, 0); }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0.01ms !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<main id="workspace">
+  <h1>Move a file to another window</h1>
+  <p>Drag the file. The last window you used opens fullscreen, ready to drop on. Move to the right edge to browse. Hold at the top or bottom of the list to scroll: the farther out, the faster. Move back into the window to drop.</p>
+  <div id="source-file" draggable="true" aria-label="Drag report.pdf">
+    <div class="ic" aria-hidden="true">📄</div><div class="nm">report.pdf</div>
+  </div>
+  <div class="ctl" id="count-ctl"><span>Windows:</span>
+    <button data-n="4">4</button><button data-n="7">7</button><button data-n="12" class="on">12</button><button data-n="40">40</button></div>
+  <div class="ctl" id="layout-ctl"><span>Band lists:</span>
+    <button data-l="windows" class="on">Windows</button><button data-l="apps">Apps (grouped)</button></div>
+  <div class="ctl"><span>Suggested row:</span><button id="sug-btn">Off</button></div>
+  <div id="count-note"></div>
+</main>
+
+<section id="hud" aria-hidden="true">
+  <div id="win">
+    <div id="win-bar"><i></i><i></i><i></i><div id="win-title"></div></div>
+    <div id="zones"></div>
+  </div>
+  <div id="suggest"><span class="s-label">Suggested</span><div id="chips"></div></div>
+  <div id="mode-hint"></div>
+  <div id="fan"></div>
+
+  <aside id="band" aria-label="Windows">
+    <div id="band-count" class="exp-only"></div>
+    <div id="zone-up" class="ez"></div>
+    <div id="rows"></div>
+    <div id="rail"><div class="track"></div><div id="ticks"></div><div id="marker"></div></div>
+    <div id="zone-down" class="ez"></div>
+    <div id="band-hint" class="exp-only">Hover to preview. Move above or below the list to scroll: farther out is faster.</div>
+  </aside>
+</section>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+// ==================== DATA ====================
+const BASE = [
+  { app: 'Code',        title: 'searchOverlays.js — topnotch-workspaces',  color: '#268bd2', kind: 'editor' },
+  { app: 'Firefox',     title: 'GNOME Shell Extensions — Mozilla Firefox', color: '#cb4b16', kind: 'browser' },
+  { app: 'Terminal',    title: 'user@workstation: ~/projects/ext',         color: '#859900', kind: 'terminal' },
+  { app: 'Slack',       title: '#general — Workspace Indicator Team',      color: '#d33682', kind: 'chat' },
+  { app: 'Thunderbird', title: 'Inbox — user@example.com',                 color: '#b58900', kind: 'mail' },
+  { app: 'Spotify',     title: 'Now Playing — Solarized Playlist',         color: '#2aa198', kind: 'music' },
+  { app: 'VLC',         title: 'Big Buck Bunny.mp4',                       color: '#dc322f', kind: 'video' },
+  { app: 'eog',         title: 'screenshot-2024-01-15.png — Image Viewer', color: '#6c71c4', kind: 'image' },
+  { app: 'LibreOffice', title: 'Design Document.odt — Writer',             color: '#586e75', kind: 'docs' },
+  { app: 'Settings',    title: 'Settings — Appearance',                    color: '#839496', kind: 'settings' },
+  { app: 'Code',        title: 'workspaceIndicator.js — topnotch-workspaces', color: '#268bd2', kind: 'editor' },
+  { app: 'Firefox',     title: 'docs.gtk.org/gtk4 — Mozilla Firefox',      color: '#cb4b16', kind: 'browser' },
+  { app: 'Terminal',    title: 'user@workstation: ~/projects/clients/acme-corp/frontend/node_modules/.cache/webpack/production', color: '#859900', kind: 'terminal' },
+  { app: 'Slack',       title: '#dev — TopNotch Workspaces',               color: '#d33682', kind: 'chat' },
+  { app: 'Files',       title: 'Home — Files',                             color: '#839496', kind: 'docs' },
+  { app: 'GIMP',        title: 'Untitled-1 — GIMP',                        color: '#6c71c4', kind: 'image' },
+  { app: 'mpv',         title: 'lofi-radio.m3u — mpv',                     color: '#dc322f', kind: 'video' },
+  { app: 'Firefox',     title: 'Pull Request #1423: Refactor window selector overlay to support fisheye layout — GitHub', color: '#cb4b16', kind: 'browser' },
+  { app: 'Rhythmbox',   title: 'Library — Rhythmbox',                      color: '#2aa198', kind: 'music' },
+  { app: 'Geary',       title: 'Inbox (3) — Geary',                        color: '#b58900', kind: 'mail' },
+  { app: 'Code',        title: 'model.js — topnotch-workspaces',           color: '#268bd2', kind: 'editor' },
+  { app: 'Terminal',    title: 'user@workstation: ~/ (tmux)',              color: '#859900', kind: 'terminal' },
+  { app: 'Calculator',  title: 'Calculator',                               color: '#586e75', kind: 'settings' },
+  { app: 'Slack',       title: '#random — TopNotch Workspaces',            color: '#d33682', kind: 'chat' }
+];
+const ALL = Array.from({ length: 40 }, (_, i) => {
+  const t = BASE[i % BASE.length], k = Math.floor(i / BASE.length);
+  return k ? { ...t, title: `${t.title} (${k + 1})` } : { ...t };
+});
+
+const ZONES = {
+  editor:   [['Explorer','Add to project files',0,0,20,100],['Editor','Open in a new tab',20,0,80,68],['Terminal panel','Insert file path',20,68,80,32]],
+  browser:  [['Address bar','Open in a new tab',0,0,100,16],['Page','Upload to this page',0,16,100,56],['Downloads','Save to downloads',0,72,100,28]],
+  terminal: [['Prompt','Paste file path',0,0,100,60],['Working directory','Copy to current folder',0,60,100,40]],
+  chat:     [['Channels','Send as a direct message',0,0,24,100],['Conversation','Share in this channel',24,0,76,68],['Composer','Attach to draft message',24,68,76,32]],
+  mail:     [['Folders','File into a folder',0,0,24,100],['Message','Attach to reply',24,0,76,60],['New message','Compose with attachment',24,60,76,40]],
+  music:    [['Playlists','Add to a playlist',0,0,30,100],['Now playing','Add to queue',30,0,70,100]],
+  video:    [['Player','Play now',0,0,100,70],['Playlist','Add to playlist',0,70,100,30]],
+  image:    [['Canvas','Open in viewer',0,0,68,100],['Albums','Add to an album',68,0,32,100]],
+  docs:     [['Page','Insert into document',0,0,66,100],['Sidebar','Attach as linked file',66,0,34,100]],
+  settings: [['Sidebar','Import profile',0,0,30,100],['Panel','Use as appearance file',30,0,70,100]]
+};
+
+// ==================== TEXT CLIPPING (ellipsis at the start) ====================
+const FONT = `Cantarell, 'Segoe UI', system-ui, sans-serif`;
+const mctx = document.createElement('canvas').getContext('2d');
+function fitStart(text, weight, size, maxPx) {
+  mctx.font = `${weight} ${size}px ${FONT}`;
+  if (mctx.measureText(text).width <= maxPx) return text;
+  let lo = 0, hi = text.length;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (mctx.measureText('…' + text.slice(text.length - mid)).width <= maxPx) lo = mid; else hi = mid - 1;
+  }
+  return '…' + text.slice(text.length - lo).replace(/^\s+/, '');
+}
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+// ==================== ICONS ====================
+const G = {
+  editor: `<path d="M9 7 L4 12 L9 17 M15 7 L20 12 L15 17" stroke="C" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
+  browser: `<circle cx="12" cy="12" r="7.5" stroke="C" stroke-width="1.8" fill="none"/><ellipse cx="12" cy="12" rx="7.5" ry="3" stroke="C" stroke-width="1.4" fill="none"/><line x1="4.5" y1="12" x2="19.5" y2="12" stroke="C" stroke-width="1.4"/>`,
+  terminal: `<rect x="4" y="6" width="16" height="12" rx="2" stroke="C" stroke-width="1.8" fill="none"/><path d="M7 11 L10 13 L7 15" stroke="C" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
+  chat: `<path d="M5 6 h14 a2 2 0 0 1 2 2 v8 a2 2 0 0 1 -2 2 h-8 l-4 3 v-3 h-2 a2 2 0 0 1 -2 -2 v-8 a2 2 0 0 1 2 -2 z" fill="none" stroke="C" stroke-width="1.8" stroke-linejoin="round"/>`,
+  mail: `<rect x="4" y="6" width="16" height="12" rx="2" fill="none" stroke="C" stroke-width="1.8"/><path d="M4 8 L12 14 L20 8" fill="none" stroke="C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`,
+  music: `<circle cx="8" cy="17" r="3" fill="none" stroke="C" stroke-width="1.8"/><circle cx="18" cy="15" r="3" fill="none" stroke="C" stroke-width="1.8"/><path d="M11 17 L11 7 L21 5 L21 15" fill="none" stroke="C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`,
+  video: `<rect x="4" y="7" width="16" height="10" rx="2" fill="none" stroke="C" stroke-width="1.8"/><path d="M10 10 L15 12 L10 14 Z" fill="C"/>`,
+  image: `<rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="C" stroke-width="1.8"/><circle cx="9" cy="10" r="1.7" fill="C"/><path d="M4 17 L9 12 L13 16 L16 13 L20 17" fill="none" stroke="C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`,
+  docs: `<path d="M7 4 L14 4 L18 8 L18 20 L7 20 Z" fill="none" stroke="C" stroke-width="1.8" stroke-linejoin="round"/><line x1="9" y1="12" x2="16" y2="12" stroke="C" stroke-width="1.4"/><line x1="9" y1="15" x2="16" y2="15" stroke="C" stroke-width="1.4"/>`,
+  settings: `<circle cx="12" cy="12" r="3" fill="none" stroke="C" stroke-width="1.8"/><circle cx="12" cy="12" r="8" fill="none" stroke="C" stroke-width="1.5" stroke-dasharray="3 3"/>`
+};
+function iconSVG(kind, color, size) {
+  const glyph = (G[kind] || G.docs).replaceAll('C', color);
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+    <rect x="1" y="1" width="22" height="22" rx="5" fill="#01212b"/>
+    <rect x="1" y="1" width="22" height="22" rx="5" fill="${color}" opacity="0.18"/>
+    <rect x="1" y="1" width="22" height="22" rx="5" fill="none" stroke="${color}" stroke-width="1.2" opacity="0.85"/>${glyph}</svg>`;
+}
+
+// ==================== CONSTANTS + STATE ====================
+const SLOT = 52, SLOTS = 7, HALF = 3;      // focus strip: 7 rows, 3 each side of the center
+const COL = 96;                            // collapsed band width
+const DWELL_MS = 110;                      // hover time before a row selects
+const RAIL_PAD = 10;
+const DEAD = 0.06;                         // edge scroll: no movement very close to the list
+
+const $ = id => document.getElementById(id);
+const hud = $('hud'), workspace = $('workspace'), file = $('source-file'), band = $('band');
+const rowsEl = $('rows'), railEl = $('rail'), ticksEl = $('ticks'), markerEl = $('marker');
+const winEl = $('win'), zonesEl = $('zones'), toast = $('toast'), modeHint = $('mode-hint');
+const fanEl = $('fan'), suggestEl = $('suggest'), chipsEl = $('chips'), zUp = $('zone-up'), zDn = $('zone-down');
+
+let WINDOWS = ALL.slice(0, 12);
+let layoutMode = 'windows', suggestOn = false;
+let ROWS = [], rowOf = [];                 // band rows (windows or app groups) and window -> row map
+let rowEls = new Map();
+let sel = 0, view = 0, lastSel = 0, lastDropped = false;
+let dragActive = false, browse = false, toastTimer = null, railH = 0, BAND_W = 340, FAN_W = 300;
+let dwellKey = null, dwellT = 0;
+let edgeDir = 0, edgeDepth = 0, edgeRaf = 0, edgeLast = 0, lastOver = 0;
+let fanRow = -1, suggestList = [];
+
+const isStrip = () => ROWS.length > SLOTS;
+const minView = () => isStrip() ? HALF : (ROWS.length - 1) / 2;
+const maxView = () => isStrip() ? ROWS.length - 1 - HALF : (ROWS.length - 1) / 2;
+const clampView = v => clamp(v, minView(), maxView());
+
+function applyBandSize() {
+  BAND_W = Math.round(Math.max(Math.min(320, innerWidth * 0.7), Math.min(440, innerWidth * 0.3)));
+  FAN_W = Math.round(clamp(innerWidth - BAND_W - 100, 200, 300));
+  hud.style.setProperty('--band', BAND_W + 'px');
+  hud.style.setProperty('--col', COL + 'px');
+  hud.style.setProperty('--fan', FAN_W + 'px');
+}
+
+// ==================== ROW MODEL: windows or apps ====================
+function buildRows() {
+  rowOf = new Array(WINDOWS.length);
+  if (layoutMode === 'apps') {
+    const m = new Map();
+    WINDOWS.forEach((w, i) => {
+      let g = m.get(w.app);
+      if (!g) { g = { title: w.app, app: w.app, color: w.color, kind: w.kind, idxs: [] }; m.set(w.app, g); }
+      g.idxs.push(i);
+    });
+    ROWS = [...m.values()];
+    ROWS.forEach(g => g.sub = g.idxs.length + (g.idxs.length > 1 ? ' windows' : ' window'));
+  } else {
+    ROWS = WINDOWS.map((w, i) => ({ title: w.title, sub: w.app, app: w.app, color: w.color, kind: w.kind, idxs: [i] }));
+  }
+  ROWS.forEach((g, r) => g.idxs.forEach(i => { rowOf[i] = r; }));
+  rowEls.clear(); rowsEl.innerHTML = '';
+}
+
+// ==================== CONTROLS (for testing) ====================
+function rebuild(resetSel) {
+  buildRows();
+  if (resetSel) { sel = lastSel = 0; lastDropped = false; }
+  sel = Math.min(sel, WINDOWS.length - 1);
+  view = clampView(rowOf[sel]);
+  fanRow = -1;
+  $('count-note').textContent =
+    `${WINDOWS.length} windows → ${ROWS.length} rows in the band (` +
+    (isStrip() ? `focus strip of ${SLOTS} + edge scroll + rail` : 'all visible, no scrolling needed') + ').';
+}
+document.querySelectorAll('#count-ctl button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#count-ctl button').forEach(x => x.classList.toggle('on', x === b));
+  WINDOWS = ALL.slice(0, Number(b.dataset.n));
+  rebuild(true);
+}));
+document.querySelectorAll('#layout-ctl button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#layout-ctl button').forEach(x => x.classList.toggle('on', x === b));
+  layoutMode = b.dataset.l;
+  rebuild(false);
+}));
+$('sug-btn').addEventListener('click', e => {
+  suggestOn = !suggestOn;
+  e.target.textContent = suggestOn ? 'On' : 'Off';
+  e.target.classList.toggle('on', suggestOn);
+});
+
+// ==================== STRIP: continuous positions ====================
+function makeRow(r) {
+  const it = ROWS[r], grouped = layoutMode === 'apps' && it.idxs.length > 1;
+  const textMax = Math.max(80, BAND_W - 24 - 28 - 8 - 20 - 30 - 10 - 6 - (grouped ? 56 : 0));
+  const el = document.createElement('div');
+  el.className = 'row';
+  el.dataset.r = r;
+  el.innerHTML = `<span class="r-ic">${iconSVG(it.kind, it.color, 30)}</span>
+    <span class="r-tx"><span class="r-t">${esc(fitStart(it.title, 600, 14, textMax))}</span><span class="r-a">${esc(it.sub)}</span></span>` +
+    (grouped ? `<span class="r-n exp-only">×${it.idxs.length} ›</span>` : '');
+  return el;
+}
+
+function layoutRows() {
+  const R = ROWS.length, strip = isStrip(), vis = strip ? SLOTS : R;
+  rowsEl.style.height = vis * SLOT + 'px';
+  const lo = strip ? Math.max(0, Math.floor(view - HALF - 1)) : 0;
+  const hi = strip ? Math.min(R - 1, Math.ceil(view + HALF + 1)) : R - 1;
+  for (const [r, el] of rowEls) if (r < lo || r > hi) { el.remove(); rowEls.delete(r); }
+  for (let r = lo; r <= hi; r++) {
+    let el = rowEls.get(r);
+    if (!el) { el = makeRow(r); rowsEl.appendChild(el); rowEls.set(r, el); }
+    const d = r - view, ad = Math.abs(d);
+    el.style.transform = `translateY(${((d + (vis - 1) / 2) * SLOT).toFixed(1)}px)`;
+    const isSel = rowOf[sel] === r;
+    el.classList.toggle('sel', isSel);
+    let op = strip ? Math.max(0, 0.9 - 0.17 * ad) * clamp(HALF + 1 - ad, 0, 1) : 0.8;
+    el.style.opacity = (isSel ? 1 : op).toFixed(3);
+  }
+  updateEdges();
+}
+
+// ==================== EDGE SCROLL: distance from the list sets the speed ====================
+const speedWord = t => t < 0.25 ? 'SLOW' : t < 0.6 ? 'MEDIUM' : 'FAST';
+const depthToT = d => Math.max(0, (d - DEAD) / (1 - DEAD));
+const edgeSpeed = d => { const t = depthToT(d); return t <= 0 ? 0 : 0.8 + 30 * t * t; };   // rows per second
+
+function positionEdges() {
+  const br = band.getBoundingClientRect(), rr = rowsEl.getBoundingClientRect();
+  zUp.style.top = '0'; zUp.style.height = Math.max(0, rr.top - br.top) + 'px';
+  zDn.style.top = (rr.bottom - br.top) + 'px'; zDn.style.height = Math.max(0, br.bottom - rr.bottom) + 'px';
+}
+function updateEdges() {
+  const strip = isStrip(), rMid = Math.round(view), R = ROWS.length;
+  const above = strip ? Math.max(0, rMid - HALF) : 0;
+  const below = strip ? Math.max(0, R - 1 - HALF - rMid) : 0;
+  const t = depthToT(edgeDepth);
+  [[zUp, above, -1, '▲', 'above'], [zDn, below, 1, '▼', 'below']].forEach(([z, n, dir, ar, word]) => {
+    const act = edgeDir === dir;
+    z.style.display = n > 0 ? 'flex' : 'none';
+    z.classList.toggle('active', act);
+    z.style.setProperty('--d', act ? t.toFixed(3) : '0');
+    z.innerHTML = `<span>${ar} ${n}<span class="exp-only"> more ${word}${act && t > 0 ? ' · ' + speedWord(t) : ''}</span></span>`;
+  });
+}
+// Which scroll zone (if any) is the pointer in, and how far out is it (0 = at the list, 1 = at the band edge)?
+function edgeAt(y) {
+  if (!isStrip()) return null;
+  const br = band.getBoundingClientRect(), rr = rowsEl.getBoundingClientRect();
+  if (y < rr.top && view > minView() + 0.001) return { dir: -1, depth: clamp((rr.top - y) / Math.max(1, rr.top - br.top), 0, 1) };
+  if (y > rr.bottom && view < maxView() - 0.001) return { dir: 1, depth: clamp((y - rr.bottom) / Math.max(1, br.bottom - rr.bottom), 0, 1) };
+  return null;
+}
+function setEdge(dir, depth) {
+  edgeDepth = depth;
+  if (edgeDir !== dir) { edgeDir = dir; cancelDwell(); if (fanRow !== -1) { fanRow = -1; updateFan(); } }
+  if (!edgeRaf) { edgeLast = performance.now(); edgeRaf = requestAnimationFrame(edgeStep); }
+  updateEdges();
+}
+function stopEdge() {
+  edgeDir = 0; edgeDepth = 0;
+  if (edgeRaf) { cancelAnimationFrame(edgeRaf); edgeRaf = 0; }
+  updateEdges();
+  updateMarker();
+}
+function edgeStep(now) {
+  edgeRaf = 0;
+  if (!edgeDir || !dragActive) return;
+  if (now - lastOver > 500) { stopEdge(); return; }        // pointer left the page: stop
+  const dt = Math.min(now - edgeLast, 60) / 1000; edgeLast = now;
+  view = clampView(view + edgeDir * edgeSpeed(edgeDepth) * dt);
+  const r = Math.round(view);
+  if (rowOf[sel] !== r) { sel = ROWS[r].idxs[0]; renderPreview(); updateCount(); markSuggest(); }   // selection follows the center row
+  layoutRows(); updateMarker();
+  if (view <= minView() || view >= maxView()) { stopEdge(); return; }
+  edgeRaf = requestAnimationFrame(edgeStep);
+}
+
+// ==================== RAIL (scrubber, only when the list overflows) ====================
+function railY(p) {
+  const span = Math.max(1, railH - RAIL_PAD * 2);
+  return RAIL_PAD + (p / Math.max(1, ROWS.length - 1)) * span;
+}
+function buildRail() {
+  railEl.style.display = isStrip() ? '' : 'none';
+  if (!isStrip()) return;
+  railH = railEl.clientHeight;
+  ticksEl.innerHTML = '';
+  ROWS.forEach((g, r) => {
+    const t = document.createElement('div');
+    t.className = 'tick';
+    t.style.top = railY(r) + 'px';
+    t.style.background = g.color;
+    ticksEl.appendChild(t);
+  });
+}
+function updateMarker() {
+  if (!isStrip()) return;
+  markerEl.style.transform = `translateY(${railY(edgeDir ? view : rowOf[sel]).toFixed(1)}px)`;
+}
+function railHover(e) {
+  const rr = railEl.getBoundingClientRect(), R = ROWS.length;
+  const span = Math.max(1, railH - RAIL_PAD * 2);
+  const raw = clamp(((e.clientY - rr.top - RAIL_PAD) / span) * (R - 1), 0, R - 1);
+  if (Math.abs(raw - rowOf[sel]) > 0.65) {                 // hysteresis stops flicker
+    const row = Math.round(raw);
+    select(rowOf[sel] === row ? sel : ROWS[row].idxs[0], { center: true });
+  }
+}
+
+// ==================== HOVER WITH DWELL ====================
+function cancelDwell() { clearTimeout(dwellT); dwellT = 0; dwellKey = null; }
+function dwell(key, fn) {
+  if (key === dwellKey) return;
+  cancelDwell();
+  dwellKey = key;
+  dwellT = setTimeout(() => { dwellT = 0; dwellKey = null; fn(); }, DWELL_MS);
+}
+function rowHover(r) {
+  const apps = layoutMode === 'apps';
+  if (rowOf[sel] === r && (!apps || fanRow === r || ROWS[r].idxs.length < 2)) { cancelDwell(); return; }
+  dwell('r' + r, () => { select(rowOf[sel] === r ? sel : ROWS[r].idxs[0]); if (apps) { fanRow = r; updateFan(); } });
+}
+
+// ==================== TWO MODES ====================
+function setBrowse(b) {
+  browse = b;
+  band.classList.toggle('expanded', b);
+  hud.classList.toggle('browse', b);
+  if (b) zonesEl.querySelectorAll('.zone.over').forEach(z => z.classList.remove('over'));
+  else { cancelDwell(); stopEdge(); fanRow = -1; }
+  updateFan();
+  modeHint.textContent = b
+    ? 'Browsing windows. Move left into the window to drop.'
+    : 'Drop on a zone, or move to the right edge to browse windows.';
+}
+function updateMode(x) {
+  const leaveX = innerWidth - BAND_W - (fanEl.classList.contains('open') ? FAN_W : 0) - 12;
+  if (!browse) { if (x >= innerWidth - COL) setBrowse(true); }
+  else if (x < leaveX) setBrowse(false);
+}
+hud.addEventListener('dragover', e => {                    // capture: runs before zone, band or fan handlers
+  if (!dragActive) return;
+  lastOver = performance.now();
+  updateMode(e.clientX);
+  if (!e.target.closest('#band')) stopEdge();
+}, true);
+
+// The band is a no-drop area. Rail = scrub, scroll zones = continuous scroll, rows = hover select.
+band.addEventListener('dragover', e => {
+  if (!dragActive) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'none';
+  if (e.target.closest('#rail')) { stopEdge(); cancelDwell(); railHover(e); return; }
+  const edge = edgeAt(e.clientY);
+  if (edge) { setEdge(edge.dir, edge.depth); return; }
+  if (edgeDir) stopEdge();
+  const row = e.target.closest('.row');
+  if (row) rowHover(Number(row.dataset.r)); else cancelDwell();
+});
+fanEl.addEventListener('dragover', e => {
+  if (!dragActive) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'none';
+  const it = e.target.closest('.fan-item');
+  if (!it) { cancelDwell(); return; }
+  const i = Number(it.dataset.i);
+  if (i === sel) cancelDwell(); else dwell('f' + i, () => select(i));
+});
+suggestEl.addEventListener('dragover', e => {
+  if (!dragActive) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'none';
+  const c = e.target.closest('.chip');
+  if (!c) { cancelDwell(); return; }
+  const i = Number(c.dataset.i);
+  if (i === sel) cancelDwell(); else dwell('c' + i, () => select(i, { center: true }));
+});
+
+// ==================== FAN-OUT (apps layout) ====================
+function updateFan() {
+  const g = ROWS[fanRow], el = rowEls.get(fanRow);
+  if (!(layoutMode === 'apps' && browse && g && g.idxs.length > 1 && el)) { fanEl.classList.remove('open'); return; }
+  const textMax = FAN_W - 16 - 20 - 22 - 8;
+  fanEl.innerHTML = `<div class="fan-h">${esc(g.app)} · ${g.idxs.length} windows</div>` + g.idxs.map(i => {
+    const w = WINDOWS[i];
+    return `<div class="fan-item${i === sel ? ' sel' : ''}" data-i="${i}"><span class="r-ic">${iconSVG(w.kind, w.color, 22)}</span>${esc(fitStart(w.title, 600, 13, textMax))}</div>`;
+  }).join('');
+  const h = 34 + g.idxs.length * 40 + 16, rect = el.getBoundingClientRect();
+  fanEl.style.top = clamp(rect.top + rect.height / 2 - h / 2, 8, Math.max(8, innerHeight - h - 8)) + 'px';
+  fanEl.style.right = BAND_W + 'px';
+  fanEl.classList.add('open');
+}
+
+// ==================== SUGGESTED ROW ====================
+function buildSuggest() {
+  suggestList = [];
+  const add = (i, why) => { if (i >= 0 && i < WINDOWS.length && !suggestList.some(s => s.i === i)) suggestList.push({ i, why }); };
+  if (lastDropped) add(lastSel, 'Last used');
+  [['mail', 'Attach'], ['chat', 'Share'], ['docs', 'Insert']].forEach(([k, why]) => add(WINDOWS.findIndex(w => w.kind === k), why));
+  suggestList = suggestList.slice(0, 4);
+  chipsEl.innerHTML = suggestList.map(s => {
+    const w = WINDOWS[s.i];
+    return `<div class="chip" data-i="${s.i}"><span class="r-ic">${iconSVG(w.kind, w.color, 24)}</span><span class="c-t">${esc(w.app)}</span><span class="c-w">${esc(s.why)}</span></div>`;
+  }).join('');
+  markSuggest();
+}
+function markSuggest() {
+  chipsEl.querySelectorAll('.chip').forEach(c => c.classList.toggle('sel', Number(c.dataset.i) === sel));
+}
+
+// ==================== FULLSCREEN WINDOW + ZONES ====================
+function renderPreview() {
+  const w = WINDOWS[sel];
+  winEl.style.setProperty('--c', w.color);
+  $('win-title').textContent = fitStart(`${w.app} — ${w.title}`, 700, 15, Math.max(160, innerWidth - COL - 160));
+  zonesEl.innerHTML = '';
+
+  (ZONES[w.kind] || ZONES.docs).forEach(([name, sub, x, y, ww, hh]) => {
+    const z = document.createElement('div');
+    z.className = 'zone';
+    z.style.cssText = `left:${x}%;top:${y}%;width:calc(${ww}% - 16px);height:calc(${hh}% - 16px)`;
+    z.innerHTML = `<div class="z-name">${esc(name)}</div><div class="z-sub">${esc(sub)}</div><div class="z-go">Release to drop</div>`;
+    z.addEventListener('dragover', e => {
+      if (!dragActive || browse) return;                   // not droppable while browsing
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      z.classList.add('over');
+    });
+    z.addEventListener('dragleave', e => {
+      if (e.relatedTarget && z.contains(e.relatedTarget)) return;
+      z.classList.remove('over');
+    });
+    z.addEventListener('drop', e => {
+      if (browse) return;
+      e.preventDefault();
+      const f = e.dataTransfer.getData('text/plain') || 'report.pdf';
+      lastSel = sel; lastDropped = true;
+      showToast(`Dropped ${f} → ${w.app} › ${name} (${sub})`);
+      hideHUD();
+    });
+    zonesEl.appendChild(z);
+  });
+
+  if (!edgeDir) { winEl.classList.remove('swap'); void winEl.offsetWidth; winEl.classList.add('swap'); }
+}
+
+// ==================== SELECTION ====================
+function select(i, { center = false } = {}) {
+  i = clamp(i, 0, WINDOWS.length - 1);
+  const changed = i !== sel;
+  if (!changed && !center) return;
+  sel = i;
+  if (center) view = clampView(rowOf[sel]);
+  if (fanRow !== -1 && rowOf[sel] !== fanRow) fanRow = -1;
+  layoutRows(); updateMarker();
+  if (changed) { renderPreview(); updateCount(); markSuggest(); }
+  updateFan();
+}
+function updateCount() {
+  $('band-count').textContent = `Window ${sel + 1} of ${WINDOWS.length}` + (layoutMode === 'apps' ? ` · ${WINDOWS[sel].app}` : '');
+}
+
+// ==================== HUD ====================
+function hideHUD() {
+  dragActive = false;
+  cancelDwell(); stopEdge(); fanRow = -1; updateFan();
+  hud.classList.remove('active');
+  hud.setAttribute('aria-hidden', 'true');
+  workspace.style.filter = 'none';
+  workspace.style.transform = 'none';
+}
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('visible'), 3200);
+}
+
+file.addEventListener('dragstart', e => {
+  dragActive = true;
+  lastOver = performance.now();
+  e.dataTransfer.effectAllowed = 'copyMove';
+  e.dataTransfer.setData('text/plain', 'report.pdf');
+  sel = Math.min(lastSel, WINDOWS.length - 1);              // start on the last window used
+  view = clampView(rowOf[sel]);
+  fanRow = -1;
+  browse = true; setBrowse(false);                          // always start collapsed, in drop mode
+  setTimeout(() => {
+    if (!dragActive) return;
+    hud.classList.add('active');
+    hud.setAttribute('aria-hidden', 'false');
+    workspace.style.filter = 'blur(4px)';
+    workspace.style.transform = 'scale(0.985)';
+    applyBandSize();
+    hud.classList.toggle('has-suggest', suggestOn);
+    if (suggestOn) buildSuggest();
+    buildRail();
+    rowEls.forEach(el => el.remove()); rowEls.clear();
+    layoutRows(); positionEdges(); updateMarker();
+    renderPreview(); updateCount();
+  }, 10);
+});
+file.addEventListener('dragend', hideHUD);                  // released anywhere that is not a zone = cancel
+
+window.addEventListener('resize', () => {
+  if (!dragActive) return;
+  applyBandSize(); buildRail();
+  rowEls.forEach(el => el.remove()); rowEls.clear();
+  layoutRows(); positionEdges(); updateMarker(); renderPreview(); updateFan();
+});
+
+applyBandSize();
+rebuild(true);
+</script>
+</body>
+</html>
