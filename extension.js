@@ -69,10 +69,10 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
         Interactions.destroyTooltip();
     }
 
-    // Top-bar scroll: cycle focus through the active workspace's windows in
-    // model order. No-ops when the workspace is in overflow mode (the model
-    // reports `direct = false`, i.e. >5 windows) — the strip shows a count
-    // button, so there's no per-window order to walk.
+    // Top-bar scroll: step focus through the model's flat window order —
+    // every window across every non-overflow workspace, deduped for sticky
+    // windows. Workspaces with >5 windows (`direct === false`) are excluded
+    // entirely, so their windows are not in the cycle.
     _handleScroll(event) {
         if (event.type() !== Clutter.EventType.SCROLL)
             return Clutter.EVENT_PROPAGATE;
