@@ -272,7 +272,12 @@
     padding-top: 12px;
 }
 
-/* ===== Window selector (fisheye, prototype v3 look) ===== */
+/* ===== Window selector (fisheye, prototype v3 look) =====
+   NOTE ON TEXT-SHADOW
+   St only supports a SINGLE text-shadow value. Browser-style multi-layer
+   halos are silently collapsed to one layer, so a 5-layer chain is exactly
+   as strong as its first entry (typically 0 0 1px at full black) — which
+   is invisible on a light preview. Use one well-chosen shadow instead.   */
 
 .window-selector-overlay {
     background-color: transparent;
@@ -287,9 +292,13 @@
     background-color: rgba(220, 50, 47, 0.22);
 }
 
+/* The band is where the big selected title lives. It needs a real
+   backing so cream text is readable even when the preview behind it is
+   pure white. Keep it soft at the edges (box-shadow) but firm in the
+   middle (background alpha). */
 .selector-band {
-    background-color: rgba(0, 26, 34, 0.24);
-    box-shadow: 0 0 60px 24px rgba(0, 26, 34, 0.20);
+    background-color: rgba(0, 26, 34, 0.55);
+    box-shadow: 0 0 60px 24px rgba(0, 26, 34, 0.24);
     padding: 12px 0 0 0;
 }
 
@@ -304,12 +313,9 @@
 .selector-band-title-label {
     color: #fffaf0;
     font-weight: 700;
-    text-shadow:
-        0 0 1px rgba(0, 22, 30, 1),
-        0 0 3px rgba(0, 22, 30, 0.95),
-        0 0 8px rgba(0, 22, 30, 0.85),
-        0 0 18px rgba(0, 22, 30, 0.70),
-        0 2px 30px rgba(0, 22, 30, 0.55);
+    /* single, tight, dark shadow — gives edge contrast without becoming
+       a diffuse smear on white */
+    text-shadow: 0 1px 5px rgba(0, 10, 15, 0.95);
 }
 
 .selector-band-app-label {
@@ -317,11 +323,17 @@
     font-weight: 700;
     letter-spacing: 3px;
     margin-top: 2px;
-    text-shadow:
-        0 0 1px rgba(0, 22, 30, 1),
-        0 0 3px rgba(0, 22, 30, 0.95),
-        0 0 8px rgba(0, 22, 30, 0.85),
-        0 0 18px rgba(0, 22, 30, 0.70);
+    text-shadow: 0 1px 5px rgba(0, 10, 15, 0.95);
+}
+
+/* Rows get a translucent capsule so unselected labels stay legible when
+   they scroll across a white preview. The capsule scales with the row
+   through the fisheye transform, so it starts as a small chip and grows
+   toward the middle — where it is quickly handed off to the band. */
+.selector-row-inner {
+    background-color: rgba(0, 20, 30, 0.36);
+    border-radius: 10px;
+    padding: 4px 20px;
 }
 
 .selector-row-icon {
@@ -331,12 +343,7 @@
 .selector-row-label {
     color: #f1ede0;
     font-weight: 600;
-    text-shadow:
-        0 0 1px rgba(0, 22, 30, 1),
-        0 0 3px rgba(0, 22, 30, 0.95),
-        0 0 8px rgba(0, 22, 30, 0.85),
-        0 0 18px rgba(0, 22, 30, 0.70),
-        0 2px 30px rgba(0, 22, 30, 0.55);
+    text-shadow: 0 1px 5px rgba(0, 10, 15, 0.95);
 }
 
 .selector-fade-top {
@@ -357,13 +364,12 @@
     font-weight: 600;
     letter-spacing: 1px;
     text-align: center;
-    text-shadow:
-        0 0 1px rgba(0, 22, 30, 1),
-        0 0 3px rgba(0, 22, 30, 0.95),
-        0 0 8px rgba(0, 22, 30, 0.85);
+    text-shadow: 0 1px 5px rgba(0, 10, 15, 0.95);
 }
 
-/* Scoped underline-style search field for the window selector only. */
+/* Scoped underline-style search field for the window selector only.
+   The launcher keeps the boxed style from the shared .overlay-search-entry
+   above — these rules override just inside .window-selector-overlay. */
 .window-selector-overlay .overlay-search-entry {
     background-color: transparent;
     border: none;
@@ -371,10 +377,7 @@
     border-radius: 0;
     box-shadow: 0 2px 8px rgba(0, 22, 30, 0.70);
     color: #fffaf0;
-    text-shadow:
-        0 0 1px rgba(0, 22, 30, 1),
-        0 0 3px rgba(0, 22, 30, 0.95),
-        0 0 8px rgba(0, 22, 30, 0.85);
+    text-shadow: 0 1px 5px rgba(0, 10, 15, 0.95);
 }
 
 .window-selector-overlay .overlay-search-entry:focus {
