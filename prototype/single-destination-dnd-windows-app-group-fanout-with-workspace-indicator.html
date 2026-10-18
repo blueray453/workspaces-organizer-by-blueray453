@@ -1,0 +1,1564 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Drag and drop: strip in band and in fan-out (bottom bar + focus-on-hover)</title>
+    <style>
+        :root {
+            --panel-h: 88px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #001a22;
+            color: #eee8d5;
+            font-family: 'Cantarell', 'Segoe UI', system-ui, sans-serif;
+        }
+
+        /* ---------- bottom panel ---------- */
+        #panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: var(--panel-h);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 0;
+            padding: 0 12px;
+            background: rgba(0, 20, 28, 0.96);
+            border-top: 1px solid rgba(147, 161, 161, 0.22);
+        }
+
+        .panel-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .panel-right {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 6px;
+            height: 100%;
+            padding-left: 16px;
+            border-left: none;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        /* ---------- left: toolbar + name + thumbs ---------- */
+        .ws-tb {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background 120ms;
+        }
+
+        .ws-tb:hover {
+            background: rgba(38, 139, 210, 0.18);
+        }
+
+        .ws-tb svg {
+            width: 28px;
+            height: 28px;
+        }
+
+        .ws-name {
+            color: #eee8d5;
+            font-weight: 700;
+            padding: 0 10px;
+            white-space: nowrap;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .ws-thumbs {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 0;
+            overflow-x: auto;
+            overflow-y: hidden;
+            justify-content: flex-start;
+            padding: 6px 0;
+            scrollbar-width: none;
+        }
+
+        .ws-thumbs::-webkit-scrollbar {
+            display: none;
+        }
+
+        .ws-thumb {
+            height: 64px;
+            min-width: 68px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 6px 10px;
+            background: rgba(7, 54, 66, 0.65);
+            border: 1px solid rgba(88, 110, 117, 0.4);
+            border-radius: 8px;
+            box-shadow: inset 0 0 0 2px rgba(38, 139, 210, 0.55);
+            cursor: pointer;
+            transition: background 150ms, box-shadow 150ms;
+            overflow: hidden;
+        }
+
+        .ws-thumb:hover {
+            background: rgba(7, 54, 66, 0.95);
+        }
+
+        .ws-thumb.active {
+            background: rgba(42, 161, 152, 0.28);
+            box-shadow: inset 0 0 0 2px #2aa198;
+        }
+
+        .ws-ico {
+            display: flex;
+            flex-shrink: 0;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: transform 120ms, box-shadow 120ms;
+        }
+
+        .ws-ico svg {
+            display: block;
+        }
+
+        .ws-ico.focused {
+            box-shadow: 0 0 0 2px #2aa198, 0 0 10px rgba(42, 161, 152, 0.65);
+            border-radius: 5px;
+            transform: scale(1.06);
+        }
+
+        .ws-ovf {
+            background: #268bd2;
+            color: #fdf6e3;
+            height: 52px;
+            min-width: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 14px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 700;
+            box-shadow: inset 0 0 4px 2px rgba(0, 0, 0, 0.3);
+            white-space: nowrap;
+            flex-shrink: 0;
+            transition: background 120ms, box-shadow 120ms;
+        }
+
+        .ws-ovf.drag-over {
+            background: #2aa198;
+            box-shadow: inset 0 0 4px 2px rgba(0, 0, 0, 0.3), 0 0 10px rgba(42, 161, 152, 0.6);
+        }
+
+        .ws-empty {
+            color: #657b83;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 0 6px;
+        }
+
+        /* ---------- right: status placeholders — 48px buttons like the toolbar ---------- */
+        .status-clock {
+            height: 48px;
+            min-width: 150px;
+            padding: 0 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            background: rgba(0, 20, 28, 0.55);
+            color: #eee8d5;
+            font-weight: 600;
+            font-size: 15px;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .status-icon {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            flex-shrink: 0;
+            background: rgba(0, 20, 28, 0.55);
+            color: #eee8d5;
+            cursor: pointer;
+            transition: background 120ms;
+        }
+
+        .status-icon:hover {
+            background: rgba(38, 139, 210, 0.22);
+        }
+
+        .status-icon svg {
+            display: block;
+            width: 28px;
+            height: 28px;
+        }
+
+        /* ---------- workspace (drag source) ---------- */
+        #workspace {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: var(--panel-h);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            text-align: center;
+            padding: 40px;
+            transition: filter 200ms, transform 200ms;
+        }
+
+        #workspace h1 {
+            font-size: clamp(22px, 3vw, 32px);
+            font-weight: 600;
+        }
+
+        #workspace p {
+            max-width: 660px;
+            color: #93a1a1;
+            line-height: 1.6;
+        }
+
+        #source-file {
+            width: 128px;
+            height: 128px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            border: 2px dashed #2b5a68;
+            border-radius: 12px;
+            background: #06303b;
+            cursor: grab;
+            user-select: none;
+            transition: border-color 150ms, transform 150ms;
+        }
+
+        #source-file:hover {
+            border-color: #2aa198;
+            transform: translateY(-2px);
+        }
+
+        #source-file .ic {
+            font-size: 40px;
+        }
+
+        #source-file .nm {
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .ctl {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #93a1a1;
+        }
+
+        .ctl span {
+            min-width: 92px;
+            text-align: right;
+        }
+
+        .ctl button {
+            font: inherit;
+            font-weight: 700;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #eee8d5;
+            background: transparent;
+            border: 1px solid #2b5a68;
+        }
+
+        .ctl button:hover {
+            border-color: #2aa198;
+        }
+
+        .ctl button.on {
+            background: #0a4648;
+            border-color: #2aa198;
+            color: #fffaf0;
+        }
+
+        #count-note {
+            font-size: 12px;
+            color: #6f8486;
+            min-height: 18px;
+            max-width: 620px;
+        }
+
+        /* ---------- HUD ---------- */
+        #hud {
+            --band: 340px;
+            --col: 96px;
+            --fan: 320px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: var(--panel-h);
+            z-index: 10;
+            background: #001a22;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 160ms;
+        }
+
+        #hud.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #win {
+            --c: #268bd2;
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: #04212a;
+        }
+
+        #win.swap {
+            animation: swap 160ms ease-out;
+        }
+
+        @keyframes swap {
+            from {
+                opacity: 0.35;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        #win-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            height: 46px;
+            padding: 0 16px;
+            background: var(--c);
+            color: #fdf6e3;
+        }
+
+        #win-bar i {
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.35);
+        }
+
+        #win-title {
+            flex: 1;
+            text-align: center;
+            font-size: 15px;
+            font-weight: 700;
+            white-space: nowrap;
+            padding-right: var(--col);
+        }
+
+        #zones {
+            position: relative;
+            flex: 1;
+            margin-right: var(--col);
+        }
+
+        .zone {
+            position: absolute;
+            margin: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 12px;
+            text-align: center;
+            overflow: hidden;
+            border: 2px dashed color-mix(in srgb, var(--c) 70%, transparent);
+            border-radius: 14px;
+            background: color-mix(in srgb, var(--c) 10%, transparent);
+            transition: background 100ms, border-color 100ms, transform 100ms, opacity 150ms;
+        }
+
+        .z-name {
+            font-size: clamp(16px, 2vw, 26px);
+            font-weight: 700;
+        }
+
+        .z-sub {
+            font-size: 14px;
+            color: #a9b8b8;
+        }
+
+        .z-go {
+            height: 18px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #fffaf0;
+            opacity: 0;
+        }
+
+        .zone.over {
+            border-style: solid;
+            border-color: var(--c);
+            background: color-mix(in srgb, var(--c) 38%, transparent);
+            transform: scale(1.006);
+        }
+
+        .zone.over .z-go {
+            opacity: 1;
+        }
+
+        #hud.browse .zone {
+            opacity: 0.4;
+        }
+
+        #mode-hint {
+            position: absolute;
+            left: 0;
+            right: var(--col);
+            bottom: 16px;
+            z-index: 3;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: #fffaf0;
+            pointer-events: none;
+            text-shadow: 0 0 8px #001a22, 0 0 16px #001a22;
+        }
+
+        #band {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            right: 0;
+            width: var(--col);
+            z-index: 4;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 8px;
+            overflow: hidden;
+            background: rgba(0, 20, 28, 0.94);
+            border-left: 1px solid rgba(147, 161, 161, 0.22);
+            transition: width 150ms ease, background 150ms ease;
+        }
+
+        #band.expanded {
+            width: var(--band);
+            padding: 0 12px;
+            background: rgba(0, 20, 28, 0.74);
+        }
+
+        #band:not(.expanded) .exp-only {
+            display: none;
+        }
+
+        #band:not(.expanded) .row {
+            justify-content: center;
+            padding: 0;
+        }
+
+        #band:not(.expanded) .r-tx {
+            display: none;
+        }
+
+        #band-count {
+            position: absolute;
+            top: 20px;
+            left: 12px;
+            right: 12px;
+            font-size: 13px;
+            color: #cfd8d8;
+            font-variant-numeric: tabular-nums;
+            text-shadow: 0 0 6px #001a22, 0 0 12px #001a22;
+        }
+
+        #band-hint {
+            position: absolute;
+            bottom: 20px;
+            left: 12px;
+            right: 12px;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #cfd8d8;
+            text-shadow: 0 0 6px #001a22, 0 0 12px #001a22;
+        }
+
+        #fan {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            right: var(--band);
+            width: var(--fan);
+            z-index: 5;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 0 10px 0 12px;
+            overflow: hidden;
+            background: rgba(0, 20, 28, 0.95);
+            border-left: 1px solid rgba(147, 161, 161, 0.3);
+        }
+
+        #fan.open {
+            display: flex;
+        }
+
+        #fan-head {
+            position: absolute;
+            top: 20px;
+            left: 12px;
+            right: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #4fd1c5;
+        }
+
+        .rowsbox {
+            position: relative;
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .row {
+            position: absolute;
+            top: 3px;
+            left: 0;
+            right: 0;
+            height: 46px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 10px;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            background: rgba(0, 20, 28, 0.45);
+            will-change: transform;
+            transition: background 120ms, border-color 120ms;
+        }
+
+        .row.sel {
+            background: rgba(10, 70, 72, 0.92);
+            border-color: #2aa198;
+        }
+
+        .r-tx {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .r-t {
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .r-a {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #4fd1c5;
+        }
+
+        .r-n {
+            margin-left: auto;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: rgba(79, 209, 197, 0.16);
+            color: #4fd1c5;
+            white-space: nowrap;
+        }
+
+        .r-ic svg {
+            display: block;
+        }
+
+        .ez {
+            position: absolute;
+            left: 0;
+            right: 0;
+            display: none;
+            justify-content: center;
+            padding: 8px 0;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            color: #93a1a1;
+            pointer-events: none;
+            --d: 0;
+        }
+
+        .ez.active {
+            color: #fffaf0;
+        }
+
+        .ez.up {
+            align-items: flex-end;
+            background: linear-gradient(to top, rgba(42, 161, 152, calc(var(--d) * 0.42)), rgba(42, 161, 152, 0));
+        }
+
+        .ez.down {
+            align-items: flex-start;
+            background: linear-gradient(to bottom, rgba(42, 161, 152, calc(var(--d) * 0.42)), rgba(42, 161, 152, 0));
+        }
+
+        .rail {
+            position: relative;
+            flex: 0 0 28px;
+            width: 28px;
+            height: min(72vh, 560px);
+        }
+
+        .rail .track {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            margin-left: -1px;
+            background: rgba(238, 232, 213, 0.6);
+            border-radius: 2px;
+            box-shadow: 0 0 0 1px rgba(0, 22, 30, 0.6);
+        }
+
+        .rail .tick {
+            position: absolute;
+            left: 50%;
+            width: 10px;
+            height: 3px;
+            margin: -1.5px 0 0 -5px;
+            border-radius: 2px;
+            box-shadow: 0 0 0 1px rgba(0, 22, 30, 0.8);
+        }
+
+        .rail .marker {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            width: 24px;
+            height: 8px;
+            margin: -4px 0 0 -12px;
+            border-radius: 4px;
+            background: #fffaf0;
+            box-shadow: 0 0 0 2px #001a22;
+        }
+
+        #toast {
+            position: fixed;
+            bottom: calc(var(--panel-h) + 24px);
+            left: 50%;
+            z-index: 130;
+            max-width: calc(100vw - 32px);
+            padding: 12px 18px;
+            border-radius: 12px;
+            background: #a6e3a1;
+            color: #11111b;
+            font-size: 13px;
+            font-weight: 700;
+            opacity: 0;
+            transform: translate(-50%, 8px);
+            pointer-events: none;
+            transition: opacity 180ms, transform 180ms;
+        }
+
+        #toast.visible {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+
+            *,
+            *::before,
+            *::after {
+                transition-duration: 0.01ms !important;
+                animation: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="panel" role="toolbar" aria-label="Workspace indicator">
+        <div class="panel-left">
+            <button class="ws-tb" id="ws-tb-windows" title="All windows" aria-label="All windows">
+                <svg viewBox="0 0 16 16" width="28" height="28" aria-hidden="true">
+                    <rect x="2" y="4" width="8" height="6" rx="1" fill="none" stroke="#eee8d5" stroke-width="1.4" />
+                    <rect x="6" y="6" width="8" height="6" rx="1" fill="#001a22" stroke="#eee8d5" stroke-width="1.4" />
+                </svg>
+            </button>
+            <button class="ws-tb" id="ws-tb-apps" title="Show apps" aria-label="Show apps">
+                <svg viewBox="0 0 16 16" width="28" height="28" aria-hidden="true">
+                    <rect x="2" y="2" width="3" height="3" rx="0.6" fill="#eee8d5" />
+                    <rect x="6.5" y="2" width="3" height="3" rx="0.6" fill="#eee8d5" />
+                    <rect x="11" y="2" width="3" height="3" rx="0.6" fill="#eee8d5" />
+                    <rect x="2" y="6.5" width="3" height="3" rx="0.6" fill="#eee8d5" />
+                    <rect x="6.5" y="6.5" width="3" height="3" rx="0.6" fill="#eee8d5" />
+                    <rect x="11" y="6.5" width="3" height="3" rx="0.6" fill="#eee8d5" />
+                    <rect x="2" y="11" width="3" height="3" rx="0.6" fill="#eee8d5" />
+                    <rect x="6.5" y="11" width="3" height="3" rx="0.6" fill="#eee8d5" />
+                    <rect x="11" y="11" width="3" height="3" rx="0.6" fill="#eee8d5" />
+                </svg>
+            </button>
+            <div class="ws-name" id="ws-name">Workspace 1</div>
+            <div class="ws-thumbs" id="ws-thumbs"></div>
+        </div>
+
+        <div class="panel-right" aria-label="System status (placeholders)">
+            <div class="status-clock" id="status-clock">Sat 1:23 PM</div>
+
+            <div class="status-icon" title="Network" aria-label="Network">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M4 12 Q12 4 20 12" stroke="#eee8d5" stroke-width="2" fill="none" stroke-linecap="round" />
+                    <path d="M7.5 15 Q12 10.5 16.5 15" stroke="#eee8d5" stroke-width="2" fill="none"
+                        stroke-linecap="round" />
+                    <circle cx="12" cy="18.5" r="1.5" fill="#eee8d5" />
+                </svg>
+            </div>
+            <div class="status-icon" title="Volume" aria-label="Volume">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M4 9 L8 9 L13 5 L13 19 L8 15 L4 15 Z" fill="#eee8d5" />
+                    <path d="M16 9 Q18.5 12 16 15" stroke="#eee8d5" stroke-width="2" fill="none"
+                        stroke-linecap="round" />
+                    <path d="M18.5 7 Q22.5 12 18.5 17" stroke="#eee8d5" stroke-width="2" fill="none"
+                        stroke-linecap="round" />
+                </svg>
+            </div>
+            <div class="status-icon" title="Battery" aria-label="Battery">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <rect x="3" y="8" width="16" height="8" rx="2" fill="none" stroke="#eee8d5" stroke-width="1.8" />
+                    <rect x="20" y="10" width="2" height="4" rx="0.5" fill="#eee8d5" />
+                    <rect x="5" y="10" width="10" height="4" rx="1" fill="#859900" />
+                </svg>
+            </div>
+            <div class="status-icon" title="Power" aria-label="Power">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M12 3 L12 12" stroke="#eee8d5" stroke-width="2.4" stroke-linecap="round" />
+                    <path d="M6.5 7 A8 8 0 1 0 17.5 7" fill="none" stroke="#eee8d5" stroke-width="2.4"
+                        stroke-linecap="round" />
+                </svg>
+            </div>
+
+            <div class="status-icon" title="Bluetooth" aria-label="Bluetooth">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M12 3 L12 21 M12 3 L17.5 7.5 L12 12 L17.5 16.5 L12 21" stroke="#eee8d5" stroke-width="2"
+                        fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </div>
+            <div class="status-icon" title="Microphone" aria-label="Microphone">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <rect x="9" y="2" width="6" height="13" rx="3" fill="none" stroke="#eee8d5" stroke-width="1.8" />
+                    <path d="M6 11 Q6 17 12 17 Q18 17 18 11" fill="none" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" />
+                    <line x1="12" y1="17" x2="12" y2="21" stroke="#eee8d5" stroke-width="1.8" stroke-linecap="round" />
+                    <line x1="8.5" y1="21" x2="15.5" y2="21" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" />
+                </svg>
+            </div>
+            <div class="status-icon" title="Brightness" aria-label="Brightness">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <circle cx="12" cy="12" r="4" fill="none" stroke="#eee8d5" stroke-width="1.8" />
+                    <line x1="12" y1="2.5" x2="12" y2="5.5" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" />
+                    <line x1="12" y1="18.5" x2="12" y2="21.5" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" />
+                    <line x1="2.5" y1="12" x2="5.5" y2="12" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" />
+                    <line x1="18.5" y1="12" x2="21.5" y2="12" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" />
+                    <line x1="5.4" y1="5.4" x2="7.5" y2="7.5" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" />
+                    <line x1="16.5" y1="16.5" x2="18.6" y2="18.6" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" />
+                    <line x1="5.4" y1="18.6" x2="7.5" y2="16.5" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" />
+                    <line x1="16.5" y1="7.5" x2="18.6" y2="5.4" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" />
+                </svg>
+            </div>
+            <div class="status-icon" title="Night light" aria-label="Night light">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M19 14 A8 8 0 1 1 10 4 A6.5 6.5 0 0 0 19 14 Z" fill="none" stroke="#eee8d5"
+                        stroke-width="1.8" stroke-linejoin="round" />
+                </svg>
+            </div>
+            <div class="status-icon" title="VPN" aria-label="VPN">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="#eee8d5" stroke-width="1.8" />
+                    <path d="M8 11 V7.5 A4 4 0 0 1 16 7.5 V11" fill="none" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" />
+                    <circle cx="12" cy="16" r="1.6" fill="#eee8d5" />
+                </svg>
+            </div>
+            <div class="status-icon" title="Notifications" aria-label="Notifications">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M12 3 A5.5 5.5 0 0 0 6.5 8.5 V14 L4.5 17 H19.5 L17.5 14 V8.5 A5.5 5.5 0 0 0 12 3 Z"
+                        fill="none" stroke="#eee8d5" stroke-width="1.8" stroke-linejoin="round" />
+                    <path d="M9.5 19.5 A2.5 2.5 0 0 0 14.5 19.5" fill="none" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" />
+                </svg>
+            </div>
+            <div class="status-icon" title="Accessibility" aria-label="Accessibility">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <circle cx="12" cy="4.5" r="2" fill="none" stroke="#eee8d5" stroke-width="1.8" />
+                    <line x1="5" y1="9" x2="19" y2="9" stroke="#eee8d5" stroke-width="1.8" stroke-linecap="round" />
+                    <line x1="12" y1="7" x2="12" y2="15" stroke="#eee8d5" stroke-width="1.8" stroke-linecap="round" />
+                    <line x1="8" y1="21" x2="12" y2="15" stroke="#eee8d5" stroke-width="1.8" stroke-linecap="round" />
+                    <line x1="16" y1="21" x2="12" y2="15" stroke="#eee8d5" stroke-width="1.8" stroke-linecap="round" />
+                </svg>
+            </div>
+            <div class="status-icon" title="Cloud sync" aria-label="Cloud sync">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M6 17 A3 3 0 0 1 6 11 A4.5 4.5 0 0 1 14.5 10 A3 3 0 0 1 17 15 A2 2 0 0 1 17 17 Z"
+                        fill="none" stroke="#eee8d5" stroke-width="1.8" stroke-linejoin="round" />
+                    <path d="M12 11 L12 15 M10.5 13.5 L12 15 L13.5 13.5" fill="none" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <main id="workspace">
+        <h1>Move a file to another window</h1>
+        <p>Drag the file. Move to the right edge to browse apps. Hover an app with many windows and its windows open in
+            a second strip on the left. Or hover a window icon in the bottom bar to focus that specific window. Hold
+            above or below either list to scroll: the farther out, the faster.</p>
+        <div id="source-file" draggable="true" aria-label="Drag report.pdf">
+            <div class="ic" aria-hidden="true">📄</div>
+            <div class="nm">report.pdf</div>
+        </div>
+        <div class="ctl" id="layout-ctl"><span>Band lists:</span>
+            <button data-l="windows">Windows</button><button data-l="apps" class="on">Apps (grouped)</button>
+        </div>
+        <div class="ctl" id="apps-ctl"><span>Apps:</span>
+            <button data-a="7" class="on">7</button><button data-a="16">16</button>
+        </div>
+        <div class="ctl" id="count-ctl"><span>Windows:</span>
+            <button data-n="4">4</button><button data-n="7">7</button><button data-n="12">12</button><button data-n="40"
+                class="on">40</button>
+        </div>
+        <div class="ctl" id="ws-ctl"><span>Workspaces:</span>
+            <button data-w="4" class="on">4</button><button data-w="6">6</button><button data-w="8">8</button><button
+                data-w="12">12</button>
+        </div>
+        <div id="count-note"></div>
+    </main>
+
+    <section id="hud" aria-hidden="true">
+        <div id="win">
+            <div id="win-bar"><i></i><i></i><i></i>
+                <div id="win-title"></div>
+            </div>
+            <div id="zones"></div>
+        </div>
+        <div id="mode-hint"></div>
+
+        <aside id="fan" aria-label="Windows of the selected app">
+            <div id="fan-head"></div>
+            <div class="ez up" id="fan-up"></div>
+            <div class="rail" id="fan-rail">
+                <div class="track"></div>
+                <div class="ticks"></div>
+                <div class="marker"></div>
+            </div>
+            <div class="rowsbox" id="fan-rows"></div>
+            <div class="ez down" id="fan-down"></div>
+        </aside>
+
+        <aside id="band" aria-label="Windows">
+            <div id="band-count" class="exp-only"></div>
+            <div class="ez up" id="band-up"></div>
+            <div class="rowsbox" id="band-rows"></div>
+            <div class="rail" id="band-rail">
+                <div class="track"></div>
+                <div class="ticks"></div>
+                <div class="marker"></div>
+            </div>
+            <div class="ez down" id="band-down"></div>
+            <div id="band-hint" class="exp-only">Hover to preview. Hold above or below a list to scroll: farther out is
+                faster.</div>
+        </aside>
+    </section>
+    <div id="toast" role="status" aria-live="polite"></div>
+
+    <script>
+        // ==================== DATA ====================
+        const APPS = [
+            { app: 'Code', color: '#268bd2', kind: 'editor', w: 8, pool: ['searchOverlays.js', 'workspaceIndicator.js', 'interactions.js', 'model.js', 'prefs.js', 'extension.js', 'utils.js', 'metadata.json'].map(f => `${f} — topnotch-workspaces`) },
+            { app: 'Firefox', color: '#cb4b16', kind: 'browser', w: 16, pool: ['GNOME Shell Extensions', 'docs.gtk.org/gtk4', 'Pull Request #1423: Refactor window selector overlay to support fisheye layout and fuzzy search — GitHub', 'MDN: HTML Drag and Drop API', 'Stack Overflow: dragover not firing', 'Can I use: dragover', 'GitHub: topnotch-workspaces', 'Hacker News'].map(t => `${t} — Mozilla Firefox`) },
+            { app: 'Terminal', color: '#859900', kind: 'terminal', w: 10, pool: ['user@workstation: ~/projects/ext', 'user@workstation: ~/projects/clients/acme-corp/frontend/node_modules/.cache/webpack/production', 'user@workstation: ~/topnotch-workspaces', 'user@workstation: ~/ (tmux)', 'user@workstation: /var/log'] },
+            { app: 'Slack', color: '#d33682', kind: 'chat', w: 6, pool: ['#general', '#dev', '#random', '#design', '#releases', '#support'].map(c => `${c} — TopNotch Workspaces`) },
+            { app: 'Thunderbird', color: '#b58900', kind: 'mail', w: 3, pool: ['Inbox', 'Drafts', 'Sent'].map(f => `${f} — user@example.com`) },
+            { app: 'LibreOffice', color: '#586e75', kind: 'docs', w: 3, pool: ['Design Document.odt — Writer', 'Budget.ods — Calc', 'Slides.odp — Impress'] },
+            { app: 'VLC', color: '#dc322f', kind: 'video', w: 2, pool: ['Big Buck Bunny.mp4', 'Sintel.mkv'] },
+            { app: 'eog', color: '#6c71c4', kind: 'image', w: 2, pool: ['screenshot-2024-01-15.png — Image Viewer', 'photo-0042.jpg — Image Viewer'] },
+            { app: 'Files', color: '#839496', kind: 'docs', w: 2, pool: ['Home — Files', 'Downloads — Files'] },
+            { app: 'GIMP', color: '#6c71c4', kind: 'image', w: 1, pool: ['Untitled-1 — GIMP'] },
+            { app: 'mpv', color: '#dc322f', kind: 'video', w: 1, pool: ['lofi-radio.m3u — mpv'] },
+            { app: 'Rhythmbox', color: '#2aa198', kind: 'music', w: 1, pool: ['Library — Rhythmbox'] },
+            { app: 'Geary', color: '#b58900', kind: 'mail', w: 1, pool: ['Inbox (3) — Geary'] },
+            { app: 'Spotify', color: '#2aa198', kind: 'music', w: 2, pool: ['Now Playing — Solarized Playlist', 'Search — Spotify'] },
+            { app: 'Settings', color: '#839496', kind: 'settings', w: 1, pool: ['Settings — Appearance'] },
+            { app: 'Calculator', color: '#586e75', kind: 'settings', w: 1, pool: ['Calculator'] }
+        ];
+        function makeWindow(a, k) {
+            const base = a.pool[k % a.pool.length], round = Math.floor(k / a.pool.length);
+            return { app: a.app, color: a.color, kind: a.kind, title: round ? `${base} (${round + 1})` : base };
+        }
+        function makeWindows(nApps, total) {
+            const apps = APPS.slice(0, nApps), out = [];
+            for (let k = 0; out.length < total; k++) {
+                let any = false;
+                for (const a of apps) {
+                    if (k < a.w) { any = true; out.push(makeWindow(a, k)); if (out.length >= total) break; }
+                }
+                if (!any) break;
+            }
+            return out;
+        }
+
+        const ZONES = {
+            editor: [['Explorer', 'Add to project files', 0, 0, 20, 100], ['Editor', 'Open in a new tab', 20, 0, 80, 68], ['Terminal panel', 'Insert file path', 20, 68, 80, 32]],
+            browser: [['Address bar', 'Open in a new tab', 0, 0, 100, 16], ['Page', 'Upload to this page', 0, 16, 100, 56], ['Downloads', 'Save to downloads', 0, 72, 100, 28]],
+            terminal: [['Prompt', 'Paste file path', 0, 0, 100, 60], ['Working directory', 'Copy to current folder', 0, 60, 100, 40]],
+            chat: [['Channels', 'Send as a direct message', 0, 0, 24, 100], ['Conversation', 'Share in this channel', 24, 0, 76, 68], ['Composer', 'Attach to draft message', 24, 68, 76, 32]],
+            mail: [['Folders', 'File into a folder', 0, 0, 24, 100], ['Message', 'Attach to reply', 24, 0, 76, 60], ['New message', 'Compose with attachment', 24, 60, 76, 40]],
+            music: [['Playlists', 'Add to a playlist', 0, 0, 30, 100], ['Now playing', 'Add to queue', 30, 0, 70, 100]],
+            video: [['Player', 'Play now', 0, 0, 100, 70], ['Playlist', 'Add to playlist', 0, 70, 100, 30]],
+            image: [['Canvas', 'Open in viewer', 0, 0, 68, 100], ['Albums', 'Add to an album', 68, 0, 32, 100]],
+            docs: [['Page', 'Insert into document', 0, 0, 66, 100], ['Sidebar', 'Attach as linked file', 66, 0, 34, 100]],
+            settings: [['Sidebar', 'Import profile', 0, 0, 30, 100], ['Panel', 'Use as appearance file', 30, 0, 70, 100]]
+        };
+
+        const FONT = `Cantarell, 'Segoe UI', system-ui, sans-serif`;
+        const mctx = document.createElement('canvas').getContext('2d');
+        function fitStart(text, weight, size, maxPx) {
+            mctx.font = `${weight} ${size}px ${FONT}`;
+            if (mctx.measureText(text).width <= maxPx) return text;
+            let lo = 0, hi = text.length;
+            while (lo < hi) {
+                const mid = (lo + hi + 1) >> 1;
+                if (mctx.measureText('…' + text.slice(text.length - mid)).width <= maxPx) lo = mid; else hi = mid - 1;
+            }
+            return '…' + text.slice(text.length - lo).replace(/^\s+/, '');
+        }
+        const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+        const G = {
+            editor: `<path d="M9 7 L4 12 L9 17 M15 7 L20 12 L15 17" stroke="C" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
+            browser: `<circle cx="12" cy="12" r="7.5" stroke="C" stroke-width="1.8" fill="none"/><ellipse cx="12" cy="12" rx="7.5" ry="3" stroke="C" stroke-width="1.4" fill="none"/><line x1="4.5" y1="12" x2="19.5" y2="12" stroke="C" stroke-width="1.4"/>`,
+            terminal: `<rect x="4" y="6" width="16" height="12" rx="2" stroke="C" stroke-width="1.8" fill="none"/><path d="M7 11 L10 13 L7 15" stroke="C" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
+            chat: `<path d="M5 6 h14 a2 2 0 0 1 2 2 v8 a2 2 0 0 1 -2 2 h-8 l-4 3 v-3 h-2 a2 2 0 0 1 -2 -2 v-8 a2 2 0 0 1 2 -2 z" fill="none" stroke="C" stroke-width="1.8" stroke-linejoin="round"/>`,
+            mail: `<rect x="4" y="6" width="16" height="12" rx="2" fill="none" stroke="C" stroke-width="1.8"/><path d="M4 8 L12 14 L20 8" fill="none" stroke="C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`,
+            music: `<circle cx="8" cy="17" r="3" fill="none" stroke="C" stroke-width="1.8"/><circle cx="18" cy="15" r="3" fill="none" stroke="C" stroke-width="1.8"/><path d="M11 17 L11 7 L21 5 L21 15" fill="none" stroke="C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`,
+            video: `<rect x="4" y="7" width="16" height="10" rx="2" fill="none" stroke="C" stroke-width="1.8"/><path d="M10 10 L15 12 L10 14 Z" fill="C"/>`,
+            image: `<rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="C" stroke-width="1.8"/><circle cx="9" cy="10" r="1.7" fill="C"/><path d="M4 17 L9 12 L13 16 L16 13 L20 17" fill="none" stroke="C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`,
+            docs: `<path d="M7 4 L14 4 L18 8 L18 20 L7 20 Z" fill="none" stroke="C" stroke-width="1.8" stroke-linejoin="round"/><line x1="9" y1="12" x2="16" y2="12" stroke="C" stroke-width="1.4"/><line x1="9" y1="15" x2="16" y2="15" stroke="C" stroke-width="1.4"/>`,
+            settings: `<circle cx="12" cy="12" r="3" fill="none" stroke="C" stroke-width="1.8"/><circle cx="12" cy="12" r="8" fill="none" stroke="C" stroke-width="1.5" stroke-dasharray="3 3"/>`
+        };
+        function iconSVG(kind, color, size) {
+            const glyph = (G[kind] || G.docs).replaceAll('C', color);
+            return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+    <rect x="1" y="1" width="22" height="22" rx="5" fill="#01212b"/>
+    <rect x="1" y="1" width="22" height="22" rx="5" fill="${color}" opacity="0.18"/>
+    <rect x="1" y="1" width="22" height="22" rx="5" fill="none" stroke="${color}" stroke-width="1.2" opacity="0.85"/>${glyph}</svg>`;
+        }
+
+        const SLOT = 52, SLOTS = 7, HALF = 3;
+        const COL = 96;
+        const DWELL_MS = 110;
+        const RAIL_PAD = 10;
+        const DEAD = 0.06;
+        const MAX_DIRECT = 5;
+
+        const $ = id => document.getElementById(id);
+        const hud = $('hud'), workspace = $('workspace'), file = $('source-file'), band = $('band'), fanEl = $('fan');
+        const winEl = $('win'), zonesEl = $('zones'), toast = $('toast'), modeHint = $('mode-hint');
+
+        // ==================== REUSABLE STRIP ====================
+        function createStrip(cfg) {
+            const { host, rowsEl, upEl, downEl, railEl } = cfg;
+            const ticksEl = railEl.querySelector('.ticks'), markerEl = railEl.querySelector('.marker');
+            const rowEls = new Map(), zoneHtml = new Map();
+            let items = [], view = 0, edgeDir = 0, edgeDepth = 0, raf = 0, last = 0, railH = 0;
+
+            const n = () => items.length;
+            const isStrip = () => n() > SLOTS;
+            const minV = () => isStrip() ? HALF : (n() - 1) / 2;
+            const maxV = () => isStrip() ? n() - 1 - HALF : (n() - 1) / 2;
+            const clampV = v => clamp(v, minV(), maxV());
+            const speedWord = t => t < 0.25 ? 'SLOW' : t < 0.6 ? 'MEDIUM' : 'FAST';
+            const depthToT = d => Math.max(0, (d - DEAD) / (1 - DEAD));
+            const edgeSpeed = d => { const t = depthToT(d); return t <= 0 ? 0 : 0.8 + 30 * t * t; };
+
+            function railY(p) { return RAIL_PAD + (p / Math.max(1, n() - 1)) * Math.max(1, railH - RAIL_PAD * 2); }
+            function buildRail() {
+                railEl.style.display = isStrip() ? '' : 'none';
+                ticksEl.innerHTML = '';
+                if (!isStrip()) return;
+                railH = railEl.clientHeight;
+                items.forEach((it, r) => {
+                    const t = document.createElement('div');
+                    t.className = 'tick';
+                    t.style.top = railY(r) + 'px';
+                    t.style.background = it.color;
+                    ticksEl.appendChild(t);
+                });
+            }
+            function updateMarker() {
+                if (!isStrip()) return;
+                const s = cfg.selIndex();
+                markerEl.style.transform = `translateY(${railY(edgeDir || s < 0 ? view : s).toFixed(1)}px)`;
+            }
+            function positionEdges() {
+                const hr = host.getBoundingClientRect(), rr = rowsEl.getBoundingClientRect();
+                upEl.style.top = '0'; upEl.style.height = Math.max(0, rr.top - hr.top) + 'px';
+                downEl.style.top = (rr.bottom - hr.top) + 'px'; downEl.style.height = Math.max(0, hr.bottom - rr.bottom) + 'px';
+            }
+            function setZone(z, html) { if (zoneHtml.get(z) !== html) { zoneHtml.set(z, html); z.innerHTML = html; } }
+            function updateEdges() {
+                const r = Math.round(view), t = depthToT(edgeDepth);
+                const above = isStrip() ? Math.max(0, r - HALF) : 0;
+                const below = isStrip() ? Math.max(0, n() - 1 - HALF - r) : 0;
+                [[upEl, above, -1, '▲', 'above'], [downEl, below, 1, '▼', 'below']].forEach(([z, cnt, dir, ar, word]) => {
+                    const act = edgeDir === dir;
+                    z.style.display = cnt > 0 ? 'flex' : 'none';
+                    z.classList.toggle('active', act);
+                    z.style.setProperty('--d', act ? t.toFixed(3) : '0');
+                    setZone(z, `<span>${ar} ${cnt}<span class="exp-only"> more ${word}${act && t > 0 ? ' · ' + speedWord(t) : ''}</span></span>`);
+                });
+            }
+
+            function layout() {
+                const R = n(), vis = isStrip() ? SLOTS : R;
+                rowsEl.style.height = vis * SLOT + 'px';
+                const lo = isStrip() ? Math.max(0, Math.floor(view - HALF - 1)) : 0;
+                const hi = isStrip() ? Math.min(R - 1, Math.ceil(view + HALF + 1)) : R - 1;
+                for (const [r, el] of rowEls) if (r < lo || r > hi) { el.remove(); rowEls.delete(r); }
+                const s = cfg.selIndex();
+                for (let r = lo; r <= hi; r++) {
+                    let el = rowEls.get(r);
+                    if (!el) { el = cfg.makeRow(items[r], r); el.dataset.r = r; rowsEl.appendChild(el); rowEls.set(r, el); }
+                    const d = r - view, ad = Math.abs(d);
+                    el.style.transform = `translateY(${((d + (vis - 1) / 2) * SLOT).toFixed(1)}px)`;
+                    el.classList.toggle('sel', r === s);
+                    const op = isStrip() ? Math.max(0, 0.9 - 0.17 * ad) * clamp(HALF + 1 - ad, 0, 1) : 0.8;
+                    el.style.opacity = (r === s ? 1 : op).toFixed(3);
+                }
+                updateEdges(); updateMarker();
+            }
+
+            function setItems(list, selIdx) {
+                if (raf) { cancelAnimationFrame(raf); raf = 0; }
+                edgeDir = 0; edgeDepth = 0;
+                items = list;
+                rowEls.forEach(el => el.remove()); rowEls.clear();
+                view = clampV(Math.max(0, selIdx));
+                buildRail(); layout(); positionEdges();
+            }
+            function center(idx) { view = clampV(idx); layout(); }
+
+            function edgeAt(y) {
+                if (!isStrip()) return null;
+                const hr = host.getBoundingClientRect(), rr = rowsEl.getBoundingClientRect();
+                if (y < rr.top && view > minV() + 0.001) return { dir: -1, depth: clamp((rr.top - y) / Math.max(1, rr.top - hr.top), 0, 1) };
+                if (y > rr.bottom && view < maxV() - 0.001) return { dir: 1, depth: clamp((y - rr.bottom) / Math.max(1, hr.bottom - rr.bottom), 0, 1) };
+                return null;
+            }
+            function setEdge(dir, depth) {
+                edgeDepth = depth;
+                if (edgeDir !== dir) { edgeDir = dir; cfg.cancelDwell(); cfg.onEdgeStart && cfg.onEdgeStart(); }
+                if (!raf) { last = performance.now(); raf = requestAnimationFrame(step); }
+                updateEdges();
+            }
+            function stopEdge() {
+                if (raf) { cancelAnimationFrame(raf); raf = 0; }
+                if (!edgeDir) return;
+                edgeDir = 0; edgeDepth = 0;
+                updateEdges(); updateMarker();
+            }
+            function step(now) {
+                raf = 0;
+                if (!edgeDir) return;
+                if (!cfg.alive()) { stopEdge(); return; }
+                const dt = Math.min(now - last, 60) / 1000; last = now;
+                view = clampV(view + edgeDir * edgeSpeed(edgeDepth) * dt);
+                const r = Math.round(view);
+                if (cfg.selIndex() !== r) cfg.onCenter(r);
+                layout();
+                if (view <= minV() || view >= maxV()) { stopEdge(); return; }
+                raf = requestAnimationFrame(step);
+            }
+
+            function scrub(e) {
+                const rr = railEl.getBoundingClientRect();
+                const raw = clamp(((e.clientY - rr.top - RAIL_PAD) / Math.max(1, railH - RAIL_PAD * 2)) * (n() - 1), 0, n() - 1);
+                if (Math.abs(raw - cfg.selIndex()) > 0.65) cfg.onScrub(Math.round(raw));
+            }
+            function over(e) {
+                if (e.target.closest('.rail')) { stopEdge(); cfg.cancelDwell(); scrub(e); return; }
+                const edge = edgeAt(e.clientY);
+                if (edge) { setEdge(edge.dir, edge.depth); return; }
+                stopEdge();
+                const row = e.target.closest('.row');
+                if (row) cfg.onRow(Number(row.dataset.r)); else cfg.cancelDwell();
+            }
+
+            return { setItems, center, layout, over, stopEdge, positionEdges, scrolling: () => edgeDir !== 0, refresh: () => setItems(items, cfg.selIndex()) };
+        }
+
+        // ==================== STATE ====================
+        let nApps = 7, nWin = 40, layoutMode = 'apps';
+        let WINDOWS = [], ROWS = [], rowOf = [];
+        let sel = 0, lastSel = 0;
+        let dragActive = false, browse = false, toastTimer = null, BAND_W = 340, FAN_W = 320, lastOver = 0;
+        let dwellKey = null, dwellT = 0;
+        let fanRow = -1, fanShownRow = -1;
+
+        let workspaces = [];
+        let activeWs = 0;
+        let NWORKSPACES = 4;
+
+        let focusedWsIcon = null;
+
+        function applyBandSize() {
+            BAND_W = Math.round(Math.max(Math.min(320, innerWidth * 0.7), Math.min(440, innerWidth * 0.3)));
+            FAN_W = Math.round(clamp(innerWidth - BAND_W - 100, 220, 340));
+            hud.style.setProperty('--band', BAND_W + 'px');
+            hud.style.setProperty('--col', COL + 'px');
+            hud.style.setProperty('--fan', FAN_W + 'px');
+        }
+
+        // ==================== WORKSPACE DISTRIBUTION ====================
+        function distributeWorkspaces() {
+            const n = WINDOWS.length;
+            const counts = new Array(NWORKSPACES).fill(0);
+            if (n === 0) {
+                // all empty
+            } else if (n <= NWORKSPACES) {
+                for (let i = 0; i < n; i++) counts[i] = 1;
+            } else {
+                const directCount = Math.ceil(NWORKSPACES / 2);
+                let remaining = n;
+                for (let i = 0; i < NWORKSPACES; i++) {
+                    const slots = NWORKSPACES - i;
+                    if (i < directCount) counts[i] = Math.min(MAX_DIRECT, Math.max(1, Math.floor(remaining / slots)));
+                    else counts[i] = Math.max(0, Math.floor(remaining / slots));
+                    remaining -= counts[i];
+                }
+            }
+            workspaces = [];
+            let prev = 0;
+            for (let i = 0; i < NWORKSPACES; i++) {
+                workspaces.push({ index: i, windows: WINDOWS.slice(prev, prev + counts[i]), startIdx: prev });
+                prev += counts[i];
+            }
+            if (activeWs >= NWORKSPACES) activeWs = 0;
+        }
+
+        // ==================== WORKSPACE INDICATOR ====================
+        function wsIconSize() { return Math.max(20, Math.min(28, Math.floor(innerWidth / 70))); }
+
+        function renderWorkspaceIndicator() {
+            $('ws-name').textContent = `Workspace ${activeWs + 1}`;
+            const thumbs = $('ws-thumbs');
+            thumbs.innerHTML = '';
+            const sz = wsIconSize();
+
+            workspaces.forEach((ws, i) => {
+                const el = document.createElement('div');
+                el.className = 'ws-thumb' + (i === activeWs ? ' active' : '');
+                el.title = `Workspace ${i + 1} — ${ws.windows.length} window${ws.windows.length === 1 ? '' : 's'}`;
+                el.setAttribute('role', 'button');
+                el.setAttribute('aria-label', `Switch to workspace ${i + 1}`);
+
+                const direct = ws.windows.length <= MAX_DIRECT;
+
+                if (ws.windows.length === 0) {
+                    el.innerHTML = '<span class="ws-empty">empty</span>';
+                } else if (!direct) {
+                    const pill = document.createElement('span');
+                    pill.className = 'ws-ovf';
+                    pill.textContent = `▱ ${ws.windows.length}`;
+                    pill.title = `${ws.windows.length} windows — click to open the workspace overlay`;
+                    pill.addEventListener('click', e => {
+                        e.stopPropagation();
+                        showToast(`Would open the overlay for workspace ${i + 1} (${ws.windows.length} windows)`);
+                    });
+                    pill.addEventListener('dragover', e => {
+                        if (!dragActive) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        lastOver = performance.now();
+                        pill.classList.add('drag-over');
+                    });
+                    pill.addEventListener('dragleave', () => pill.classList.remove('drag-over'));
+                    el.appendChild(pill);
+                } else {
+                    for (let k = 0; k < ws.windows.length; k++) {
+                        const w = ws.windows[k];
+                        const gidx = ws.startIdx + k;
+                        const iconEl = document.createElement('div');
+                        iconEl.className = 'ws-ico';
+                        iconEl.dataset.gidx = gidx;
+                        iconEl.title = w.title;
+                        iconEl.innerHTML = iconSVG(w.kind, w.color, sz);
+
+                        iconEl.addEventListener('dragover', e => {
+                            if (!dragActive) return;
+                            e.preventDefault();
+                            e.stopPropagation();
+                            lastOver = performance.now();
+                            setWsFocus(iconEl, gidx);
+                        });
+
+                        el.appendChild(iconEl);
+                    }
+                }
+
+                el.addEventListener('click', () => {
+                    activeWs = i;
+                    renderWorkspaceIndicator();
+                });
+
+                el.addEventListener('dragleave', e => {
+                    if (e.relatedTarget && el.contains(e.relatedTarget)) return;
+                    clearWsFocus();
+                });
+
+                thumbs.appendChild(el);
+            });
+        }
+
+        function setWsFocus(iconEl, gidx) {
+            if (focusedWsIcon === iconEl) return;
+            if (focusedWsIcon) focusedWsIcon.classList.remove('focused');
+            focusedWsIcon = iconEl;
+            iconEl.classList.add('focused');
+            if (gidx !== sel) select(gidx);
+        }
+        function clearWsFocus() {
+            if (focusedWsIcon) { focusedWsIcon.classList.remove('focused'); focusedWsIcon = null; }
+        }
+
+        $('ws-tb-windows').addEventListener('click', () => showToast('Show All Windows would open here'));
+        $('ws-tb-apps').addEventListener('click', () => showToast('Show All Apps would open here'));
+
+        // ==================== CLOCK ====================
+        function updateClock() {
+            const d = new Date();
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const h = d.getHours();
+            const m = String(d.getMinutes()).padStart(2, '0');
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            const h12 = ((h + 11) % 12) + 1;
+            $('status-clock').textContent = `${days[d.getDay()]} ${h12}:${m} ${ampm}`;
+        }
+        updateClock();
+        setInterval(updateClock, 30000);
+
+        // ==================== ROW MODEL ====================
+        function buildRows() {
+            rowOf = new Array(WINDOWS.length);
+            if (layoutMode === 'apps') {
+                const m = new Map();
+                WINDOWS.forEach((w, i) => {
+                    let g = m.get(w.app);
+                    if (!g) { g = { title: w.app, app: w.app, color: w.color, kind: w.kind, idxs: [] }; m.set(w.app, g); }
+                    g.idxs.push(i);
+                });
+                ROWS = [...m.values()];
+                ROWS.forEach(g => g.sub = g.idxs.length + (g.idxs.length > 1 ? ' windows' : ' window'));
+            } else {
+                ROWS = WINDOWS.map((w, i) => ({ title: w.title, sub: w.app, app: w.app, color: w.color, kind: w.kind, idxs: [i] }));
+            }
+            ROWS.forEach((g, r) => g.idxs.forEach(i => { rowOf[i] = r; }));
+        }
+        function rebuild(resetSel) {
+            WINDOWS = makeWindows(nApps, nWin);
+            buildRows();
+            distributeWorkspaces();
+            renderWorkspaceIndicator();
+            if (resetSel) sel = lastSel = 0;
+            sel = Math.min(sel, WINDOWS.length - 1);
+            fanRow = -1; fanShownRow = -1;
+            const biggest = layoutMode === 'apps' ? Math.max(...ROWS.map(g => g.idxs.length)) : 1;
+            const apps = new Set(WINDOWS.map(w => w.app)).size;
+            const modes = workspaces.map(w => w.windows.length === 0 ? 'empty' : (w.windows.length <= MAX_DIRECT ? 'icons' : 'pill')).join(' / ');
+            $('count-note').textContent = `${WINDOWS.length} windows in ${apps} apps. Band: ${ROWS.length} rows` +
+                (ROWS.length > SLOTS ? ' (strip + rail). ' : ' (all visible). ') +
+                `Workspaces: ${modes}.` +
+                (layoutMode === 'apps' ? ` Largest fan-out: ${biggest} windows.` : '');
+        }
+        function bindGroup(sel, attr, fn) {
+            document.querySelectorAll(sel + ' button').forEach(b => b.addEventListener('click', () => {
+                document.querySelectorAll(sel + ' button').forEach(x => x.classList.toggle('on', x === b));
+                fn(b.dataset[attr]);
+            }));
+        }
+        bindGroup('#layout-ctl', 'l', v => { layoutMode = v; rebuild(false); });
+        bindGroup('#apps-ctl', 'a', v => { nApps = Number(v); rebuild(true); });
+        bindGroup('#count-ctl', 'n', v => { nWin = Number(v); rebuild(true); });
+        bindGroup('#ws-ctl', 'w', v => { NWORKSPACES = Number(v); rebuild(false); });
+
+        function rowEl(it, textMax, badge) {
+            const el = document.createElement('div');
+            el.className = 'row';
+            el.innerHTML = `<span class="r-ic">${iconSVG(it.kind, it.color, 30)}</span>
+    <span class="r-tx"><span class="r-t">${esc(fitStart(it.title, 600, 14, textMax))}</span><span class="r-a">${esc(it.sub)}</span></span>` +
+                (badge ? `<span class="r-n exp-only">${badge}</span>` : '');
+            return el;
+        }
+
+        function cancelDwell() { clearTimeout(dwellT); dwellT = 0; dwellKey = null; }
+        function dwell(key, fn) {
+            if (key === dwellKey) return;
+            cancelDwell();
+            dwellKey = key;
+            dwellT = setTimeout(() => { dwellT = 0; dwellKey = null; fn(); }, DWELL_MS);
+        }
+        function setSel(i) { if (i === sel) return; sel = i; renderPreview(); updateCount(); }
+
+        const bandStrip = createStrip({
+            host: band, rowsEl: $('band-rows'), upEl: $('band-up'), downEl: $('band-down'), railEl: $('band-rail'),
+            selIndex: () => rowOf[sel],
+            makeRow: it => {
+                const grouped = layoutMode === 'apps' && it.idxs.length > 1;
+                const textMax = Math.max(80, BAND_W - 24 - 28 - 8 - 20 - 30 - 10 - 6 - (grouped ? 56 : 0));
+                return rowEl(it, textMax, grouped ? `×${it.idxs.length} ›` : '');
+            },
+            onScrub: r => { select(rowOf[sel] === r ? sel : ROWS[r].idxs[0]); bandStrip.center(r); },
+            onRow: r => {
+                const apps = layoutMode === 'apps';
+                if (rowOf[sel] === r && (!apps || fanRow === r || ROWS[r].idxs.length < 2)) { cancelDwell(); return; }
+                dwell('r' + r, () => { select(rowOf[sel] === r ? sel : ROWS[r].idxs[0]); if (apps) { fanRow = r; updateFan(); } });
+            },
+            onCenter: r => setSel(ROWS[r].idxs[0]),
+            onEdgeStart: () => { if (fanRow !== -1) { fanRow = -1; updateFan(); } },
+            cancelDwell, alive: () => dragActive && performance.now() - lastOver < 1000
+        });
+
+        const fanIdx = () => { const g = ROWS[fanShownRow]; return g ? g.idxs.indexOf(sel) : -1; };
+        const fanStrip = createStrip({
+            host: fanEl, rowsEl: $('fan-rows'), upEl: $('fan-up'), downEl: $('fan-down'), railEl: $('fan-rail'),
+            selIndex: fanIdx,
+            makeRow: it => rowEl(it, Math.max(80, FAN_W - 22 - 28 - 8 - 20 - 30 - 10 - 6), ''),
+            onScrub: k => { select(ROWS[fanShownRow].idxs[k]); fanStrip.center(k); },
+            onRow: k => {
+                const i = ROWS[fanShownRow].idxs[k];
+                if (i === sel) cancelDwell(); else dwell('f' + i, () => select(i));
+            },
+            onCenter: k => setSel(ROWS[fanShownRow].idxs[k]),
+            cancelDwell, alive: () => dragActive && performance.now() - lastOver < 1000
+        });
+
+        function updateFan() {
+            const g = ROWS[fanRow];
+            const show = dragActive && browse && layoutMode === 'apps' && g && g.idxs.length > 1;
+            if (!show) {
+                if (fanShownRow !== -1) fanStrip.stopEdge();
+                fanEl.classList.remove('open'); fanShownRow = -1;
+                return;
+            }
+            if (fanShownRow !== fanRow) {
+                fanEl.classList.add('open');
+                fanShownRow = fanRow;
+                $('fan-head').textContent = `${g.app} · ${g.idxs.length} windows`;
+                fanStrip.setItems(g.idxs.map((i, k) => ({ title: WINDOWS[i].title, sub: `Window ${k + 1}`, color: WINDOWS[i].color, kind: WINDOWS[i].kind })), g.idxs.indexOf(sel));
+            } else fanStrip.layout();
+        }
+
+        function setBrowse(b) {
+            browse = b;
+            band.classList.toggle('expanded', b);
+            hud.classList.toggle('browse', b);
+            if (b) zonesEl.querySelectorAll('.zone.over').forEach(z => z.classList.remove('over'));
+            else { cancelDwell(); bandStrip.stopEdge(); fanRow = -1; }
+            updateFan();
+            modeHint.textContent = b
+                ? 'Browsing windows. Move left into the window to drop.'
+                : 'Drop on a zone, or move to the right edge to browse windows.';
+        }
+        function updateMode(x) {
+            const leaveX = innerWidth - BAND_W - (fanEl.classList.contains('open') ? FAN_W : 0) - 12;
+            if (!browse) { if (x >= innerWidth - COL) setBrowse(true); }
+            else if (x < leaveX) setBrowse(false);
+        }
+        hud.addEventListener('dragover', e => {
+            if (!dragActive) return;
+            lastOver = performance.now();
+            updateMode(e.clientX);
+            if (!e.target.closest('#band')) bandStrip.stopEdge();
+            if (!e.target.closest('#fan')) fanStrip.stopEdge();
+        }, true);
+
+        band.addEventListener('dragover', e => {
+            if (!dragActive) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'none';
+            bandStrip.over(e);
+        });
+        fanEl.addEventListener('dragover', e => {
+            if (!dragActive || fanShownRow === -1) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'none';
+            fanStrip.over(e);
+        });
+
+        function renderPreview() {
+            const w = WINDOWS[sel];
+            winEl.style.setProperty('--c', w.color);
+            $('win-title').textContent = fitStart(`${w.app} — ${w.title}`, 700, 15, Math.max(160, innerWidth - COL - 160));
+            zonesEl.innerHTML = '';
+
+            (ZONES[w.kind] || ZONES.docs).forEach(([name, sub, x, y, ww, hh]) => {
+                const z = document.createElement('div');
+                z.className = 'zone';
+                z.style.cssText = `left:${x}%;top:${y}%;width:calc(${ww}% - 16px);height:calc(${hh}% - 16px)`;
+                z.innerHTML = `<div class="z-name">${esc(name)}</div><div class="z-sub">${esc(sub)}</div><div class="z-go">Release to drop</div>`;
+                z.addEventListener('dragover', e => {
+                    if (!dragActive || browse) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'copy';
+                    z.classList.add('over');
+                });
+                z.addEventListener('dragleave', e => {
+                    if (e.relatedTarget && z.contains(e.relatedTarget)) return;
+                    z.classList.remove('over');
+                });
+                z.addEventListener('drop', e => {
+                    if (browse) return;
+                    e.preventDefault();
+                    const f = e.dataTransfer.getData('text/plain') || 'report.pdf';
+                    lastSel = sel;
+                    showToast(`Dropped ${f} → ${w.app} › ${name} (${sub})`);
+                    hideHUD();
+                });
+                zonesEl.appendChild(z);
+            });
+
+            if (!bandStrip.scrolling() && !fanStrip.scrolling()) { winEl.classList.remove('swap'); void winEl.offsetWidth; winEl.classList.add('swap'); }
+        }
+
+        function select(i) {
+            i = clamp(i, 0, WINDOWS.length - 1);
+            if (i === sel) return;
+            sel = i;
+            if (fanRow !== -1 && rowOf[sel] !== fanRow) fanRow = -1;
+            renderPreview(); updateCount();
+            updateFan();
+            bandStrip.layout();
+        }
+        function updateCount() {
+            $('band-count').textContent = `Window ${sel + 1} of ${WINDOWS.length}` + (layoutMode === 'apps' ? ` · ${WINDOWS[sel].app}` : '');
+        }
+
+        function hideHUD() {
+            dragActive = false;
+            cancelDwell(); bandStrip.stopEdge(); fanStrip.stopEdge();
+            clearWsFocus();
+            document.querySelectorAll('.ws-ovf.drag-over').forEach(p => p.classList.remove('drag-over'));
+            fanRow = -1; updateFan();
+            hud.classList.remove('active');
+            hud.setAttribute('aria-hidden', 'true');
+            workspace.style.filter = 'none';
+            workspace.style.transform = 'none';
+        }
+        function showToast(msg) {
+            toast.textContent = msg;
+            toast.classList.add('visible');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => toast.classList.remove('visible'), 3200);
+        }
+
+        file.addEventListener('dragstart', e => {
+            dragActive = true;
+            lastOver = performance.now();
+            e.dataTransfer.effectAllowed = 'copyMove';
+            e.dataTransfer.setData('text/plain', 'report.pdf');
+            sel = Math.min(lastSel, WINDOWS.length - 1);
+            fanRow = -1; fanShownRow = -1; fanEl.classList.remove('open');
+            browse = true; setBrowse(false);
+            setTimeout(() => {
+                if (!dragActive) return;
+                hud.classList.add('active');
+                hud.setAttribute('aria-hidden', 'false');
+                workspace.style.filter = 'blur(4px)';
+                workspace.style.transform = 'scale(0.985)';
+                applyBandSize();
+                bandStrip.setItems(ROWS, rowOf[sel]);
+                renderPreview(); updateCount();
+            }, 10);
+        });
+        file.addEventListener('dragend', hideHUD);
+
+        window.addEventListener('resize', () => {
+            renderWorkspaceIndicator();
+            if (!dragActive) return;
+            applyBandSize();
+            bandStrip.refresh();
+            if (fanShownRow !== -1) { const r = fanShownRow; fanShownRow = -1; fanRow = r; updateFan(); }
+            renderPreview();
+        });
+
+        applyBandSize();
+        rebuild(true);
+    </script>
+</body>
+
+</html>
