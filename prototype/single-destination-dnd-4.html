@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Radial Drag and Drop</title>
+  <style>
+    :root {
+      --bg-color: #1e1e2e;
+      --window-bg: #252538;
+      --accent-color: #89b4fa;
+      --hud-bg: rgba(30, 30, 46, 0.88);
+      --text-color: #cdd6f4;
+      --muted-color: #a6adc8;
+      --border-color: #45475a;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: var(--bg-color);
+      color: var(--text-color);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+
+    #screen-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transition: filter 220ms ease, transform 220ms ease;
+    }
+
+    .maximized-window {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      background: var(--window-bg);
+    }
+
+    .title-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      background: #181825;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .window-controls span {
+      display: inline-block;
+      width: 11px;
+      height: 11px;
+      margin-left: 6px;
+      border-radius: 50%;
+      background: #585b70;
+    }
+
+    .window-content {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      padding: 40px;
+      text-align: center;
+    }
+
+    .window-content h1 {
+      margin: 0;
+      font-size: clamp(22px, 3vw, 34px);
+      font-weight: 600;
+    }
+
+    .window-content p {
+      max-width: 520px;
+      margin: 0;
+      color: var(--muted-color);
+      line-height: 1.6;
+    }
+
+    .file-item {
+      display: flex;
+      width: 132px;
+      height: 132px;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      border: 2px dashed var(--border-color);
+      border-radius: 12px;
+      background: #313244;
+      cursor: grab;
+      user-select: none;
+      transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+    }
+
+    .file-item:hover {
+      transform: translateY(-2px);
+      border-color: var(--accent-color);
+      background: #45475a;
+    }
+
+    .file-item:active {
+      cursor: grabbing;
+    }
+
+    .file-icon {
+      font-size: 42px;
+    }
+
+    .file-name {
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    #ghost-hud {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      background: var(--hud-bg);
+      backdrop-filter: blur(12px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease;
+    }
+
+    #ghost-hud.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .hud-top {
+      position: absolute;
+      top: 22px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      color: var(--muted-color);
+      font-size: 13px;
+      pointer-events: none;
+    }
+
+    .hud-top strong {
+      color: var(--text-color);
+      font-weight: 600;
+    }
+
+    /* Radial menu. #radial is a zero-size anchor placed at the drag origin. */
+    #radial {
+      position: absolute;
+      width: 0;
+      height: 0;
+      pointer-events: none;
+    }
+
+    .ring-track {
+      position: absolute;
+      border: 1px dashed #45475a;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .ring-item {
+      position: absolute;
+      display: grid;
+      place-items: center;
+      width: 56px;
+      height: 56px;
+      margin: -28px 0 0 -28px;
+      border: 1px solid #585b70;
+      border-radius: 50%;
+      background: #252538;
+      font-size: 24px;
+      transition: transform 120ms ease, background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+    }
+
+    .ring-item.selected {
+      transform: scale(1.22);
+      border-color: var(--accent-color);
+      background: rgba(137, 180, 250, 0.22);
+      box-shadow: 0 0 0 5px rgba(137, 180, 250, 0.14);
+    }
+
+    .ring-disc {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      width: 148px;
+      height: 148px;
+      padding: 12px;
+      margin: -74px 0 0 -74px;
+      border: 1px solid #585b70;
+      border-radius: 50%;
+      background: #181825;
+      text-align: center;
+      transition: border-color 120ms ease;
+    }
+
+    .ring-disc.has-target {
+      border-color: var(--accent-color);
+    }
+
+    .disc-name {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .disc-sub {
+      color: var(--muted-color);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .disc-count {
+      color: #7f849f;
+      font-size: 10px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #status-toast {
+      position: fixed;
+      bottom: 26px;
+      left: 50%;
+      z-index: 30;
+      max-width: calc(100vw - 32px);
+      padding: 12px 18px;
+      border-radius: 12px;
+      background: #a6e3a1;
+      color: #11111b;
+      font-size: 13px;
+      font-weight: 650;
+      text-align: center;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.28);
+      opacity: 0;
+      transform: translate(-50%, 8px);
+      pointer-events: none;
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+
+    #status-toast.visible {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+      *,
+      *::before,
+      *::after {
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main id="screen-container">
+    <section class="maximized-window" aria-label="Current workspace">
+      <div class="title-bar">
+        <span>Workspace 1 — Project_Folder</span>
+        <span class="window-controls" aria-hidden="true"><span></span><span></span><span></span></span>
+      </div>
+      <div class="window-content">
+        <h1>Move a file to another window</h1>
+        <p>Drag the file. A ring of destinations opens around it. Move toward one and release. Release in the middle to
+          cancel.</p>
+        <div class="file-item" draggable="true" id="source-file" aria-label="Drag report.pdf to another window">
+          <div class="file-icon" aria-hidden="true">📄</div>
+          <div class="file-name">report.pdf</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <section id="ghost-hud" aria-label="Choose a destination" aria-hidden="true">
+    <div class="hud-top"><strong>Move toward a destination</strong> and release to drop</div>
+    <div id="radial">
+      <div class="ring-track" id="ring-track"></div>
+      <div id="ring-items"></div>
+      <div class="ring-disc" id="ring-disc" aria-live="polite">
+        <div class="disc-name" id="disc-name"></div>
+        <div class="disc-sub" id="disc-sub"></div>
+        <div class="disc-count" id="disc-count"></div>
+      </div>
+    </div>
+  </section>
+
+  <div id="status-toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const destinations = [
+      { name: "Slack", icon: "💬", action: "Share in a chat", workspace: "WS 1" },
+      { name: "Backup Drive", icon: "☁️", action: "Upload to cloud storage", workspace: "WS 2" },
+      { name: "Mail Client", icon: "✉️", action: "Attach to an email", workspace: "WS 3" },
+      { name: "Visual Studio Code", icon: "〈〉", action: "Open in editor", workspace: "WS 4" },
+      { name: "Design Board", icon: "✳", action: "Add to design board", workspace: "WS 5" },
+      { name: "Analytics", icon: "▥", action: "Import report", workspace: "WS 6" },
+      { name: "Project Folder", icon: "📁", action: "Move to project folder", workspace: "WS 7" },
+      { name: "Reference Docs", icon: "📚", action: "Add reference material", workspace: "WS 8" },
+      { name: "Archive", icon: "🗄️", action: "Archive file", workspace: "WS 9" },
+      { name: "Media Assets", icon: "▣", action: "Add to media assets", workspace: "WS 10" }
+    ];
+
+    const COUNT = destinations.length;
+    const SLICE = 360 / COUNT;
+    const ENTER_DIST = 64;      // leave the dead zone
+    const EXIT_DIST = 50;       // return to the dead zone (hysteresis)
+    const ANGLE_HYST = 6;       // extra degrees before switching slices
+
+    const file = document.getElementById("source-file");
+    const hud = document.getElementById("ghost-hud");
+    const screenContainer = document.getElementById("screen-container");
+    const radial = document.getElementById("radial");
+    const ringTrack = document.getElementById("ring-track");
+    const ringItems = document.getElementById("ring-items");
+    const disc = document.getElementById("ring-disc");
+    const toast = document.getElementById("status-toast");
+
+    let dragActive = false;
+    let selected = -1;
+    let origin = { x: 0, y: 0 };
+    let toastTimer = null;
+
+    const itemEls = destinations.map((d, i) => {
+      const el = document.createElement("div");
+      el.className = "ring-item";
+      el.textContent = d.icon;
+      ringItems.appendChild(el);
+      return el;
+    });
+
+    function layoutRing(startX, startY) {
+      const radius = Math.max(95, Math.min(170, Math.min(innerWidth, innerHeight) / 2 - 56));
+      const margin = radius + 44;
+      origin.x = Math.min(Math.max(startX, margin), Math.max(margin, innerWidth - margin));
+      origin.y = Math.min(Math.max(startY, margin), Math.max(margin, innerHeight - margin));
+      radial.style.left = origin.x + "px";
+      radial.style.top = origin.y + "px";
+      ringTrack.style.width = ringTrack.style.height = radius * 2 + "px";
+      itemEls.forEach((el, i) => {
+        const a = (-90 + i * SLICE) * Math.PI / 180;   // item 0 at the top, clockwise
+        el.style.left = Math.round(radius * Math.cos(a)) + "px";
+        el.style.top = Math.round(radius * Math.sin(a)) + "px";
+      });
+    }
+
+    function angularGap(a, b) {
+      const d = Math.abs(a - b) % 360;
+      return d > 180 ? 360 - d : d;
+    }
+
+    function updateSelection(clientX, clientY) {
+      const dx = clientX - origin.x;
+      const dy = clientY - origin.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (selected === -1 && dist < ENTER_DIST) return;
+      if (dist < EXIT_DIST) {
+        if (selected !== -1) { selected = -1; render(); }
+        return;
+      }
+
+      const angle = (Math.atan2(dy, dx) * 180 / Math.PI + 90 + 360) % 360;
+      const nearest = Math.round(angle / SLICE) % COUNT;
+      if (nearest === selected) return;
+      // Sticky: only switch once clearly inside the next slice.
+      if (selected !== -1 && angularGap(angle, selected * SLICE) < SLICE / 2 + ANGLE_HYST) return;
+      selected = nearest;
+      render();
+    }
+
+    function render() {
+      itemEls.forEach((el, i) => el.classList.toggle("selected", i === selected));
+      const d = selected >= 0 ? destinations[selected] : null;
+      disc.classList.toggle("has-target", !!d);
+      document.getElementById("disc-name").textContent = d ? d.name : "Cancel";
+      document.getElementById("disc-sub").textContent = d ? d.action : "Move outward to choose, or release here";
+      document.getElementById("disc-count").textContent = d ? `${selected + 1} of ${COUNT} · ${d.workspace}` : "";
+    }
+
+    function hideHUD() {
+      dragActive = false;
+      selected = -1;
+      hud.classList.remove("active");
+      hud.setAttribute("aria-hidden", "true");
+      screenContainer.style.filter = "none";
+      screenContainer.style.transform = "none";
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add("visible");
+      if (toastTimer !== null) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toast.classList.remove("visible"); toastTimer = null; }, 3000);
+    }
+
+    file.addEventListener("dragstart", event => {
+      dragActive = true;
+      selected = -1;
+      layoutRing(event.clientX, event.clientY);
+      render();
+      event.dataTransfer.effectAllowed = "copyMove";
+      event.dataTransfer.setData("text/plain", "report.pdf");
+      setTimeout(() => {
+        if (!dragActive) return;
+        hud.classList.add("active");
+        hud.setAttribute("aria-hidden", "false");
+        screenContainer.style.filter = "blur(4px)";
+        screenContainer.style.transform = "scale(0.985)";
+      }, 10);
+    });
+
+    file.addEventListener("dragend", hideHUD);
+
+    // The whole HUD is the drop target. Direction from the origin picks the destination.
+    hud.addEventListener("dragover", event => {
+      if (!dragActive) return;
+      event.preventDefault();
+      updateSelection(event.clientX, event.clientY);
+      // "none" in the center shows a not-allowed cursor and makes drop cancel.
+      event.dataTransfer.dropEffect = selected >= 0 ? "copy" : "none";
+    });
+
+    hud.addEventListener("drop", event => {
+      event.preventDefault();
+      if (selected < 0) return hideHUD();
+      const destination = destinations[selected];
+      const filename = event.dataTransfer.getData("text/plain") || "report.pdf";
+      showToast(`Routed ${filename} to ${destination.name}`);
+      hideHUD();
+    });
+
+    render();
+  </script>
+</body>
+
+</html>
