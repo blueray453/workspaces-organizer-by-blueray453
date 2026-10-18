@@ -90,9 +90,9 @@
         .ws-name {
             color: #eee8d5;
             font-weight: 700;
-            padding: 0 10px;
+            padding: 0 12px;
             white-space: nowrap;
-            font-size: 14px;
+            font-size: 18px;
             flex-shrink: 0;
         }
 
@@ -144,7 +144,7 @@
             display: flex;
             flex-shrink: 0;
             cursor: pointer;
-            border-radius: 5px;
+            border-radius: 6px;
             transition: transform 120ms, box-shadow 120ms;
         }
 
@@ -154,7 +154,7 @@
 
         .ws-ico.focused {
             box-shadow: 0 0 0 2px #2aa198, 0 0 10px rgba(42, 161, 152, 0.65);
-            border-radius: 5px;
+            border-radius: 6px;
             transform: scale(1.06);
         }
 
@@ -188,10 +188,10 @@
             padding: 0 6px;
         }
 
-        /* ---------- right: status placeholders — 48px buttons like the toolbar ---------- */
+        /* ---------- right: status placeholders ---------- */
         .status-clock {
             height: 48px;
-            min-width: 150px;
+            min-width: 170px;
             padding: 0 16px;
             display: flex;
             align-items: center;
@@ -200,7 +200,7 @@
             background: rgba(0, 20, 28, 0.55);
             color: #eee8d5;
             font-weight: 600;
-            font-size: 15px;
+            font-size: 19px;
             font-variant-numeric: tabular-nums;
             white-space: nowrap;
             flex-shrink: 0;
@@ -1212,7 +1212,9 @@
         }
 
         // ==================== WORKSPACE INDICATOR ====================
-        function wsIconSize() { return Math.max(20, Math.min(28, Math.floor(innerWidth / 70))); }
+        // Larger window icons: floor 32, ceiling 44, scaled by viewport width.
+        // 1024–1440px → 32; 1920px → 44; 2560px+ → 44.
+        function wsIconSize() { return Math.max(32, Math.min(44, Math.floor(innerWidth / 40))); }
 
         function renderWorkspaceIndicator() {
             $('ws-name').textContent = `Workspace ${activeWs + 1}`;
