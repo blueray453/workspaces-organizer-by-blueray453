@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maximized DnD - Ghost HUD Simulation</title>
+    <style>
+        :root {
+            --bg-color: #1e1e2e;
+            --window-bg: #252538;
+            --accent-color: #89b4fa;
+            --hud-bg: rgba(30, 30, 46, 0.85);
+            --text-color: #cdd6f4;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Container for the Active Maximized Window */
+        #screen-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: filter 0.3s ease, transform 0.3s ease;
+        }
+
+        .maximized-window {
+            width: 100%;
+            height: 100%;
+            background: var(--window-bg);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .title-bar {
+            background: #181825;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .window-controls span {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-left: 6px;
+            background: #585b70;
+        }
+
+        .window-content {
+            padding: 40px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* The Draggable File Component */
+        .file-item {
+            width: 120px;
+            height: 120px;
+            background: #313244;
+            border: 2px dashed #45475a;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: grab;
+            gap: 10px;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .file-item:hover {
+            background: #45475a;
+            border-color: var(--accent-color);
+        }
+
+        .file-icon {
+            font-size: 40px;
+        }
+
+        /* System Ghost HUD Overlay */
+        #ghost-hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--hud-bg);
+            backdrop-filter: blur(12px);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+
+        #ghost-hud.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .hud-title {
+            font-size: 24px;
+            margin-bottom: 30px;
+            font-weight: 400;
+            color: #a6adc8;
+        }
+
+        /* Grid of targets (other windows/workspaces) */
+        .hud-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 320px);
+            gap: 30px;
+        }
+
+        .drop-target-window {
+            height: 200px;
+            background: #181825;
+            border: 2px solid #45475a;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .drop-target-window .target-title {
+            background: #11111b;
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #a6adc8;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .drop-target-window .target-preview {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            color: #585b70;
+            background: #1e1e2e;
+        }
+
+        /* Dragover States inside HUD */
+        .drop-target-window.drag-over {
+            border-color: var(--accent-color);
+            transform: scale(1.03);
+            box-shadow: 0 10px 30px rgba(137, 180, 250, 0.2);
+        }
+
+        .drop-target-window.drag-over .target-preview {
+            color: var(--accent-color);
+            background: rgba(137, 180, 250, 0.05);
+        }
+
+        /* System State Banner */
+        #status-toast {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #a6e3a1;
+            color: #11111b;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 100;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Active Workspace / Maximized Window -->
+    <div id="screen-container">
+        <div class="maximized-window">
+            <div class="title-bar">
+                <div>Workspace 1 — Project_Folder</div>
+                <div class="window-controls">
+                    <span></span><span></span><span></span>
+                </div>
+            </div>
+            <div class="window-content">
+                <h2>Active Window (Maximized)</h2>
+                <p>Pick up the file below and start dragging it. The system will immediately open the Ghost HUD to
+                    reveal hidden target windows.</p>
+
+                <!-- The Draggable Asset -->
+                <div class="file-item" draggable="true" id="source-file">
+                    <div class="file-icon">📄</div>
+                    <div style="font-size: 12px; font-weight: 500;">report.pdf</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- The Ghost HUD Overlay (Triggered on Drag Start) -->
+    <div id="ghost-hud">
+        <div class="hud-title">Drop file onto a background window target</div>
+
+        <div class="hud-grid">
+            <!-- Target 1 -->
+            <div class="drop-target-window" data-window-name="Slack (Workspace 1)">
+                <div class="target-title">
+                    <span>Slack</span>
+                    <span style="color:#f38ba8;">● WS 1</span>
+                </div>
+                <div class="target-preview">Drop here to share in chat</div>
+            </div>
+
+            <!-- Target 2 -->
+            <div class="drop-target-window" data-window-name="Backup Drive (Workspace 2)">
+                <div class="target-title">
+                    <span>Backup Drive</span>
+                    <span style="color:#a6e3a1;">● WS 2</span>
+                </div>
+                <div class="target-preview">Drop here to upload to Cloud</div>
+            </div>
+
+            <!-- Target 3 -->
+            <div class="drop-target-window" data-window-name="Email Drafts (Workspace 2)">
+                <div class="target-title">
+                    <span>Mail Client</span>
+                    <span style="color:#a6e3a1;">● WS 2</span>
+                </div>
+                <div class="target-preview">Drop here to attach to email</div>
+            </div>
+
+            <!-- Target 4 -->
+            <div class="drop-target-window" data-window-name="VS Code (Workspace 3)">
+                <div class="target-title">
+                    <span>Visual Studio Code</span>
+                    <span style="color:#f9e2af;">● WS 3</span>
+                </div>
+                <div class="target-preview">Drop here to open in editor</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification System -->
+    <div id="status-toast">File sent successfully!</div>
+
+    <script>
+        const file = document.getElementById('source-file');
+        const hud = document.getElementById('ghost-hud');
+        const screenContainer = document.getElementById('screen-container');
+        const targets = document.querySelectorAll('.drop-target-window');
+        const toast = document.getElementById('status-toast');
+
+        // 1. Drag Start: Trigger the Ghost HUD immediately
+        file.addEventListener('dragstart', (e) => {
+            // Small timeout fixes a visual bug where the HUD renders in the ghost image of the item being dragged
+            setTimeout(() => {
+                hud.classList.add('active');
+                screenContainer.style.filter = 'blur(4px)';
+                screenContainer.style.transform = 'scale(0.98)';
+            }, 10);
+
+            e.dataTransfer.setData('text/plain', 'report.pdf');
+        });
+
+        // 2. Drag End: If dropped into nowhere, clean up and hide HUD
+        file.addEventListener('dragend', () => {
+            hideHUD();
+        });
+
+        // 3. HUD Target Interactions
+        targets.forEach(target => {
+            // Allow dropping on the target
+            target.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                target.classList.add('drag-over');
+            });
+
+            // Remove visual highlights when cursor leaves target
+            target.addEventListener('dragleave', () => {
+                target.classList.remove('drag-over');
+            });
+
+            // Complete the transfer
+            target.addEventListener('drop', (e) => {
+                e.preventDefault();
+                target.classList.remove('drag-over');
+
+                const targetName = target.getAttribute('data-window-name');
+                showToast(`Successfully routed report.pdf to → ${targetName}`);
+
+                hideHUD();
+            });
+        });
+
+        function hideHUD() {
+            hud.classList.remove('active');
+            screenContainer.style.filter = 'none';
+            screenContainer.style.transform = 'none';
+        }
+
+        function showToast(message) {
+            toast.innerText = message;
+            toast.style.opacity = '1';
+            setTimeout(() => {
+                toast.style.opacity = '0';
+            }, 3500);
+        }
+    </script>
+</body>
+
+</html>
+

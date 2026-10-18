@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Single Destination Drag and Drop</title>
+  <style>
+    :root {
+      --bg-color: #1e1e2e;
+      --window-bg: #252538;
+      --accent-color: #89b4fa;
+      --hud-bg: rgba(30, 30, 46, 0.88);
+      --text-color: #cdd6f4;
+      --muted-color: #a6adc8;
+      --border-color: #45475a;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: var(--bg-color);
+      color: var(--text-color);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    #screen-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transition: filter 220ms ease, transform 220ms ease;
+    }
+
+    .maximized-window {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      background: var(--window-bg);
+    }
+
+    .title-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      background: #181825;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .window-controls span {
+      display: inline-block;
+      width: 11px;
+      height: 11px;
+      margin-left: 6px;
+      border-radius: 50%;
+      background: #585b70;
+    }
+
+    .window-content {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 20px;
+      padding: 40px;
+    }
+
+    .window-content h1 {
+      margin: 0;
+      font-size: clamp(22px, 3vw, 34px);
+      font-weight: 600;
+    }
+
+    .window-content p {
+      max-width: 620px;
+      margin: 0;
+      color: var(--muted-color);
+      line-height: 1.6;
+    }
+
+    .file-item {
+      display: flex;
+      width: 132px;
+      height: 132px;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      border: 2px dashed var(--border-color);
+      border-radius: 12px;
+      background: #313244;
+      cursor: grab;
+      user-select: none;
+      transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+    }
+
+    .file-item:hover {
+      transform: translateY(-2px);
+      border-color: var(--accent-color);
+      background: #45475a;
+    }
+
+    .file-item:active { cursor: grabbing; }
+    .file-icon { font-size: 42px; }
+    .file-name { font-size: 12px; font-weight: 600; }
+
+    #ghost-hud {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+      background: var(--hud-bg);
+      backdrop-filter: blur(12px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 220ms ease;
+    }
+
+    #ghost-hud.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .hud-heading {
+      width: min(900px, 100%);
+      margin-bottom: 22px;
+      text-align: center;
+    }
+
+    .hud-heading h2 {
+      margin: 0 0 8px;
+      font-size: clamp(21px, 3vw, 28px);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .hud-heading p {
+      margin: 0;
+      color: var(--muted-color);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .destination-count {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 16px;
+      padding: 6px 11px;
+      border: 1px solid #45475a;
+      border-radius: 999px;
+      color: #bac2de;
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .destination-count .count-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-color);
+    }
+
+    .destination-stage {
+      display: grid;
+      grid-template-columns: minmax(100px, 150px) minmax(280px, 650px) minmax(100px, 150px);
+      align-items: stretch;
+      gap: clamp(12px, 2.5vw, 28px);
+      width: min(1000px, 100%);
+    }
+
+    .browse-zone {
+      display: flex;
+      min-height: 310px;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 14px 8px;
+      border: 1px solid #45475a;
+      border-radius: 16px;
+      background: rgba(24, 24, 37, 0.62);
+      color: #bac2de;
+      text-align: center;
+      transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
+    }
+
+    .browse-zone .arrow {
+      display: grid;
+      width: 48px;
+      height: 48px;
+      place-items: center;
+      border: 1px solid #585b70;
+      border-radius: 50%;
+      font-size: 25px;
+      line-height: 1;
+    }
+
+    .browse-zone .zone-label {
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .browse-zone .zone-hint {
+      max-width: 100px;
+      color: #7f849f;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .browse-zone.drag-hover {
+      border-color: var(--accent-color);
+      background: rgba(137, 180, 250, 0.12);
+      color: var(--accent-color);
+    }
+
+    .browse-zone.drag-hover .arrow {
+      border-color: var(--accent-color);
+      background: rgba(137, 180, 250, 0.14);
+    }
+
+    .browse-zone.unavailable { opacity: 0.35; }
+
+    .destination-window {
+      display: flex;
+      min-height: 310px;
+      flex-direction: column;
+      overflow: hidden;
+      border: 2px solid #585b70;
+      border-radius: 13px;
+      background: #181825;
+      box-shadow: 0 18px 55px rgba(0, 0, 0, 0.28);
+      transition: border-color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .destination-window.drag-over {
+      border-color: var(--accent-color);
+      box-shadow: 0 0 0 4px rgba(137, 180, 250, 0.12), 0 18px 55px rgba(0, 0, 0, 0.32);
+    }
+
+    .target-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 17px;
+      background: #11111b;
+      border-bottom: 1px solid #313244;
+    }
+
+    .target-app {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .app-icon {
+      display: grid;
+      width: 37px;
+      height: 37px;
+      flex: 0 0 auto;
+      place-items: center;
+      border: 1px solid #45475a;
+      border-radius: 10px;
+      background: #252538;
+      font-size: 18px;
+    }
+
+    .target-name {
+      overflow: hidden;
+      font-size: 15px;
+      font-weight: 650;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .target-subtitle {
+      margin-top: 3px;
+      color: #858aa5;
+      font-size: 11px;
+    }
+
+    .workspace-tag {
+      flex: 0 0 auto;
+      padding: 5px 8px;
+      border: 1px solid #45475a;
+      border-radius: 6px;
+      color: #bac2de;
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    .target-preview {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 13px;
+      padding: 30px 24px;
+      text-align: center;
+      background: radial-gradient(ellipse at center, rgba(49, 50, 68, 0.52), rgba(30, 30, 46, 0.18) 65%);
+    }
+
+    .preview-symbol {
+      display: grid;
+      width: 66px;
+      height: 66px;
+      place-items: center;
+      border: 1px solid #45475a;
+      border-radius: 18px;
+      background: rgba(49, 50, 68, 0.8);
+      font-size: 28px;
+    }
+
+    .preview-title {
+      font-size: 17px;
+      font-weight: 600;
+    }
+
+    .preview-description {
+      max-width: 340px;
+      color: #a6adc8;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .drop-instruction {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+      padding: 8px 12px;
+      border: 1px solid rgba(137, 180, 250, 0.34);
+      border-radius: 8px;
+      background: rgba(137, 180, 250, 0.07);
+      color: #b9d2ff;
+      font-size: 12px;
+    }
+
+    .drop-instruction .check { font-size: 15px; }
+
+    .hud-footer {
+      margin-top: 20px;
+      color: #7f849f;
+      font-size: 12px;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .hud-footer strong { color: #bac2de; font-weight: 600; }
+
+    #status-toast {
+      position: fixed;
+      bottom: 26px;
+      left: 50%;
+      z-index: 30;
+      max-width: calc(100vw - 32px);
+      padding: 12px 18px;
+      border: 1px solid rgba(166, 227, 161, 0.4);
+      border-radius: 12px;
+      background: #a6e3a1;
+      color: #11111b;
+      font-size: 13px;
+      font-weight: 650;
+      text-align: center;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.28);
+      opacity: 0;
+      transform: translate(-50%, 8px);
+      pointer-events: none;
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+
+    #status-toast.visible {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    @media (max-width: 700px) {
+      #ghost-hud { padding: 16px; }
+      .hud-heading { margin-bottom: 14px; }
+      .destination-stage {
+        grid-template-columns: 56px minmax(0, 1fr) 56px;
+        gap: 8px;
+      }
+      .browse-zone { min-height: 280px; padding: 8px 3px; }
+      .browse-zone .arrow { width: 38px; height: 38px; }
+      .browse-zone .zone-label { font-size: 10px; }
+      .browse-zone .zone-hint { display: none; }
+      .destination-window { min-height: 280px; }
+      .target-title { padding: 11px; }
+      .target-name { max-width: 135px; font-size: 13px; }
+      .workspace-tag { display: none; }
+      .target-preview { padding: 20px 12px; }
+      .preview-title { font-size: 15px; }
+      .preview-description { font-size: 12px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main id="screen-container">
+    <section class="maximized-window" aria-label="Current workspace">
+      <div class="title-bar">
+        <span>Workspace 1 — Project_Folder</span>
+        <span class="window-controls" aria-hidden="true"><span></span><span></span><span></span></span>
+      </div>
+      <div class="window-content">
+        <h1>Move a file to another window</h1>
+        <p>Drag the file below. The destination picker will show one window at a time. To browse destinations, keep holding the file and hover over the left or right arrow.</p>
+        <div class="file-item" draggable="true" id="source-file" aria-label="Drag report.pdf to another window">
+          <div class="file-icon" aria-hidden="true">📄</div>
+          <div class="file-name">report.pdf</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <section id="ghost-hud" aria-label="Choose a destination" aria-hidden="true">
+    <header class="hud-heading">
+      <h2>Choose where to drop</h2>
+      <p>Only one destination is shown at a time. Keep holding the file while you browse.</p>
+      <div class="destination-count" aria-live="polite">
+        <span class="count-dot" aria-hidden="true"></span>
+        <span id="count-label">Destination 1 of 4</span>
+      </div>
+    </header>
+
+    <div class="destination-stage">
+      <div class="browse-zone" id="previous-zone" data-direction="-1" role="group" aria-label="Previous destination. Hover here while dragging to switch windows.">
+        <span class="arrow" aria-hidden="true">←</span>
+        <span class="zone-label">PREVIOUS</span>
+        <span class="zone-hint">Hold here briefly to switch</span>
+      </div>
+
+      <div class="destination-window" id="destination-window" role="group" aria-label="Current drop destination">
+        <div class="target-title">
+          <div class="target-app">
+            <div class="app-icon" id="app-icon" aria-hidden="true">💬</div>
+            <div>
+              <div class="target-name" id="target-name">Slack</div>
+              <div class="target-subtitle" id="target-subtitle">Team communication</div>
+            </div>
+          </div>
+          <span class="workspace-tag" id="workspace-tag">WORKSPACE 1</span>
+        </div>
+        <div class="target-preview" id="target-preview">
+          <div class="preview-symbol" id="preview-symbol" aria-hidden="true">↗</div>
+          <div class="preview-title" id="preview-title">Share in a chat</div>
+          <div class="preview-description" id="preview-description">Drop the file here to share it with a conversation in Slack.</div>
+          <div class="drop-instruction"><span class="check" aria-hidden="true">↓</span> Drop on this window</div>
+        </div>
+      </div>
+
+      <div class="browse-zone" id="next-zone" data-direction="1" role="group" aria-label="Next destination. Hover here while dragging to switch windows.">
+        <span class="arrow" aria-hidden="true">→</span>
+        <span class="zone-label">NEXT</span>
+        <span class="zone-hint">Hold here briefly to switch</span>
+      </div>
+    </div>
+
+    <footer class="hud-footer">
+      <strong>Browse:</strong> hover over an arrow for a moment. &nbsp; <strong>Drop:</strong> move to the window in the center.
+    </footer>
+  </section>
+
+  <div id="status-toast" role="status" aria-live="polite">File sent successfully.</div>
+
+  <script>
+    const destinations = [
+      {
+        name: "Slack",
+        subtitle: "Team communication",
+        workspace: "WORKSPACE 1",
+        icon: "💬",
+        symbol: "↗",
+        action: "Share in a chat",
+        description: "Drop the file here to share it with a conversation in Slack."
+      },
+      {
+        name: "Backup Drive",
+        subtitle: "Cloud storage",
+        workspace: "WORKSPACE 2",
+        icon: "☁️",
+        symbol: "↑",
+        action: "Upload to cloud storage",
+        description: "Drop the file here to upload it to your backup folder."
+      },
+      {
+        name: "Mail Client",
+        subtitle: "Email drafts",
+        workspace: "WORKSPACE 2",
+        icon: "✉️",
+        symbol: "＋",
+        action: "Attach to an email",
+        description: "Drop the file here to attach it to an email draft."
+      },
+      {
+        name: "Visual Studio Code",
+        subtitle: "Code editor",
+        workspace: "WORKSPACE 3",
+        icon: "〈〉",
+        symbol: "↳",
+        action: "Open in editor",
+        description: "Drop the file here to open it in the editor."
+      }
+    ];
+
+    const file = document.getElementById("source-file");
+    const hud = document.getElementById("ghost-hud");
+    const screenContainer = document.getElementById("screen-container");
+    const destinationWindow = document.getElementById("destination-window");
+    const previousZone = document.getElementById("previous-zone");
+    const nextZone = document.getElementById("next-zone");
+    const countLabel = document.getElementById("count-label");
+    const toast = document.getElementById("status-toast");
+    const navZones = [previousZone, nextZone];
+
+    let currentIndex = 0;
+    let dragActive = false;
+    let navigationTimer = null;
+    let toastTimer = null;
+    const NAVIGATION_DWELL_MS = 450;
+
+    function renderDestination() {
+      const destination = destinations[currentIndex];
+      document.getElementById("app-icon").textContent = destination.icon;
+      document.getElementById("target-name").textContent = destination.name;
+      document.getElementById("target-subtitle").textContent = destination.subtitle;
+      document.getElementById("workspace-tag").textContent = destination.workspace;
+      document.getElementById("preview-symbol").textContent = destination.symbol;
+      document.getElementById("preview-title").textContent = destination.action;
+      document.getElementById("preview-description").textContent = destination.description;
+      countLabel.textContent = `Destination ${currentIndex + 1} of ${destinations.length}`;
+
+      previousZone.classList.toggle("unavailable", currentIndex === 0);
+      nextZone.classList.toggle("unavailable", currentIndex === destinations.length - 1);
+      destinationWindow.setAttribute("aria-label", `Drop on ${destination.name}`);
+      destinationWindow.dataset.windowName = destination.name;
+    }
+
+    function goToDestination(nextIndex) {
+      if (nextIndex < 0 || nextIndex >= destinations.length || nextIndex === currentIndex) return;
+      currentIndex = nextIndex;
+      renderDestination();
+    }
+
+    function clearNavigationTimer() {
+      if (navigationTimer !== null) {
+        window.clearTimeout(navigationTimer);
+        navigationTimer = null;
+      }
+      navZones.forEach(zone => zone.classList.remove("drag-hover"));
+    }
+
+    function hideHUD() {
+      dragActive = false;
+      clearNavigationTimer();
+      destinationWindow.classList.remove("drag-over");
+      hud.classList.remove("active");
+      hud.setAttribute("aria-hidden", "true");
+      screenContainer.style.filter = "none";
+      screenContainer.style.transform = "none";
+    }
+
+    file.addEventListener("dragstart", event => {
+      dragActive = true;
+      currentIndex = 0;
+      renderDestination();
+      event.dataTransfer.effectAllowed = "copyMove";
+      event.dataTransfer.setData("text/plain", "report.pdf");
+      // Delay avoids capturing the overlay as part of the browser's drag image.
+      window.setTimeout(() => {
+        if (!dragActive) return;
+        hud.classList.add("active");
+        hud.setAttribute("aria-hidden", "false");
+        screenContainer.style.filter = "blur(4px)";
+        screenContainer.style.transform = "scale(0.985)";
+      }, 10);
+    });
+
+    file.addEventListener("dragend", hideHUD);
+
+    navZones.forEach(zone => {
+      zone.addEventListener("dragenter", event => {
+        if (!dragActive) return;
+        if (event.relatedTarget && zone.contains(event.relatedTarget)) return;
+
+        clearNavigationTimer();
+        const direction = Number(zone.dataset.direction);
+        const nextIndex = currentIndex + direction;
+        if (nextIndex < 0 || nextIndex >= destinations.length) return;
+
+        zone.classList.add("drag-hover");
+        navigationTimer = window.setTimeout(() => {
+          goToDestination(nextIndex);
+          zone.classList.remove("drag-hover");
+          navigationTimer = null;
+        }, NAVIGATION_DWELL_MS);
+      });
+
+      zone.addEventListener("dragleave", event => {
+        if (event.relatedTarget && zone.contains(event.relatedTarget)) return;
+        clearNavigationTimer();
+      });
+    });
+
+    destinationWindow.addEventListener("dragover", event => {
+      if (!dragActive) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+      destinationWindow.classList.add("drag-over");
+    });
+
+    destinationWindow.addEventListener("dragleave", event => {
+      if (event.relatedTarget && destinationWindow.contains(event.relatedTarget)) return;
+      destinationWindow.classList.remove("drag-over");
+    });
+
+    destinationWindow.addEventListener("drop", event => {
+      event.preventDefault();
+      const destination = destinations[currentIndex];
+      const filename = event.dataTransfer.getData("text/plain") || "report.pdf";
+      showToast(`Routed ${filename} to ${destination.name}`);
+      hideHUD();
+    });
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add("visible");
+      if (toastTimer !== null) window.clearTimeout(toastTimer);
+      toastTimer = window.setTimeout(() => {
+        toast.classList.remove("visible");
+        toastTimer = null;
+      }, 3000);
+    }
+
+    renderDestination();
+  </script>
+</body>
+</html>
