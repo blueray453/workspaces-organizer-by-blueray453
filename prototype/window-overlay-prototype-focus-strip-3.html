@@ -1,365 +1,656 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Drag and drop: fullscreen window under the band</title>
-<style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { width: 100%; height: 100%; overflow: hidden; background: #001a22; color: #eee8d5;
-  font-family: 'Cantarell', 'Segoe UI', system-ui, sans-serif; }
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Drag and drop: fullscreen window under the band</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-/* ---------- workspace (drag source) ---------- */
-#workspace { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
-  justify-content: center; gap: 18px; text-align: center; padding: 40px;
-  transition: filter 200ms, transform 200ms; }
-#workspace h1 { font-size: clamp(22px, 3vw, 32px); font-weight: 600; }
-#workspace p { max-width: 520px; color: #93a1a1; line-height: 1.6; }
-#source-file { width: 128px; height: 128px; display: flex; flex-direction: column; align-items: center;
-  justify-content: center; gap: 10px; border: 2px dashed #2b5a68; border-radius: 12px; background: #06303b;
-  cursor: grab; user-select: none; transition: border-color 150ms, transform 150ms; }
-#source-file:hover { border-color: #2aa198; transform: translateY(-2px); }
-#source-file .ic { font-size: 40px; }
-#source-file .nm { font-size: 12px; font-weight: 600; }
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #001a22;
+            color: #eee8d5;
+            font-family: 'Cantarell', 'Segoe UI', system-ui, sans-serif;
+        }
 
-/* ---------- HUD ---------- */
-#hud { --band: clamp(320px, 30vw, 440px);
-  position: fixed; inset: 0; z-index: 10; background: #001a22;
-  opacity: 0; pointer-events: none; transition: opacity 160ms; }
-#hud.active { opacity: 1; pointer-events: auto; }
+        /* ---------- workspace (drag source) ---------- */
+        #workspace {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            text-align: center;
+            padding: 40px;
+            transition: filter 200ms, transform 200ms;
+        }
 
-/* ---------- fullscreen window (bottom layer) ---------- */
-#win { --c: #268bd2; position: absolute; inset: 0; z-index: 0; display: flex; flex-direction: column;
-  overflow: hidden; background: #04212a; }
-#win.swap { animation: swap 160ms ease-out; }
-@keyframes swap { from { opacity: 0.35; } to { opacity: 1; } }
-#win-bar { display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 16px; background: var(--c); color: #fdf6e3; }
-#win-bar i { width: 13px; height: 13px; border-radius: 50%; background: rgba(0, 0, 0, 0.35); }
-#win-title { flex: 1; text-align: center; font-size: 15px; font-weight: 700; white-space: nowrap;
-  padding-right: var(--band); }               /* centered in the part not covered by the band */
-#zones { position: relative; flex: 1; }
-.zone { position: absolute; margin: 8px; display: flex; flex-direction: column; align-items: center;
-  justify-content: center; gap: 6px; padding: 12px; text-align: center; overflow: hidden;
-  border: 2px dashed color-mix(in srgb, var(--c) 70%, transparent); border-radius: 14px;
-  background: color-mix(in srgb, var(--c) 10%, transparent);
-  transition: background 100ms, border-color 100ms, transform 100ms; }
-.z-name { font-size: clamp(16px, 2vw, 26px); font-weight: 700; }
-.z-sub { font-size: 14px; color: #a9b8b8; }
-.z-go { height: 18px; font-size: 13px; font-weight: 700; color: #fffaf0; opacity: 0; }
-.zone.over { border-style: solid; border-color: var(--c);
-  background: color-mix(in srgb, var(--c) 38%, transparent); transform: scale(1.006); }
-.zone.over .z-go { opacity: 1; }
+        #workspace h1 {
+            font-size: clamp(22px, 3vw, 32px);
+            font-weight: 600;
+        }
 
-/* ---------- band on the right (floats over the window) ---------- */
-#band { position: absolute; top: 0; bottom: 0; right: 0; width: var(--band); z-index: 4;
-  display: flex; align-items: center; gap: 10px; padding: 0 14px 0 44px;
-  pointer-events: none;                        /* empty band space lets drops reach the zones below */
-  background: linear-gradient(to right, rgba(0, 20, 28, 0) 0, rgba(0, 20, 28, 0.55) 60px, rgba(0, 20, 28, 0.78) 100%); }
-#band-count { position: absolute; top: 60px; left: 44px; right: 14px; font-size: 13px; color: #cfd8d8;
-  font-variant-numeric: tabular-nums; text-shadow: 0 0 6px #001a22, 0 0 12px #001a22; }
-#band-hint { position: absolute; bottom: 20px; left: 44px; right: 14px; font-size: 12px; line-height: 1.5; color: #cfd8d8;
-  text-shadow: 0 0 6px #001a22, 0 0 12px #001a22; }
-#rows { position: relative; flex: 1; min-width: 0; pointer-events: auto; }
-.row { position: absolute; left: 0; right: 0; display: flex; align-items: center; gap: 10px; padding: 0 10px;
-  border: 1px solid transparent; border-radius: 10px; background: rgba(0, 20, 28, 0.45);
-  transition: opacity 120ms, background 120ms, border-color 120ms; }
-.row.sel { background: rgba(10, 70, 72, 0.9); border-color: #2aa198; }
-.r-tx { display: flex; flex-direction: column; min-width: 0; }
-.r-t { font-size: 14px; font-weight: 600; white-space: nowrap; text-shadow: 0 0 8px #001a22; }
-.r-a { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #4fd1c5; }
-.r-ic svg { display: block; }
+        #workspace p {
+            max-width: 520px;
+            color: #93a1a1;
+            line-height: 1.6;
+        }
 
-#rail { position: relative; width: 36px; height: min(72vh, 560px); flex: 0 0 auto; pointer-events: auto; }
-#rail .track { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px;
-  background: rgba(238, 232, 213, 0.6); border-radius: 2px; box-shadow: 0 0 0 1px rgba(0, 22, 30, 0.6); }
-#rail .tick { position: absolute; left: 50%; width: 12px; height: 4px; margin: -2px 0 0 -6px; border-radius: 2px;
-  box-shadow: 0 0 0 1px rgba(0, 22, 30, 0.8); }
-#rail #marker { position: absolute; left: 50%; top: 0; width: 30px; height: 8px; margin: -4px 0 0 -15px;
-  border-radius: 4px; background: #fffaf0; box-shadow: 0 0 0 2px #001a22; transition: transform 90ms linear; }
+        #source-file {
+            width: 128px;
+            height: 128px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            border: 2px dashed #2b5a68;
+            border-radius: 12px;
+            background: #06303b;
+            cursor: grab;
+            user-select: none;
+            transition: border-color 150ms, transform 150ms;
+        }
 
-#toast { position: fixed; bottom: 24px; left: 50%; z-index: 30; max-width: calc(100vw - 32px); padding: 12px 18px;
-  border-radius: 12px; background: #a6e3a1; color: #11111b; font-size: 13px; font-weight: 700;
-  opacity: 0; transform: translate(-50%, 8px); pointer-events: none; transition: opacity 180ms, transform 180ms; }
-#toast.visible { opacity: 1; transform: translate(-50%, 0); }
+        #source-file:hover {
+            border-color: #2aa198;
+            transform: translateY(-2px);
+        }
 
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0.01ms !important; animation: none !important; } }
-</style>
+        #source-file .ic {
+            font-size: 40px;
+        }
+
+        #source-file .nm {
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* ---------- HUD ---------- */
+        #hud {
+            --band: clamp(320px, 30vw, 440px);
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            background: #001a22;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 160ms;
+        }
+
+        #hud.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* ---------- fullscreen window (bottom layer) ---------- */
+        #win {
+            --c: #268bd2;
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: #04212a;
+        }
+
+        #win.swap {
+            animation: swap 160ms ease-out;
+        }
+
+        @keyframes swap {
+            from {
+                opacity: 0.35;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        #win-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            height: 46px;
+            padding: 0 16px;
+            background: var(--c);
+            color: #fdf6e3;
+        }
+
+        #win-bar i {
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.35);
+        }
+
+        #win-title {
+            flex: 1;
+            text-align: center;
+            font-size: 15px;
+            font-weight: 700;
+            white-space: nowrap;
+            padding-right: var(--band);
+        }
+
+        /* centered in the part not covered by the band */
+        #zones {
+            position: relative;
+            flex: 1;
+        }
+
+        .zone {
+            position: absolute;
+            margin: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 12px;
+            text-align: center;
+            overflow: hidden;
+            border: 2px dashed color-mix(in srgb, var(--c) 70%, transparent);
+            border-radius: 14px;
+            background: color-mix(in srgb, var(--c) 10%, transparent);
+            transition: background 100ms, border-color 100ms, transform 100ms;
+        }
+
+        .z-name {
+            font-size: clamp(16px, 2vw, 26px);
+            font-weight: 700;
+        }
+
+        .z-sub {
+            font-size: 14px;
+            color: #a9b8b8;
+        }
+
+        .z-go {
+            height: 18px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #fffaf0;
+            opacity: 0;
+        }
+
+        .zone.over {
+            border-style: solid;
+            border-color: var(--c);
+            background: color-mix(in srgb, var(--c) 38%, transparent);
+            transform: scale(1.006);
+        }
+
+        .zone.over .z-go {
+            opacity: 1;
+        }
+
+        /* ---------- band on the right (floats over the window) ---------- */
+        #band {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            right: 0;
+            width: var(--band);
+            z-index: 4;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 14px 0 44px;
+            pointer-events: none;
+            /* empty band space lets drops reach the zones below */
+            background: linear-gradient(to right, rgba(0, 20, 28, 0) 0, rgba(0, 20, 28, 0.55) 60px, rgba(0, 20, 28, 0.78) 100%);
+        }
+
+        #band-count {
+            position: absolute;
+            top: 60px;
+            left: 44px;
+            right: 14px;
+            font-size: 13px;
+            color: #cfd8d8;
+            font-variant-numeric: tabular-nums;
+            text-shadow: 0 0 6px #001a22, 0 0 12px #001a22;
+        }
+
+        #band-hint {
+            position: absolute;
+            bottom: 20px;
+            left: 44px;
+            right: 14px;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #cfd8d8;
+            text-shadow: 0 0 6px #001a22, 0 0 12px #001a22;
+        }
+
+        #rows {
+            position: relative;
+            flex: 1;
+            min-width: 0;
+            pointer-events: auto;
+        }
+
+        .row {
+            position: absolute;
+            left: 0;
+            right: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 10px;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            background: rgba(0, 20, 28, 0.45);
+            transition: opacity 120ms, background 120ms, border-color 120ms;
+        }
+
+        .row.sel {
+            background: rgba(10, 70, 72, 0.9);
+            border-color: #2aa198;
+        }
+
+        .r-tx {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .r-t {
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+            text-shadow: 0 0 8px #001a22;
+        }
+
+        .r-a {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #4fd1c5;
+        }
+
+        .r-ic svg {
+            display: block;
+        }
+
+        #rail {
+            position: relative;
+            width: 36px;
+            height: min(72vh, 560px);
+            flex: 0 0 auto;
+            pointer-events: auto;
+        }
+
+        #rail .track {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            margin-left: -1px;
+            background: rgba(238, 232, 213, 0.6);
+            border-radius: 2px;
+            box-shadow: 0 0 0 1px rgba(0, 22, 30, 0.6);
+        }
+
+        #rail .tick {
+            position: absolute;
+            left: 50%;
+            width: 12px;
+            height: 4px;
+            margin: -2px 0 0 -6px;
+            border-radius: 2px;
+            box-shadow: 0 0 0 1px rgba(0, 22, 30, 0.8);
+        }
+
+        #rail #marker {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            width: 30px;
+            height: 8px;
+            margin: -4px 0 0 -15px;
+            border-radius: 4px;
+            background: #fffaf0;
+            box-shadow: 0 0 0 2px #001a22;
+            transition: transform 90ms linear;
+        }
+
+        #toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            z-index: 30;
+            max-width: calc(100vw - 32px);
+            padding: 12px 18px;
+            border-radius: 12px;
+            background: #a6e3a1;
+            color: #11111b;
+            font-size: 13px;
+            font-weight: 700;
+            opacity: 0;
+            transform: translate(-50%, 8px);
+            pointer-events: none;
+            transition: opacity 180ms, transform 180ms;
+        }
+
+        #toast.visible {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+
+            *,
+            *::before,
+            *::after {
+                transition-duration: 0.01ms !important;
+                animation: none !important;
+            }
+        }
+    </style>
 </head>
+
 <body>
-<main id="workspace">
-  <h1>Move a file to another window</h1>
-  <p>Drag the file. Hover a window in the band on the right and it opens fullscreen underneath. Drop the file on one of its zones.</p>
-  <div id="source-file" draggable="true" aria-label="Drag report.pdf">
-    <div class="ic" aria-hidden="true">📄</div><div class="nm">report.pdf</div>
-  </div>
-</main>
+    <main id="workspace">
+        <h1>Move a file to another window</h1>
+        <p>Drag the file. Hover a window in the band on the right and it opens fullscreen underneath. Drop the file on
+            one of its zones.</p>
+        <div id="source-file" draggable="true" aria-label="Drag report.pdf">
+            <div class="ic" aria-hidden="true">📄</div>
+            <div class="nm">report.pdf</div>
+        </div>
+    </main>
 
-<section id="hud" aria-hidden="true">
-  <div id="win">
-    <div id="win-bar"><i></i><i></i><i></i><div id="win-title"></div></div>
-    <div id="zones"></div>
-  </div>
+    <section id="hud" aria-hidden="true">
+        <div id="win">
+            <div id="win-bar"><i></i><i></i><i></i>
+                <div id="win-title"></div>
+            </div>
+            <div id="zones"></div>
+        </div>
 
-  <aside id="band" aria-label="Windows">
-    <div id="band-count"></div>
-    <div id="rows"></div>
-    <div id="rail"><div class="track"></div><div id="ticks"></div><div id="marker"></div></div>
-    <div id="band-hint">Hover a window to preview it. Drop on a zone. Release on the list or outside a zone to cancel.</div>
-  </aside>
-</section>
-<div id="toast" role="status" aria-live="polite"></div>
+        <aside id="band" aria-label="Windows">
+            <div id="band-count"></div>
+            <div id="rows"></div>
+            <div id="rail">
+                <div class="track"></div>
+                <div id="ticks"></div>
+                <div id="marker"></div>
+            </div>
+            <div id="band-hint">Hover a window to preview it. Drop on a zone. Release on the list or outside a zone to
+                cancel.</div>
+        </aside>
+    </section>
+    <div id="toast" role="status" aria-live="polite"></div>
 
-<script>
-// ==================== DATA ====================
-const WINDOWS = [
-  { app: 'Code',        title: 'searchOverlays.js — topnotch-workspaces',  color: '#268bd2', kind: 'editor' },
-  { app: 'Firefox',     title: 'GNOME Shell Extensions — Mozilla Firefox', color: '#cb4b16', kind: 'browser' },
-  { app: 'Terminal',    title: 'user@workstation: ~/projects/ext',         color: '#859900', kind: 'terminal' },
-  { app: 'Slack',       title: '#general — Workspace Indicator Team',      color: '#d33682', kind: 'chat' },
-  { app: 'Thunderbird', title: 'Inbox — user@example.com',                 color: '#b58900', kind: 'mail' },
-  { app: 'Spotify',     title: 'Now Playing — Solarized Playlist',         color: '#2aa198', kind: 'music' },
-  { app: 'VLC',         title: 'Big Buck Bunny.mp4',                       color: '#dc322f', kind: 'video' },
-  { app: 'eog',         title: 'screenshot-2024-01-15.png — Image Viewer', color: '#6c71c4', kind: 'image' },
-  { app: 'LibreOffice', title: 'Design Document.odt — Writer',             color: '#586e75', kind: 'docs' },
-  { app: 'Settings',    title: 'Settings — Appearance',                    color: '#839496', kind: 'settings' },
-  { app: 'Code',        title: 'workspaceIndicator.js — topnotch-workspaces', color: '#268bd2', kind: 'editor' },
-  { app: 'Firefox',     title: 'docs.gtk.org/gtk4 — Mozilla Firefox',      color: '#cb4b16', kind: 'browser' },
-  { app: 'Terminal',    title: 'user@workstation: ~/topnotch-workspaces',  color: '#859900', kind: 'terminal' },
-  { app: 'Slack',       title: '#dev — TopNotch Workspaces',               color: '#d33682', kind: 'chat' },
-  { app: 'Files',       title: 'Home — Files',                             color: '#839496', kind: 'docs' },
-  { app: 'GIMP',        title: 'Untitled-1 — GIMP',                        color: '#6c71c4', kind: 'image' },
-  { app: 'mpv',         title: 'lofi-radio.m3u — mpv',                     color: '#dc322f', kind: 'video' },
-  { app: 'Firefox',     title: 'Pull Request #1423: Refactor window selector overlay to support fisheye layout — GitHub', color: '#cb4b16', kind: 'browser' },
-  { app: 'Rhythmbox',   title: 'Library — Rhythmbox',                      color: '#2aa198', kind: 'music' },
-  { app: 'Geary',       title: 'Inbox (3) — Geary',                        color: '#b58900', kind: 'mail' }
-];
+    <script>
+        // ==================== DATA ====================
+        const WINDOWS = [
+            { app: 'Code', title: 'searchOverlays.js — topnotch-workspaces', color: '#268bd2', kind: 'editor' },
+            { app: 'Firefox', title: 'GNOME Shell Extensions — Mozilla Firefox', color: '#cb4b16', kind: 'browser' },
+            { app: 'Terminal', title: 'user@workstation: ~/projects/ext', color: '#859900', kind: 'terminal' },
+            { app: 'Slack', title: '#general — Workspace Indicator Team', color: '#d33682', kind: 'chat' },
+            { app: 'Thunderbird', title: 'Inbox — user@example.com', color: '#b58900', kind: 'mail' },
+            { app: 'Spotify', title: 'Now Playing — Solarized Playlist', color: '#2aa198', kind: 'music' },
+            { app: 'VLC', title: 'Big Buck Bunny.mp4', color: '#dc322f', kind: 'video' },
+            { app: 'eog', title: 'screenshot-2024-01-15.png — Image Viewer', color: '#6c71c4', kind: 'image' },
+            { app: 'LibreOffice', title: 'Design Document.odt — Writer', color: '#586e75', kind: 'docs' },
+            { app: 'Settings', title: 'Settings — Appearance', color: '#839496', kind: 'settings' },
+            { app: 'Code', title: 'workspaceIndicator.js — topnotch-workspaces', color: '#268bd2', kind: 'editor' },
+            { app: 'Firefox', title: 'docs.gtk.org/gtk4 — Mozilla Firefox', color: '#cb4b16', kind: 'browser' },
+            { app: 'Terminal', title: 'user@workstation: ~/topnotch-workspaces', color: '#859900', kind: 'terminal' },
+            { app: 'Slack', title: '#dev — TopNotch Workspaces', color: '#d33682', kind: 'chat' },
+            { app: 'Files', title: 'Home — Files', color: '#839496', kind: 'docs' },
+            { app: 'GIMP', title: 'Untitled-1 — GIMP', color: '#6c71c4', kind: 'image' },
+            { app: 'mpv', title: 'lofi-radio.m3u — mpv', color: '#dc322f', kind: 'video' },
+            { app: 'Firefox', title: 'Pull Request #1423: Refactor window selector overlay to support fisheye layout — GitHub', color: '#cb4b16', kind: 'browser' },
+            { app: 'Rhythmbox', title: 'Library — Rhythmbox', color: '#2aa198', kind: 'music' },
+            { app: 'Geary', title: 'Inbox (3) — Geary', color: '#b58900', kind: 'mail' }
+        ];
 
-// Drop zones per window kind: [name, hint, x%, y%, w%, h%] over the FULL window area.
-const ZONES = {
-  editor:   [['Explorer','Add to project files',0,0,20,100],['Editor','Open in a new tab',20,0,80,68],['Terminal panel','Insert file path',20,68,80,32]],
-  browser:  [['Address bar','Open in a new tab',0,0,100,16],['Page','Upload to this page',0,16,100,56],['Downloads','Save to downloads',0,72,100,28]],
-  terminal: [['Prompt','Paste file path',0,0,100,60],['Working directory','Copy to current folder',0,60,100,40]],
-  chat:     [['Channels','Send as a direct message',0,0,24,100],['Conversation','Share in this channel',24,0,76,68],['Composer','Attach to draft message',24,68,76,32]],
-  mail:     [['Folders','File into a folder',0,0,24,100],['Message','Attach to reply',24,0,76,60],['New message','Compose with attachment',24,60,76,40]],
-  music:    [['Playlists','Add to a playlist',0,0,30,100],['Now playing','Add to queue',30,0,70,100]],
-  video:    [['Player','Play now',0,0,100,70],['Playlist','Add to playlist',0,70,100,30]],
-  image:    [['Canvas','Open in viewer',0,0,68,100],['Albums','Add to an album',68,0,32,100]],
-  docs:     [['Page','Insert into document',0,0,66,100],['Sidebar','Attach as linked file',66,0,34,100]],
-  settings: [['Sidebar','Import profile',0,0,30,100],['Panel','Use as appearance file',30,0,70,100]]
-};
+        // Drop zones per window kind: [name, hint, x%, y%, w%, h%] over the FULL window area.
+        const ZONES = {
+            editor: [['Explorer', 'Add to project files', 0, 0, 20, 100], ['Editor', 'Open in a new tab', 20, 0, 80, 68], ['Terminal panel', 'Insert file path', 20, 68, 80, 32]],
+            browser: [['Address bar', 'Open in a new tab', 0, 0, 100, 16], ['Page', 'Upload to this page', 0, 16, 100, 56], ['Downloads', 'Save to downloads', 0, 72, 100, 28]],
+            terminal: [['Prompt', 'Paste file path', 0, 0, 100, 60], ['Working directory', 'Copy to current folder', 0, 60, 100, 40]],
+            chat: [['Channels', 'Send as a direct message', 0, 0, 24, 100], ['Conversation', 'Share in this channel', 24, 0, 76, 68], ['Composer', 'Attach to draft message', 24, 68, 76, 32]],
+            mail: [['Folders', 'File into a folder', 0, 0, 24, 100], ['Message', 'Attach to reply', 24, 0, 76, 60], ['New message', 'Compose with attachment', 24, 60, 76, 40]],
+            music: [['Playlists', 'Add to a playlist', 0, 0, 30, 100], ['Now playing', 'Add to queue', 30, 0, 70, 100]],
+            video: [['Player', 'Play now', 0, 0, 100, 70], ['Playlist', 'Add to playlist', 0, 70, 100, 30]],
+            image: [['Canvas', 'Open in viewer', 0, 0, 68, 100], ['Albums', 'Add to an album', 68, 0, 32, 100]],
+            docs: [['Page', 'Insert into document', 0, 0, 66, 100], ['Sidebar', 'Attach as linked file', 66, 0, 34, 100]],
+            settings: [['Sidebar', 'Import profile', 0, 0, 30, 100], ['Panel', 'Use as appearance file', 30, 0, 70, 100]]
+        };
 
-// ==================== TEXT CLIPPING (ellipsis at the start) ====================
-const FONT = `Cantarell, 'Segoe UI', system-ui, sans-serif`;
-const mctx = document.createElement('canvas').getContext('2d');
-function fitStart(text, weight, size, maxPx) {
-  mctx.font = `${weight} ${size}px ${FONT}`;
-  if (mctx.measureText(text).width <= maxPx) return text;
-  let lo = 0, hi = text.length;
-  while (lo < hi) {
-    const mid = (lo + hi + 1) >> 1;
-    if (mctx.measureText('…' + text.slice(text.length - mid)).width <= maxPx) lo = mid; else hi = mid - 1;
-  }
-  return '…' + text.slice(text.length - lo).replace(/^\s+/, '');
-}
-const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        // ==================== TEXT CLIPPING (ellipsis at the start) ====================
+        const FONT = `Cantarell, 'Segoe UI', system-ui, sans-serif`;
+        const mctx = document.createElement('canvas').getContext('2d');
+        function fitStart(text, weight, size, maxPx) {
+            mctx.font = `${weight} ${size}px ${FONT}`;
+            if (mctx.measureText(text).width <= maxPx) return text;
+            let lo = 0, hi = text.length;
+            while (lo < hi) {
+                const mid = (lo + hi + 1) >> 1;
+                if (mctx.measureText('…' + text.slice(text.length - mid)).width <= maxPx) lo = mid; else hi = mid - 1;
+            }
+            return '…' + text.slice(text.length - lo).replace(/^\s+/, '');
+        }
+        const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-// ==================== ICONS ====================
-const G = {
-  editor: `<path d="M9 7 L4 12 L9 17 M15 7 L20 12 L15 17" stroke="C" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
-  browser: `<circle cx="12" cy="12" r="7.5" stroke="C" stroke-width="1.8" fill="none"/><ellipse cx="12" cy="12" rx="7.5" ry="3" stroke="C" stroke-width="1.4" fill="none"/><line x1="4.5" y1="12" x2="19.5" y2="12" stroke="C" stroke-width="1.4"/>`,
-  terminal: `<rect x="4" y="6" width="16" height="12" rx="2" stroke="C" stroke-width="1.8" fill="none"/><path d="M7 11 L10 13 L7 15" stroke="C" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
-  chat: `<path d="M5 6 h14 a2 2 0 0 1 2 2 v8 a2 2 0 0 1 -2 2 h-8 l-4 3 v-3 h-2 a2 2 0 0 1 -2 -2 v-8 a2 2 0 0 1 2 -2 z" fill="none" stroke="C" stroke-width="1.8" stroke-linejoin="round"/>`,
-  mail: `<rect x="4" y="6" width="16" height="12" rx="2" fill="none" stroke="C" stroke-width="1.8"/><path d="M4 8 L12 14 L20 8" fill="none" stroke="C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`,
-  music: `<circle cx="8" cy="17" r="3" fill="none" stroke="C" stroke-width="1.8"/><circle cx="18" cy="15" r="3" fill="none" stroke="C" stroke-width="1.8"/><path d="M11 17 L11 7 L21 5 L21 15" fill="none" stroke="C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`,
-  video: `<rect x="4" y="7" width="16" height="10" rx="2" fill="none" stroke="C" stroke-width="1.8"/><path d="M10 10 L15 12 L10 14 Z" fill="C"/>`,
-  image: `<rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="C" stroke-width="1.8"/><circle cx="9" cy="10" r="1.7" fill="C"/><path d="M4 17 L9 12 L13 16 L16 13 L20 17" fill="none" stroke="C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`,
-  docs: `<path d="M7 4 L14 4 L18 8 L18 20 L7 20 Z" fill="none" stroke="C" stroke-width="1.8" stroke-linejoin="round"/><line x1="9" y1="12" x2="16" y2="12" stroke="C" stroke-width="1.4"/><line x1="9" y1="15" x2="16" y2="15" stroke="C" stroke-width="1.4"/>`,
-  settings: `<circle cx="12" cy="12" r="3" fill="none" stroke="C" stroke-width="1.8"/><circle cx="12" cy="12" r="8" fill="none" stroke="C" stroke-width="1.5" stroke-dasharray="3 3"/>`
-};
-function iconSVG(kind, color, size) {
-  const glyph = (G[kind] || G.docs).replaceAll('C', color);
-  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+        // ==================== ICONS ====================
+        const G = {
+            editor: `<path d="M9 7 L4 12 L9 17 M15 7 L20 12 L15 17" stroke="C" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
+            browser: `<circle cx="12" cy="12" r="7.5" stroke="C" stroke-width="1.8" fill="none"/><ellipse cx="12" cy="12" rx="7.5" ry="3" stroke="C" stroke-width="1.4" fill="none"/><line x1="4.5" y1="12" x2="19.5" y2="12" stroke="C" stroke-width="1.4"/>`,
+            terminal: `<rect x="4" y="6" width="16" height="12" rx="2" stroke="C" stroke-width="1.8" fill="none"/><path d="M7 11 L10 13 L7 15" stroke="C" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
+            chat: `<path d="M5 6 h14 a2 2 0 0 1 2 2 v8 a2 2 0 0 1 -2 2 h-8 l-4 3 v-3 h-2 a2 2 0 0 1 -2 -2 v-8 a2 2 0 0 1 2 -2 z" fill="none" stroke="C" stroke-width="1.8" stroke-linejoin="round"/>`,
+            mail: `<rect x="4" y="6" width="16" height="12" rx="2" fill="none" stroke="C" stroke-width="1.8"/><path d="M4 8 L12 14 L20 8" fill="none" stroke="C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`,
+            music: `<circle cx="8" cy="17" r="3" fill="none" stroke="C" stroke-width="1.8"/><circle cx="18" cy="15" r="3" fill="none" stroke="C" stroke-width="1.8"/><path d="M11 17 L11 7 L21 5 L21 15" fill="none" stroke="C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`,
+            video: `<rect x="4" y="7" width="16" height="10" rx="2" fill="none" stroke="C" stroke-width="1.8"/><path d="M10 10 L15 12 L10 14 Z" fill="C"/>`,
+            image: `<rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="C" stroke-width="1.8"/><circle cx="9" cy="10" r="1.7" fill="C"/><path d="M4 17 L9 12 L13 16 L16 13 L20 17" fill="none" stroke="C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`,
+            docs: `<path d="M7 4 L14 4 L18 8 L18 20 L7 20 Z" fill="none" stroke="C" stroke-width="1.8" stroke-linejoin="round"/><line x1="9" y1="12" x2="16" y2="12" stroke="C" stroke-width="1.4"/><line x1="9" y1="15" x2="16" y2="15" stroke="C" stroke-width="1.4"/>`,
+            settings: `<circle cx="12" cy="12" r="3" fill="none" stroke="C" stroke-width="1.8"/><circle cx="12" cy="12" r="8" fill="none" stroke="C" stroke-width="1.5" stroke-dasharray="3 3"/>`
+        };
+        function iconSVG(kind, color, size) {
+            const glyph = (G[kind] || G.docs).replaceAll('C', color);
+            return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
     <rect x="1" y="1" width="22" height="22" rx="5" fill="#01212b"/>
     <rect x="1" y="1" width="22" height="22" rx="5" fill="${color}" opacity="0.18"/>
     <rect x="1" y="1" width="22" height="22" rx="5" fill="none" stroke="${color}" stroke-width="1.2" opacity="0.85"/>${glyph}</svg>`;
-}
+        }
 
-// ==================== STATE ====================
-const SLOT = 52, SLOTS = 7, HALF = 3;
-const $ = id => document.getElementById(id);
-const hud = $('hud'), workspace = $('workspace'), file = $('source-file'), band = $('band');
-const rowsEl = $('rows'), railEl = $('rail'), ticksEl = $('ticks'), markerEl = $('marker');
-const winEl = $('win'), zonesEl = $('zones'), toast = $('toast');
+        // ==================== STATE ====================
+        const SLOT = 52, SLOTS = 7, HALF = 3;
+        const $ = id => document.getElementById(id);
+        const hud = $('hud'), workspace = $('workspace'), file = $('source-file'), band = $('band');
+        const rowsEl = $('rows'), railEl = $('rail'), ticksEl = $('ticks'), markerEl = $('marker');
+        const winEl = $('win'), zonesEl = $('zones'), toast = $('toast');
 
-let sel = 0, base = 0, lastSel = 0, dragActive = false, toastTimer = null, railH = 0;
-const RAIL_PAD = 10;
-rowsEl.style.height = SLOT * SLOTS + 'px';
+        let sel = 0, base = 0, lastSel = 0, dragActive = false, toastTimer = null, railH = 0;
+        const RAIL_PAD = 10;
+        rowsEl.style.height = SLOT * SLOTS + 'px';
 
-// ==================== LIST (in the band) ====================
-function renderRows() {
-  rowsEl.innerHTML = '';
-  const textMax = Math.max(80, rowsEl.clientWidth - 30 - 20 - 10 - 6);
-  for (let s = -HALF; s <= HALF; s++) {
-    const i = base + s;
-    if (i < 0 || i >= WINDOWS.length) continue;
-    const w = WINDOWS[i];
-    const row = document.createElement('div');
-    row.className = 'row';
-    row.dataset.i = i;
-    row.style.top = (s + HALF) * SLOT + 'px';
-    row.style.height = SLOT - 6 + 'px';
-    row.innerHTML = `<span class="r-ic">${iconSVG(w.kind, w.color, 30)}</span>
+        // ==================== LIST (in the band) ====================
+        function renderRows() {
+            rowsEl.innerHTML = '';
+            const textMax = Math.max(80, rowsEl.clientWidth - 30 - 20 - 10 - 6);
+            for (let s = -HALF; s <= HALF; s++) {
+                const i = base + s;
+                if (i < 0 || i >= WINDOWS.length) continue;
+                const w = WINDOWS[i];
+                const row = document.createElement('div');
+                row.className = 'row';
+                row.dataset.i = i;
+                row.style.top = (s + HALF) * SLOT + 'px';
+                row.style.height = SLOT - 6 + 'px';
+                row.innerHTML = `<span class="r-ic">${iconSVG(w.kind, w.color, 30)}</span>
       <span class="r-tx"><span class="r-t">${esc(fitStart(w.title, 600, 14, textMax))}</span><span class="r-a">${esc(w.app)}</span></span>`;
-    rowsEl.appendChild(row);
-  }
-  updateRows();
-}
-function updateRows() {
-  rowsEl.querySelectorAll('.row').forEach(r => {
-    const i = Number(r.dataset.i);
-    r.classList.toggle('sel', i === sel);
-    r.style.opacity = i === sel ? 1 : Math.max(0.35, 0.85 - 0.17 * Math.abs(i - sel));
-  });
-}
+                rowsEl.appendChild(row);
+            }
+            updateRows();
+        }
+        function updateRows() {
+            rowsEl.querySelectorAll('.row').forEach(r => {
+                const i = Number(r.dataset.i);
+                r.classList.toggle('sel', i === sel);
+                r.style.opacity = i === sel ? 1 : Math.max(0.35, 0.85 - 0.17 * Math.abs(i - sel));
+            });
+        }
 
-// ==================== RAIL (scrubber, far right) ====================
-function railY(i) {
-  const span = Math.max(1, railH - RAIL_PAD * 2);
-  return RAIL_PAD + (i / (WINDOWS.length - 1)) * span;
-}
-function buildRail() {
-  railH = railEl.clientHeight;
-  ticksEl.innerHTML = '';
-  WINDOWS.forEach((w, i) => {
-    const t = document.createElement('div');
-    t.className = 'tick';
-    t.style.top = railY(i) + 'px';
-    t.style.background = w.color;
-    ticksEl.appendChild(t);
-  });
-}
-function updateMarker() { markerEl.style.transform = `translateY(${railY(sel).toFixed(1)}px)`; }
+        // ==================== RAIL (scrubber, far right) ====================
+        function railY(i) {
+            const span = Math.max(1, railH - RAIL_PAD * 2);
+            return RAIL_PAD + (i / (WINDOWS.length - 1)) * span;
+        }
+        function buildRail() {
+            railH = railEl.clientHeight;
+            ticksEl.innerHTML = '';
+            WINDOWS.forEach((w, i) => {
+                const t = document.createElement('div');
+                t.className = 'tick';
+                t.style.top = railY(i) + 'px';
+                t.style.background = w.color;
+                ticksEl.appendChild(t);
+            });
+        }
+        function updateMarker() { markerEl.style.transform = `translateY(${railY(sel).toFixed(1)}px)`; }
 
-// Rail: Y position maps to a window. The rail never accepts a drop.
-railEl.addEventListener('dragover', e => {
-  if (!dragActive) return;
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'none';
-  const r = railEl.getBoundingClientRect();
-  const span = Math.max(1, railH - RAIL_PAD * 2);
-  const raw = Math.max(0, Math.min(WINDOWS.length - 1, ((e.clientY - r.top - RAIL_PAD) / span) * (WINDOWS.length - 1)));
-  if (Math.abs(raw - sel) > 0.65) select(Math.round(raw), true);   // hysteresis stops flicker
-});
+        // Rail: Y position maps to a window. The rail never accepts a drop.
+        railEl.addEventListener('dragover', e => {
+            if (!dragActive) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'none';
+            const r = railEl.getBoundingClientRect();
+            const span = Math.max(1, railH - RAIL_PAD * 2);
+            const raw = Math.max(0, Math.min(WINDOWS.length - 1, ((e.clientY - r.top - RAIL_PAD) / span) * (WINDOWS.length - 1)));
+            if (Math.abs(raw - sel) > 0.65) select(Math.round(raw), true);   // hysteresis stops flicker
+        });
 
-// Rows: hover selects. Rows never re-center, so the row under the pointer never jumps away.
-// Rows never accept a drop. Empty band space is pointer-transparent, so zones beneath still work.
-rowsEl.addEventListener('dragover', e => {
-  if (!dragActive) return;
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'none';
-  const row = e.target.closest && e.target.closest('.row');
-  if (row) select(Number(row.dataset.i), false);
-});
+        // Rows: hover selects. Rows never re-center, so the row under the pointer never jumps away.
+        // Rows never accept a drop. Empty band space is pointer-transparent, so zones beneath still work.
+        rowsEl.addEventListener('dragover', e => {
+            if (!dragActive) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'none';
+            const row = e.target.closest && e.target.closest('.row');
+            if (row) select(Number(row.dataset.i), false);
+        });
 
-// ==================== FULLSCREEN WINDOW + ZONES ====================
-function renderPreview() {
-  const w = WINDOWS[sel];
-  winEl.style.setProperty('--c', w.color);
-  const bandW = band.getBoundingClientRect().width;
-  const maxPx = Math.max(160, window.innerWidth - bandW - 160);
-  $('win-title').textContent = fitStart(`${w.app} — ${w.title}`, 700, 15, maxPx);
-  zonesEl.innerHTML = '';
-  const bandLeft = window.innerWidth - bandW + 44;     // where the band's solid part begins
+        // ==================== FULLSCREEN WINDOW + ZONES ====================
+        function renderPreview() {
+            const w = WINDOWS[sel];
+            winEl.style.setProperty('--c', w.color);
+            const bandW = band.getBoundingClientRect().width;
+            const maxPx = Math.max(160, window.innerWidth - bandW - 160);
+            $('win-title').textContent = fitStart(`${w.app} — ${w.title}`, 700, 15, maxPx);
+            zonesEl.innerHTML = '';
+            const bandLeft = window.innerWidth - bandW + 44;     // where the band's solid part begins
 
-  (ZONES[w.kind] || ZONES.docs).forEach(([name, sub, x, y, ww, hh]) => {
-    const z = document.createElement('div');
-    z.className = 'zone';
-    z.style.cssText = `left:${x}%;top:${y}%;width:calc(${ww}% - 16px);height:calc(${hh}% - 16px)`;
-    z.innerHTML = `<div class="z-name">${esc(name)}</div><div class="z-sub">${esc(sub)}</div><div class="z-go">Release to drop</div>`;
+            (ZONES[w.kind] || ZONES.docs).forEach(([name, sub, x, y, ww, hh]) => {
+                const z = document.createElement('div');
+                z.className = 'zone';
+                z.style.cssText = `left:${x}%;top:${y}%;width:calc(${ww}% - 16px);height:calc(${hh}% - 16px)`;
+                z.innerHTML = `<div class="z-name">${esc(name)}</div><div class="z-sub">${esc(sub)}</div><div class="z-go">Release to drop</div>`;
 
-    z.addEventListener('dragover', e => {
-      if (!dragActive) return;
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'copy';
-      z.classList.add('over');
-    });
-    z.addEventListener('dragleave', e => {
-      if (e.relatedTarget && z.contains(e.relatedTarget)) return;
-      z.classList.remove('over');
-    });
-    z.addEventListener('drop', e => {
-      e.preventDefault();
-      const f = e.dataTransfer.getData('text/plain') || 'report.pdf';
-      lastSel = sel;
-      showToast(`Dropped ${f} → ${w.app} › ${name} (${sub})`);
-      hideHUD();
-    });
-    zonesEl.appendChild(z);
-  });
+                z.addEventListener('dragover', e => {
+                    if (!dragActive) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'copy';
+                    z.classList.add('over');
+                });
+                z.addEventListener('dragleave', e => {
+                    if (e.relatedTarget && z.contains(e.relatedTarget)) return;
+                    z.classList.remove('over');
+                });
+                z.addEventListener('drop', e => {
+                    e.preventDefault();
+                    const f = e.dataTransfer.getData('text/plain') || 'report.pdf';
+                    lastSel = sel;
+                    showToast(`Dropped ${f} → ${w.app} › ${name} (${sub})`);
+                    hideHUD();
+                });
+                zonesEl.appendChild(z);
+            });
 
-  // Zones extend under the band. Shift each label into the visible part so it is never covered.
-  zonesEl.querySelectorAll('.zone').forEach(z => {
-    const r = z.getBoundingClientRect();
-    const overlap = Math.max(0, r.right - bandLeft);
-    if (overlap > 0 && r.width - overlap > 120) z.style.paddingRight = overlap + 12 + 'px';
-  });
+            // Zones extend under the band. Shift each label into the visible part so it is never covered.
+            zonesEl.querySelectorAll('.zone').forEach(z => {
+                const r = z.getBoundingClientRect();
+                const overlap = Math.max(0, r.right - bandLeft);
+                if (overlap > 0 && r.width - overlap > 120) z.style.paddingRight = overlap + 12 + 'px';
+            });
 
-  winEl.classList.remove('swap');
-  void winEl.offsetWidth;
-  winEl.classList.add('swap');
-}
+            winEl.classList.remove('swap');
+            void winEl.offsetWidth;
+            winEl.classList.add('swap');
+        }
 
-// ==================== SELECTION ====================
-function select(i, rebase) {
-  i = Math.max(0, Math.min(WINDOWS.length - 1, i));
-  if (i === sel) return;
-  sel = i;
-  if (rebase || Math.abs(sel - base) > HALF) { base = sel; renderRows(); } else updateRows();
-  updateMarker();
-  renderPreview();
-  updateCount();
-}
-function updateCount() { $('band-count').textContent = `Window ${sel + 1} of ${WINDOWS.length}`; }
+        // ==================== SELECTION ====================
+        function select(i, rebase) {
+            i = Math.max(0, Math.min(WINDOWS.length - 1, i));
+            if (i === sel) return;
+            sel = i;
+            if (rebase || Math.abs(sel - base) > HALF) { base = sel; renderRows(); } else updateRows();
+            updateMarker();
+            renderPreview();
+            updateCount();
+        }
+        function updateCount() { $('band-count').textContent = `Window ${sel + 1} of ${WINDOWS.length}`; }
 
-// ==================== HUD ====================
-function hideHUD() {
-  dragActive = false;
-  hud.classList.remove('active');
-  hud.setAttribute('aria-hidden', 'true');
-  workspace.style.filter = 'none';
-  workspace.style.transform = 'none';
-}
-function showToast(msg) {
-  toast.textContent = msg;
-  toast.classList.add('visible');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove('visible'), 3200);
-}
+        // ==================== HUD ====================
+        function hideHUD() {
+            dragActive = false;
+            hud.classList.remove('active');
+            hud.setAttribute('aria-hidden', 'true');
+            workspace.style.filter = 'none';
+            workspace.style.transform = 'none';
+        }
+        function showToast(msg) {
+            toast.textContent = msg;
+            toast.classList.add('visible');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => toast.classList.remove('visible'), 3200);
+        }
 
-file.addEventListener('dragstart', e => {
-  dragActive = true;
-  e.dataTransfer.effectAllowed = 'copyMove';
-  e.dataTransfer.setData('text/plain', 'report.pdf');
-  sel = base = lastSel;                       // start on the last window used
-  setTimeout(() => {
-    if (!dragActive) return;
-    hud.classList.add('active');
-    hud.setAttribute('aria-hidden', 'false');
-    workspace.style.filter = 'blur(4px)';
-    workspace.style.transform = 'scale(0.985)';
-    buildRail();
-    renderRows();
-    updateMarker();
-    renderPreview();
-    updateCount();
-  }, 10);
-});
-file.addEventListener('dragend', hideHUD);   // released anywhere that is not a zone = cancel
+        file.addEventListener('dragstart', e => {
+            dragActive = true;
+            e.dataTransfer.effectAllowed = 'copyMove';
+            e.dataTransfer.setData('text/plain', 'report.pdf');
+            sel = base = lastSel;                       // start on the last window used
+            setTimeout(() => {
+                if (!dragActive) return;
+                hud.classList.add('active');
+                hud.setAttribute('aria-hidden', 'false');
+                workspace.style.filter = 'blur(4px)';
+                workspace.style.transform = 'scale(0.985)';
+                buildRail();
+                renderRows();
+                updateMarker();
+                renderPreview();
+                updateCount();
+            }, 10);
+        });
+        file.addEventListener('dragend', hideHUD);   // released anywhere that is not a zone = cancel
 
-window.addEventListener('resize', () => {
-  if (!dragActive) return;
-  buildRail(); renderRows(); updateMarker(); renderPreview();
-});
-</script>
+        window.addEventListener('resize', () => {
+            if (!dragActive) return;
+            buildRail(); renderRows(); updateMarker(); renderPreview();
+        });
+    </script>
 </body>
+
 </html>
