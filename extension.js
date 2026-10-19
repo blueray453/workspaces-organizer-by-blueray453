@@ -28,7 +28,7 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
     }
 
     enable() {
-        initLogging(this.uuid, 'file', false);
+        initLogging(this.uuid, 'file', true);
         journal(`Enabled`);
 
         const settings = this.getSettings();
