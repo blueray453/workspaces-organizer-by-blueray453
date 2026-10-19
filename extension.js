@@ -10,6 +10,8 @@ import * as Interactions from './lib/interactions.js';
 import * as Model from './lib/model.js';
 import * as WorkspaceActions from './lib/workspaceActions.js';
 
+import { initExternalDrag, destroyExternalDrag } from './lib/externalDrag.js'
+
 import { initLogging, createLogger } from './logger.js';
 
 const journal = createLogger(import.meta.url);
@@ -32,6 +34,7 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
         const settings = this.getSettings();
 
         Model.connectModelSignals(settings);
+        initExternalDrag();
 
         OverlayService.initOverlayService(settings);
         DBusService.initDBusService();
@@ -70,6 +73,7 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
             this._indicator = null;
         }
 
+        destroyExternalDrag();
         Model.disconnectModelSignals();
         Interactions.destroyTooltip();
     }
