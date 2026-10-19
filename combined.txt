@@ -664,8 +664,8 @@ const fmtNum = v => Number.isFinite(v) ? String(Math.round(v)) : 'NaN';
 export function thumbnailAt(x, y) { return _instance?._thumbnailAt(x, y) ?? null; }
 export function settleOnNextRender(window) { _settleWindow = window; }
 
-export function toggleGroupFlyout(workspaceIndex, appId = '') {
-    return _instance?._toggleGroupFlyout(workspaceIndex, appId) ?? false;
+export function toggleGroupFlyout(workspaceIndex, wmClass = '') {
+    return _instance?._toggleGroupFlyout(workspaceIndex, wmClass) ?? false;
 }
 
 export function closeGroupFlyout() {
@@ -711,7 +711,6 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         this._extRowTimer = 0;
         this._extWsKey = null;
         this._extWsTimer = 0;
-        this._extMaximized = null;
         this._extSawButton = false;
         this._extGroupKey = null;   // last group the external poll hovered
         this._geoRelogId = 0;       // deferred geometry re-log source
@@ -858,8 +857,8 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         // actor's allocation lands).
         if (hadFlyout && this._stickyRequest && !this._flyout.isOpen) {
             const req = this._stickyRequest;
-            journal(`[flyout] re-render -> restoring sticky flyout ws=${req.workspaceIndex} app="${req.appId}"`);
-            this._toggleGroupFlyout(req.workspaceIndex, req.appId);
+            journal(`[flyout] re-render -> restoring sticky flyout ws=${req.workspaceIndex} wmclass="${req.wmClass}"`);
+            this._toggleGroupFlyout(req.workspaceIndex, req.wmClass);
         }
 
         if (this._settleActor) Interactions.settleIcon(this._settleActor);
@@ -1239,108 +1238,58 @@ export class WorkspaceIndicator extends PanelMenu.Button {
     }
 
     /**
-     * Flexible group lookup for the DBus entry point. The model appId is
-     * the resolved Shell.App id (e.g. "Alacritty.desktop"); "wm:<name>" is
-     * only the fallback when the tracker has not resolved the window yet,
-     * so callers must not have to know which one applies. Match order:
-     * exact appId (case-insensitive) -> exact display name -> appId
-     * substring -> display-name substring/containment. '' selects the
-     * largest badged group on the workspace.
+     * DBus entry point: toggle the flyout for the badged group whose
+     * windows have the given WM_CLASS. Exact match, no fallback. Sticky:
+     * no pointer watchdog — stays open until toggled again, CloseFlyout,
+     * a row click, or it is re-anchored on the next re-render.
      */
-    _findGroup(entry, wanted) {
-        const q = (wanted ?? '').trim().toLowerCase();
-        if (!q) {
-            return [...entry.groups].filter(g => g.count > 1)
-                .sort((a, b) => b.count - a.count)[0] ?? null;
-        }
-        const bare = q.startsWith('wm:') ? q.slice(3).trim() : q;
-        const hit = pred => entry.groups.find(pred) ?? null;
+    _toggleGroupFlyout(workspaceIndex, wmClass = '') {
+        if (this._dragActive()) return false;
 
-        let g = hit(x => x.appId.toLowerCase() === q);
-        g ??= hit(x => x.appName.toLowerCase() === bare);
-        g ??= hit(x => x.appId.toLowerCase().includes(bare));
-        g ??= hit(x => x.appName.toLowerCase().includes(bare) ||
-            bare.includes(x.appName.toLowerCase()));
-        return g;
-    }
+        const entry = Model.buildModel().workspaces[workspaceIndex];
+        if (!entry) return false;
 
-    /**
-     * DBus entry point: open (or close) the group flyout without a drag.
-     * Sticky: no pointer watchdog — stays open until toggled again,
-     * CloseFlyout, a row click, or it is re-anchored across re-renders.
-     * Toggling a different group while one is open switches the anchor.
-     */
-    _toggleGroupFlyout(workspaceIndex, appId = '') {
-        try {
-            if (this._dragActive()) {
-                journal('[flyout.dbus] rejected: drag active');
-                return false;
-            }
-
-            const entry = Model.buildModel().workspaces[workspaceIndex];
-            if (!entry) {
-                journal(`[flyout.dbus] no workspace ${workspaceIndex}`);
-                return false;
-            }
-
-            const group = this._findGroup(entry, appId);
-            if (!group) {
-                // List what IS there so the caller can pass a valid id.
-                journal(`[flyout.dbus] no group matching "${appId}" on ws ${workspaceIndex}; available: ` +
-                    entry.groups.map(g => `${g.appId}(${g.appName} x${g.count})`).join(', '));
-                return false;
-            }
-            if (group.count < 2) {
-                journal(`[flyout.dbus] ${group.appName} has ${group.count} window(s) — ` +
-                    `the flyout needs a badged group (2+)`);
-                return false;
-            }
-
-            const key = `${workspaceIndex}::${group.appId}`;
-            if (this._flyout.isOpen && this._flyout.anchorKey === key) {
-                journal(`[flyout.dbus] toggle off (${key})`);
-                this._closeGroupFlyout();
-                return false;
-            }
-
-            let anchor = null, shell = null;
-            for (const [actor, info] of this._groupIcons) {
-                if (info.group.key === group.key) { anchor = actor; shell = info.shell; break; }
-            }
-            if (!anchor) {
-                // Group rendered expanded (one icon per window): anchor to
-                // the app's first window icon instead of refusing.
-                const ctrl = this._controllers.get(
-                    `${group.windows[0].get_id()}:${entry.index}`);
-                if (ctrl) {
-                    anchor = ctrl.actor;
-                    shell = this._entries.find(s => s.entry.index === entry.index) ?? null;
-                    journal('[flyout.dbus] group not collapsed; anchoring to window icon');
-                }
-            }
-            if (!anchor || !shell) {
-                journal(`[flyout.dbus] no anchor actor for ${group.key}`);
-                return false;
-            }
-
-            journal(`[flyout.dbus] toggle on ${group.appName} x${group.count} ws=${entry.index} ` +
-                `appId=${group.appId}`);
-            this._openFlyout(shell, group, anchor, { sticky: true, anchorKey: key });
-            if (this._flyout.isOpen) {
-                // Remember the raw request so re-renders can re-resolve it.
-                this._stickyRequest = { workspaceIndex, appId };
-                return true;
-            }
-            return false;
-        } catch (e) {
-            journal(`[flyout.dbus] THREW: ${e.message}\n${e.stack}`);
+        const group = entry.groups
+            .find(g => g.windows.some(w => w.get_wm_class() === wmClass));
+        if (!group || group.count < 2) {
+            journal(`[flyout.dbus] no badged group with wmclass "${wmClass}" on ws ${workspaceIndex}`);
             return false;
         }
+
+        const key = `${workspaceIndex}::${group.appId}`;
+        if (this._flyout.isOpen && this._flyout.anchorKey === key) {
+            this._closeGroupFlyout();
+            return false;
+        }
+
+        let anchor = null, shell = null;
+        for (const [actor, info] of this._groupIcons)
+            if (info.group.key === group.key) { anchor = actor; shell = info.shell; break; }
+        if (!anchor) {
+            // Group rendered expanded (one icon per window): anchor to the
+            // app's first window icon instead of refusing.
+            const ctrl = this._controllers.get(`${group.windows[0].get_id()}:${entry.index}`);
+            if (ctrl) {
+                anchor = ctrl.actor;
+                shell = this._entries.find(s => s.entry.index === entry.index) ?? null;
+            }
+        }
+        if (!anchor || !shell) {
+            journal(`[flyout.dbus] no anchor actor for ${group.key}`);
+            return false;
+        }
+
+        this._openFlyout(shell, group, anchor, { sticky: true, anchorKey: key });
+        if (this._flyout.isOpen) {
+            this._stickyRequest = { workspaceIndex, wmClass };
+            return true;
+        }
+        return false;
     }
 
     _closeGroupFlyout() {
         this._stickyRequest = null;
-        if (!this._flyout.isOpen) { journal('[flyout.dbus] close: not open'); return false; }
+        if (!this._flyout.isOpen) return false;
         journal('[flyout.dbus] close');
         this._flyout.close(true);
         return true;
@@ -1384,7 +1333,6 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         this._cancelExtWorkspace();
         this._cancelDwell();
         this._flyout?.close(true);
-        this._restoreExternalMaximize();
 
         this._extRowKey = null;
         this._extWsKey = null;
@@ -1399,7 +1347,6 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         this._flyout.close(true);
 
         this._extRowKey = null;
-        this._extMaximized = null;
         this._extSawButton = false;
         this._extWsKey = null;
         this._extGroupKey = null;
@@ -1581,11 +1528,6 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         this._extRowKey = key;
         this._cancelExtRowTimer();
 
-        // Switching rows: restore whatever we last maximized before
-        // scheduling the new preview. Keep the flyout open.
-        if (this._extMaximized && this._extMaximized !== win)
-            this._restoreExternalMaximize();
-
         this._extRowTimer = this._scope.timeout(EXT_PREVIEW_MS, () => {
             this._extRowTimer = 0;
             this._previewExternalWindow(win);
@@ -1596,7 +1538,6 @@ export class WorkspaceIndicator extends PanelMenu.Button {
     _cancelExtRow() {
         this._extRowKey = null;
         this._cancelExtRowTimer();
-        this._restoreExternalMaximize();
     }
 
     _cancelExtRowTimer() {
@@ -1604,37 +1545,24 @@ export class WorkspaceIndicator extends PanelMenu.Button {
     }
 
     /**
-     * Hover-to-preview: mirror WindowSearchOverlay._revealWindow.
-     * Maximizes and focuses the target so the foreign drag has an
-     * obvious drop target, but leaves the flyout open so the pointer
-     * can move to another row without re-dwelling on the badge.
+     * Hover-to-preview: maximize and focus the target so the foreign drag
+     * has an obvious drop target. Per request the window STAYS maximized
+     * afterwards — nothing unmaximizes it on row switch, leave, or drag
+     * end.
      */
     _previewExternalWindow(win) {
         try {
             const time = global.get_current_time();
             if (win.minimized) win.unminimize();
-            if (win.get_maximized() !== Meta.MaximizeFlags.BOTH) {
+            if (win.get_maximized() !== Meta.MaximizeFlags.BOTH)
                 win.maximize(Meta.MaximizeFlags.BOTH);
-                this._extMaximized = win;
-            }
             const ws = win.get_workspace();
             if (ws) ws.activate_with_focus(win, time);
             else win.activate(time);
-            journal(`[ext] preview ${win.get_id()} "${win.get_title()}"`);
+            journal(`[ext] preview ${win.get_id()} "${win.get_title()}" (kept maximized)`);
         } catch (e) {
             journal(`[WorkspaceIndicator] preview failed: ${e.message}`);
         }
-    }
-
-    _restoreExternalMaximize() {
-        const win = this._extMaximized;
-        this._extMaximized = null;
-        if (!win) return;
-        try {
-            if (win.get_maximized() === Meta.MaximizeFlags.BOTH)
-                win.unmaximize(Meta.MaximizeFlags.BOTH);
-            journal(`[ext] restore ${win.get_id()} "${win.get_title()}"`);
-        } catch (e) { /* window gone */ }
     }
 
     _maybeDwellWorkspace(x, y) {
@@ -4346,7 +4274,7 @@ const MR_DBUS_IFACE = `
       </method>
       <method name="ToggleGroupFlyout">
          <arg type="u" direction="in" name="workspace_num"/>
-         <arg type="s" direction="in" name="app_id"/>
+         <arg type="s" direction="in" name="wm_class"/>
          <arg type="b" direction="out" name="opened"/>
       </method>
       <method name="CloseFlyout">
@@ -4365,11 +4293,10 @@ const dbusObject = {
     ToggleWorkspaceWindows(n) { OverlayService.toggleWorkspaceWindows(n); },
     CycleWindowsOnWorkspace(n) { WorkspaceActions.cycleWindowsOnWorkspace(n, 1); },
 
-    // app_id is matched flexibly by the indicator: exact model appId
-    // (e.g. "Alacritty.desktop"), "wm:<name>", the bare name, or '' for
-    // the largest badged group on that workspace.
-    ToggleGroupFlyout(workspaceNum, appId) {
-        return WorkspaceIndicatorModule.toggleGroupFlyout(workspaceNum, appId ?? '');
+    // wm_class is matched exactly against the WM_CLASS of the group's
+    // windows. No fallback, no fuzzy matching.
+    ToggleGroupFlyout(workspaceNum, wmClass) {
+        return WorkspaceIndicatorModule.toggleGroupFlyout(workspaceNum, wmClass ?? '');
     },
     CloseFlyout() {
         return WorkspaceIndicatorModule.closeGroupFlyout();
@@ -4440,8 +4367,9 @@ const GAP = 12;
 const HEAD_H = 30;
 const HEAD_Y = 16;
 
-const ROW_ICON_SIZE = 56;
-const ROW_LABEL_SIZE = 26;
+// Large, legible row text: 38px titles over 72px icons in 112px slots.
+const ROW_ICON_SIZE = 72;
+const ROW_LABEL_SIZE = 38;
 
 export class GroupFlyout {
     constructor(settings) {
@@ -4469,6 +4397,7 @@ export class GroupFlyout {
         this._head = new St.Label({ style_class: 'ws-flyout-head', text: '' });
         this._head.clutter_text.set_ellipsize(Pango.EllipsizeMode.END);
         this._head.clutter_text.set_line_wrap(false);
+        this._head.set_style('font-size: 32px;');
 
         this._rowsEl = new St.Widget({ clip_to_allocation: true });
         this._upEl = new St.Bin({ style_class: 'ws-flyout-edge ws-flyout-edge-up' });
@@ -4939,6 +4868,7 @@ export class Coalescer {
     }
 }
 // ===== FILE: ./lib/strip.js =====
+// ===== FILE: ./lib/strip.js =====
 // The prototype's createStrip(): a fixed number of visible slots, a view
 // position that scrolls by whole rows, edge hold zones with acceleration,
 // and a rail with ticks + marker. Used by the anchored flyout.
@@ -4948,10 +4878,9 @@ import St from 'gi://St';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-// Row metrics doubled relative to the original 46/7 layout so the flyout
-// reads as a proper panel on a 4K display rather than a tooltip.
-export const ROW_SLOT = 88;
-export const VISIBLE_SLOTS = 9;
+// Row metrics sized for large legible text on a 4K display.
+export const ROW_SLOT = 112;
+export const VISIBLE_SLOTS = 8;
 const HALF = Math.floor(VISIBLE_SLOTS / 2);
 const RAIL_PAD = 16;
 const DEAD = 0.06;
@@ -5326,13 +5255,12 @@ export function createThumbnail({ minWidth, active }) {
 
 /**
  * Icon + dock-style numeric badge. The badge is drawn OVER the icon's
- * top-right corner, and the wrapper is exactly icon-sized, so a badged
- * group occupies the same cell as a plain window icon. The previous
- * geometry put the badge in a padding strip ABOVE the icon and made the
- * wrapper size+pad tall, which pushed the icon out of the thumbnail.
+ * top-right corner, sized at 45% of the icon (no small cap — the badge
+ * must be clearly readable), and the wrapper is exactly icon-sized so a
+ * badged group occupies the same cell as a plain window icon.
  */
 export function createBadgedIcon({ gicon, size, count }) {
-    const badgeSize = Math.max(14, Math.min(20, Math.round(size * 0.36)));
+    const badgeSize = Math.max(18, Math.round(size * 0.45));
     const wrap = new St.Widget({
         style_class: 'ws-ico-wrap',
         width: size, height: size,
@@ -5349,7 +5277,7 @@ export function createBadgedIcon({ gicon, size, count }) {
             x_align: Clutter.ActorAlign.CENTER,
             y_align: Clutter.ActorAlign.CENTER,
         });
-        label.set_style(`font-size: ${Math.max(8, Math.round(badgeSize * 0.60))}px;`);
+        label.set_style(`font-size: ${Math.max(10, Math.round(badgeSize * 0.58))}px;`);
 
         const badge = new St.Bin({
             style_class: 'ws-badge',
@@ -5410,6 +5338,8 @@ export function createFlyoutRow({
     });
 
     // Prototype's fitStart(): truncate from the start, ellipsis first.
+    // Font sizes are set inline so they scale off `labelSize` instead of
+    // the (smaller) stylesheet defaults.
     const titleLabel = new St.Label({
         style_class: 'ws-flyout-row-title',
         x_expand: true, x_align: Clutter.ActorAlign.START,
@@ -5428,17 +5358,20 @@ export function createFlyoutRow({
         });
         subLabel.clutter_text.set_ellipsize(Pango.EllipsizeMode.START);
         subLabel.clutter_text.set_line_wrap(false);
+        subLabel.set_style(`font-size: ${Math.round(labelSize * 0.72)}px;`);
         text.add_child(subLabel);
     }
 
     row.add_child(text);
 
     if (badge) {
-        row.add_child(new St.Label({
+        const badgeLabel = new St.Label({
             style_class: 'ws-flyout-row-badge',
             text: badge,
             y_align: Clutter.ActorAlign.CENTER,
-        }));
+        });
+        badgeLabel.set_style(`font-size: ${Math.round(labelSize * 0.62)}px;`);
+        row.add_child(badgeLabel);
     }
 
     return row;
@@ -5836,6 +5769,7 @@ export function createSelectorHint(overlayL) {
     return { actor, label: actor };
 }
 // ===== FILE: ./lib/model.js =====
+// ===== FILE: ./lib/model.js =====
 // Domain state: shell singletons, shared constants, the window model and
 // the workspace-local app grouping that both the indicator and the
 // flyout consume. Nothing here touches actors.
@@ -5896,6 +5830,36 @@ function isEligible(w) {
     return !w.skip_taskbar && !w.is_override_redirect();
 }
 
+// ==================== LAST FOCUSED PER WORKSPACE ====================
+// The shell only reports a focused window while one actually has focus.
+// Opening a window overlay right after switching workspaces (or from a
+// different workspace) therefore sees none, and "start at the focused
+// window" degrades to "start at the first window". Remember the last
+// focused window per workspace so overlays still open on the window the
+// user was last working with on that workspace.
+const lastFocusedByWs = new Map();   // workspace index -> Meta.Window
+
+export function noteFocusedWindow(window) {
+    if (!window) return;
+    try {
+        const ws = window.get_workspace();
+        if (ws) lastFocusedByWs.set(ws.index(), window);
+    } catch (e) { /* dead window object */ }
+}
+
+export function lastFocusedWindow(workspaceIndex) {
+    const win = lastFocusedByWs.get(workspaceIndex);
+    if (!win) return null;
+    try {
+        // A closed window's wrapper throws on method access.
+        if (!win.get_workspace()) { lastFocusedByWs.delete(workspaceIndex); return null; }
+    } catch (e) {
+        lastFocusedByWs.delete(workspaceIndex);
+        return null;
+    }
+    return win;
+}
+
 // ==================== APP IDENTITY / GROUPING ====================
 // `appId` is the grouping key. It is stable for the lifetime of the app
 // (Shell.App id) and degrades to the WM class when the tracker has not
@@ -5951,6 +5915,10 @@ export function buildModel() {
         if (!liveSet.has(w)) ranks.delete(w);
     for (const w of live)
         if (!ranks.has(w)) ranks.set(w, nextRank++);
+
+    // Drop remembered focus entries whose window is gone.
+    for (const [idx, win] of lastFocusedByWs)
+        if (!liveSet.has(win)) lastFocusedByWs.delete(idx);
 
     const workspaces = [];
     for (let i = 0; i < WorkspaceManager.n_workspaces; i++) {
@@ -6008,11 +5976,13 @@ export function connectModelSignals(settings = null) {
     _listen(WorkspaceManager, 'notify::n-workspaces', () => { _watchWorkspaces(); requestRender(); });
     _listen(WorkspaceManager, 'workspace-switched', () => requestRender());
     _listen(Display, 'window-created', () => requestRender());
+    _listen(Display, 'notify::focus-window', () => noteFocusedWindow(Display.focus_window));
     _listen(Main.sessionMode, 'updated', () => requestRender());
     if (settings)
         _listen(settings, 'changed', () => requestRender());
 
     _watchWorkspaces();
+    noteFocusedWindow(Display.focus_window);   // seed with the current focus
 }
 
 export function disconnectModelSignals() {
@@ -6059,6 +6029,7 @@ export function logModel(model) {
     journal('[Model Snapshot]\n' + JSON.stringify(getModelSnapshot(model), null, 2));
 }
 // ===== FILE: ./lib/overlayService.js =====
+// ===== FILE: ./lib/overlayService.js =====
 import Meta from 'gi://Meta';
 
 import * as SearchOverlays from './searchOverlays.js';
@@ -6071,6 +6042,10 @@ const journal = createLogger(import.meta.url);
 // The single place any search overlay is opened or closed.
 // Overlays ignore the model's display-mode flag (`direct`): they always
 // list every window, so the 5+ regrouping threshold never leaks in here.
+//
+// Initial selection resolves through Model.lastFocusedWindow(): the shell
+// reports no focus right after a workspace switch, so the remembered
+// per-workspace focus is used whenever the live focus is missing.
 
 let _settings = null;
 
@@ -6086,10 +6061,18 @@ export function showWindowOverlay(windows, context = null, focusedWindow = null)
 }
 
 export function showAllWindows() {
+    if (!_settings) {
+        journal('[overlayService] showAllWindows before init — ignoring');
+        return false;
+    }
+    const activeIdx = Model.WorkspaceManager.get_active_workspace_index();
+    const focusedWindow = Model.Display.focus_window
+        ?? Model.lastFocusedWindow(activeIdx)
+        ?? null;
     return showWindowOverlay(
         Model.getModelWindows(null),
         { type: 'all-windows' },
-        Model.Display.focus_window);
+        focusedWindow);
 }
 
 export function showAllApps() {
@@ -6129,7 +6112,9 @@ export function showWorkspaceWindows(workspaceIndex) {
     if (!workspace) throw new Error(`Workspace ${workspaceIndex} not found`);
 
     const windows = Model.buildModel().workspaces[workspaceIndex].windows;
-    const focusedWindow = Model.Display.get_tab_list(Meta.TabList.NORMAL, workspace)[0] ?? null;
+    const focusedWindow = Model.Display.get_tab_list(Meta.TabList.NORMAL, workspace)[0]
+        ?? Model.lastFocusedWindow(workspaceIndex)
+        ?? null;
 
     workspace.activate(global.get_current_time());
     return showWindowOverlay(windows, { type: 'workspace', workspaceIndex }, focusedWindow);
@@ -6157,14 +6142,15 @@ export function showGroupWindows(workspaceIndex, appId) {
     const group = entry.groups.find(g => g.appId === appId);
     if (!group || !group.windows.length) return false;
 
-    const focused = Model.Display.focus_window;
-    const start = Math.max(0, group.windows.indexOf(focused));
+    const initial = [Model.Display.focus_window, Model.lastFocusedWindow(workspaceIndex)]
+        .find(w => w && group.windows.includes(w)) ?? null;
+
     const opened = showWindowOverlay(
         group.windows,
         { type: 'group', workspaceIndex, appId, appName: group.appName },
-        focused);
+        initial);
     journal(`[overlayService] showGroupWindows ws${workspaceIndex} ${group.appName} (${group.windows.length})`);
-    return opened ? start >= 0 : false;
+    return opened;
 }
 
 export function toggleGroupWindows(workspaceIndex, appId) {
