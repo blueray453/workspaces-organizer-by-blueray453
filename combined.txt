@@ -4,40 +4,99 @@
    base03 #002b36  base02 #073642  base01 #586e75  base00 #657b83
    base0  #839496  base1  #93a1a1  base2  #eee8d5  base3  #fdf6e3
    yellow #b58900  orange #cb4b16  red #dc322f  magenta #d33682
-   violet #6c71c4  blue   #268bd2  cyan #2aa198  green #859900
+   violet #6c71c4  blue   #268bd2  cyan #2aa198  green     #859900
    ============================================================ */
 
-/* ===== Workspace indicator / thumbnails ===== */
+/* ===================== INDICATOR ===================== */
 
-.workspace-indicator-class .workspace-thumbnail {
-    height: 100%;
-    padding: 10px;
-    padding-top: 25px;
+.workspace-indicator-main-box {
+    spacing: 6px;
+}
+
+.workspace-indicator-class {
+    spacing: 8px;
+}
+
+/* One workspace capsule. Content-sized (never x_expand) so the
+   overflow / grouping math in the indicator has a real natural width. */
+.workspace-thumbnail {
+    padding: 10px 8px 8px 8px;
     background-color: rgba(7, 54, 66, 0.65);
     border: 1px solid rgba(88, 110, 117, 0.4);
-    border-radius: 10px;
+    border-radius: 8px;
     box-shadow: inset 0 0 0 2px rgba(38, 139, 210, 0.55);
     transition-duration: 150ms;
 }
 
-.workspace-indicator-class .workspace-thumbnail.active {
+.workspace-thumbnail:hover {
+    background-color: rgba(7, 54, 66, 0.95);
+}
+
+.workspace-thumbnail.active {
     background-color: rgba(42, 161, 152, 0.28);
     box-shadow: inset 0 0 0 2px #2aa198;
 }
 
-.workspace-indicator-class .window-preview-icon {
-    border: 1px solid transparent;
+.ws-contents {
+    spacing: 6px;
+}
+
+/* Same mode, denser metrics: mirrors .ws-thumbs.grouped-layout. */
+.workspace-indicator-class.grouped-layout .workspace-thumbnail {
+    padding: 8px 6px 6px 6px;
+}
+
+.workspace-indicator-class.grouped-layout .ws-contents {
+    spacing: 3px;
+}
+
+.ws-empty {
+    color: #657b83;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 0 6px;
+}
+
+/* ---------- window / app icons ---------- */
+
+.window-preview-icon {
+    border-radius: 8px;
     transition-duration: 120ms;
 }
 
-.workspace-indicator-class .window-preview-icon.focused {
-    background-color: rgba(133, 153, 0, 0.45);
-    border-color: rgba(133, 153, 0, 0.65);
-    box-shadow: inset 0 0 0 2px rgba(133, 153, 0, 0.45);
+.window-preview-icon.focused {
+    box-shadow: 0 0 0 2px #2aa198, 0 0 10px rgba(42, 161, 152, 0.65);
+}
+
+.ws-app-group {
+    border-radius: 8px;
+    transition-duration: 120ms;
+}
+
+.ws-app-group:hover {
+    background-color: rgba(38, 139, 210, 0.18);
+}
+
+.ws-app-group:focus {
+    box-shadow: 0 0 0 2px #4fd1c5;
+}
+
+/* Dock style numeric badge (position + size set from JS). */
+.ws-badge {
+    background-color: #101820;
+    border: 1px solid #fdf6e3;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.65);
+}
+
+.ws-badge-label {
+    color: #ffffff;
+    font-weight: 800;
+    padding: 0;
 }
 
 .workspace-name-label {
-    padding: 20px;
+    padding: 0 12px;
     font-weight: bold;
     color: #eee8d5;
 }
@@ -52,32 +111,99 @@
     background-color: rgba(38, 139, 210, 0.18);
 }
 
-/* ===== Window collection icon (thumbnail overflow button) =====
-   The button lives inside the thumbnail's padded content area, so it must
-   NOT re-apply padding-top (that was clipping the count vertically). Wide
-   enough for three-digit counts; height left to content so the label's
-   natural size wins. */
+/* ===================== ANCHORED FLYOUT (the #fan) =====================
+   Absolute layout: every child is positioned from JS, exactly like the
+   prototype's #fan.local-anchored block. Panel geometry is set from JS;
+   this block only styles colours and font sizes.
+   All font sizes are >= the tooltip's 22px (see .dmenu-tooltip). */
 
-.workspace-thumbnail-collection-icon {
-    height: 100%;
-    padding: 12px 24px;
-    background-color: #268bd2;
-    border-radius: 24px;
-    box-shadow: inset 0 0 4px 2px rgba(0, 0, 0, 0.3);
+.ws-flyout {
+    background-color: rgba(0, 20, 28, 0.98);
+    border: 1px solid rgba(147, 161, 161, 0.42);
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.60);
+}
+
+.ws-flyout-head {
+    color: #4fd1c5;
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: 2px;
+}
+
+/* ---------- rows ---------- */
+
+.ws-flyout-row {
+    padding: 0 20px;
+    border: 1px solid transparent;
+    border-radius: 16px;
+    background-color: rgba(0, 20, 28, 0.45);
     transition-duration: 120ms;
 }
 
-.collection-icon-label {
-    color: #fdf6e3;
-    font-size: 32px;
-    font-weight: bold;
+.ws-flyout-row.sel {
+    background-color: rgba(10, 70, 72, 0.92);
+    border-color: #2aa198;
 }
 
-/* ===== Clone previews (hover preview) ===== */
+.ws-flyout-row-title {
+    color: #eee8d5;
+    font-weight: 600;
+}
+
+.ws-flyout-row-app {
+    color: #4fd1c5;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    margin-top: 4px;
+}
+
+.ws-flyout-row-badge {
+    color: #4fd1c5;
+    background-color: rgba(79, 209, 197, 0.16);
+    border-radius: 14px;
+    padding: 4px 14px;
+    font-size: 22px;
+    font-weight: 700;
+}
+
+/* ---------- edge hold zones ---------- */
+
+.ws-flyout-edge-label {
+    color: #93a1a1;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 2px;
+}
+
+.ws-flyout-edge.active .ws-flyout-edge-label {
+    color: #fffaf0;
+}
+
+/* ---------- rail ---------- */
+
+.ws-flyout-rail-track {
+    background-color: rgba(238, 232, 213, 0.6);
+    border-radius: 3px;
+    box-shadow: 0 0 0 2px rgba(0, 22, 30, 0.6);
+}
+
+.ws-flyout-rail-tick {
+    border-radius: 3px;
+    box-shadow: 0 0 0 2px rgba(0, 22, 30, 0.8);
+}
+
+.ws-flyout-rail-marker {
+    background-color: #fffaf0;
+    border-radius: 6px;
+    box-shadow: 0 0 0 3px #001a22;
+}
+
+/* ===================== CLONE PREVIEWS ===================== */
 
 .collection-preview-inner {
     border-radius: 8px;
-    overflow: hidden;
 }
 
 .clone-title-overlay {
@@ -105,12 +231,7 @@
     border-radius: 10px;
 }
 
-/* ===== Reorderable icon strips ===== */
-
-.window-preview-icon {
-    border-radius: 8px;
-    transition-duration: 120ms;
-}
+/* ===================== DRAG VISUALS ===================== */
 
 .reorder-drag-source {
     border: 3px solid #268bd2;
@@ -123,7 +244,7 @@
     background-color: rgba(38, 139, 210, 0.12);
 }
 
-/* ===== Shared floating tooltip/hint ===== */
+/* ===================== TOOLTIP ===================== */
 
 .dmenu-tooltip {
     background-color: rgba(0, 0, 0, 0.85);
@@ -135,7 +256,7 @@
     font-weight: bold;
 }
 
-/* ===== Shared search field (launcher + window selector) ===== */
+/* ===================== SEARCH FIELD ===================== */
 
 .overlay-search-entry {
     background-color: rgba(0, 43, 54, 0.92);
@@ -169,7 +290,7 @@
     opacity: 0.7;
 }
 
-/* ===== App launcher ===== */
+/* ===================== APP LAUNCHER ===================== */
 
 .launcher-overlay {
     background-color: rgba(0, 43, 54, 0.94);
@@ -273,14 +394,14 @@
     padding-top: 12px;
 }
 
-/* ===== Window selector (v4: discrete focus strip + scrubber) ===== */
+/* ===================== WINDOW SELECTOR (focus strip) ===================== */
 
 .window-selector-overlay {
     background-color: transparent;
 }
 
 .selector-tint {
-    background-color: rgba(0, 43, 54, 0.08);
+    background-color: rgba(0, 26, 34, 0.10);
     transition-duration: 220ms;
 }
 
@@ -288,9 +409,12 @@
     background-color: rgba(220, 50, 47, 0.22);
 }
 
+/* The band is the prototype's gradient scrim: St cannot do a three stop
+   vertical gradient, so a flat low alpha + a very wide soft shadow is
+   used to reproduce the "nothing, then a slab, then nothing" read. */
 .selector-band {
-    background-color: rgba(0, 26, 34, 0.55);
-    box-shadow: 0 0 60px 24px rgba(0, 26, 34, 0.24);
+    background-color: rgba(0, 26, 34, 0.34);
+    box-shadow: 0 0 90px 48px rgba(0, 26, 34, 0.34);
     padding: 12px 0 0 0;
 }
 
@@ -305,7 +429,6 @@
 .selector-band-title-label {
     color: #fffaf0;
     font-weight: 700;
-    text-shadow: 0 1px 5px rgba(0, 10, 15, 0.95);
 }
 
 .selector-band-app-label {
@@ -313,17 +436,16 @@
     font-weight: 700;
     letter-spacing: 3px;
     margin-top: 2px;
-    text-shadow: 0 1px 5px rgba(0, 10, 15, 0.95);
 }
 
-/* Uniform-size neighbor rows. Rows sit under the band scrim, so the
-   translucent capsule keeps their labels legible on light previews. */
+/* Neighbor rows: uniform size, capsule backing instead of a CSS halo
+   (St has no text-shadow), same opacity ramp as neighborOpacity(). */
 .selector-row {
     padding: 0;
 }
 
 .selector-row-inner {
-    background-color: rgba(0, 18, 26, 0.58);   /* was rgba(0, 20, 30, 0.30) */
+    background-color: rgba(0, 18, 26, 0.58);
     border-radius: 12px;
     padding: 6px 22px;
 }
@@ -334,8 +456,7 @@
 
 .selector-row-label {
     color: #f1ede0;
-    font-weight: 500;              /* was 600 */
-    text-shadow: 0 1px 5px rgba(0, 10, 15, 0.95);
+    font-weight: 500;
 }
 
 .selector-hint {
@@ -344,10 +465,9 @@
     font-weight: 600;
     letter-spacing: 1px;
     text-align: center;
-    text-shadow: 0 1px 4px rgba(0, 10, 15, 0.95);
 }
 
-/* Scoped underline-style search field. */
+/* Underline-only search field, scoped to the selector. */
 .window-selector-overlay .overlay-search-entry {
     background-color: transparent;
     border: none;
@@ -355,7 +475,8 @@
     border-radius: 0;
     box-shadow: 0 2px 8px rgba(0, 22, 30, 0.70);
     color: #fffaf0;
-    text-shadow: 0 1px 4px rgba(0, 10, 15, 0.95);
+    caret-color: #4fd1c5;
+    padding: 4px 12px;
 }
 
 .window-selector-overlay .overlay-search-entry:focus {
@@ -366,10 +487,10 @@
 
 .window-selector-overlay .overlay-search-icon {
     color: #93a1a1;
-    icon-size: 32px;
+    icon-size: 0px;
 }
 
-/* ===== Side scrubber ===== */
+/* ---------- side scrubber ---------- */
 
 .selector-rail {
     background-color: rgba(0, 18, 26, 0.58);
@@ -400,8 +521,6 @@
     padding: 8px 18px;
     border-radius: 8px;
     font-weight: 600;
-    text-shadow: 0 1px 4px rgba(0, 10, 15, 0.95);
-    /* font-size set inline from selectedLabelSize */
 }
 // ===== FILE: ./schemas/org.gnome.shell.extensions.workspaces-organizer-by-blueray453.gschema.xml =====
 <?xml version="1.0" encoding="UTF-8"?>
@@ -428,6 +547,11 @@
       <summary>Show workspace name label and drag-over hint</summary>
       <description>Whether to show the workspace name in the panel and as a hint while dragging a window over a thumbnail.</description>
     </key>
+    <key name="group-apps-always" type="b">
+      <default>false</default>
+      <summary>Always group windows by app in the panel</summary>
+      <description>When enabled, every app with more than one window on a workspace collapses into a single badged icon. When disabled, grouping only engages when the panel runs out of horizontal room (the prototype's progressive collapse), or for workspaces above the direct-mode window threshold.</description>
+    </key>
     <key name="toolbar-icon-size" type="i">
       <default>56</default>
       <summary>Icon size for panel toolbar buttons</summary>
@@ -440,7 +564,7 @@
     <key name="icon-size" type="i">
       <default>96</default>
       <summary>Default icon size for window previews</summary>
-      <description>Size of each window icon in the workspace thumbnails (pixels).</description>
+      <description>Size of each window icon in the workspace thumbnails (pixels). When app grouping engages, icons fall back to a denser ceiling so badged groups still fit.</description>
     </key>
     <key name="thumbnail-min-width" type="i">
       <default>50</default>
@@ -490,6 +614,7 @@
   </schema>
 </schemalist>
 // ===== FILE: ./lib/workspaceIndicator.js =====
+// ===== FILE: ./lib/workspaceIndicator.js =====
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
@@ -504,6 +629,8 @@ import * as Model from './model.js';
 import * as Scheduling from './scheduling.js';
 import * as Interactions from './interactions.js';
 import * as UI from './ui.js';
+import { GroupFlyout } from './flyout.js';
+import { externalDrag, buttonHeld } from './externalDrag.js';
 
 import { createLogger } from '../logger.js';
 const journal = createLogger(import.meta.url);
@@ -515,8 +642,35 @@ let _settleWindow = null;
 
 const MIN_RENDER_INTERVAL_MS = 100;
 
+// Internal window drag: dwell before the flyout opens.
+const DWELL_MS = 150;
+// External (file/text) drag: pointer poll, dwell, preview.
+const EXT_TICK_MS = 40;
+// Hover-to-preview delay. Shorter than the flyout dwell so moving into the
+// popup feels responsive; matches the overlay's _scheduleReveal timing.
+const EXT_PREVIEW_MS = 150;
+const EXT_WS_DWELL_MS = 500;
+
+const SLACK_PX = 32;
+const MAX_SOLVE_STEPS = 6;
+
+const SIZE_LADDER = [1, 0.9, 0.78, 0.66, 0.55];
+const SIZE_FLOOR = 20;
+
+// get_transformed_position() etc. return NaN for not-yet-allocated
+// actors; keep the logs readable either way.
+const fmtNum = v => Number.isFinite(v) ? String(Math.round(v)) : 'NaN';
+
 export function thumbnailAt(x, y) { return _instance?._thumbnailAt(x, y) ?? null; }
 export function settleOnNextRender(window) { _settleWindow = window; }
+
+export function toggleGroupFlyout(workspaceIndex, appId = '') {
+    return _instance?._toggleGroupFlyout(workspaceIndex, appId) ?? false;
+}
+
+export function closeGroupFlyout() {
+    return _instance?._closeGroupFlyout() ?? false;
+}
 
 export class WorkspaceIndicator extends PanelMenu.Button {
     static { GObject.registerClass(this); }
@@ -535,10 +689,35 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         this._staticBox = null;
         this._nameLabel = null;
         this._thumbsBox = null;
+        this._entries = [];
+
+        this._collapsed = new Set();
+        this._denseStep = 0;
 
         this._scope = new Scheduling.Scope();
         this._renderCoalescer = new Scheduling.Coalescer(() => this._render());
         this._leavePollId = 0;
+
+        this._dwellId = 0;
+        this._dwellKey = null;
+
+        this._groupIcons = new Map();
+
+        this._flyout = new GroupFlyout(settings);
+
+        // External drag state
+        this._extPollId = 0;
+        this._extRowKey = null;
+        this._extRowTimer = 0;
+        this._extWsKey = null;
+        this._extWsTimer = 0;
+        this._extMaximized = null;
+        this._extSawButton = false;
+        this._extGroupKey = null;   // last group the external poll hovered
+        this._geoRelogId = 0;       // deferred geometry re-log source
+
+        // Last sticky (DBus) flyout request; re-applied after re-renders.
+        this._stickyRequest = null;
 
         this._lastHintWs = Model.intent.hintWs;
         this._lastDragActive = !!Model.intent.drag;
@@ -549,15 +728,21 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         });
 
         this._mainBox = new St.BoxLayout({
-            style_class: 'workspace-indicator-main-box', y_expand: true, x_expand: true, reactive: true,
+            style_class: 'workspace-indicator-main-box',
+            y_expand: true, x_expand: true, reactive: true,
         });
         this.add_child(this._mainBox);
 
         Model.onIntentChange(() => this._onIntentChanged());
         Model.onWorldChange(() => this._queueRender());
 
+        this._extUnsub = externalDrag.onChanged(state => this._onExternalChanged(state));
+
         this._render();
     }
+
+    // ==================== INTENT ====================
+    _dragActive() { return !!Model.intent.drag || externalDrag.active; }
 
     _onIntentChanged() {
         const hintChanged = Model.intent.hintWs !== this._lastHintWs;
@@ -570,6 +755,13 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         this._lastDragActive = isDragging;
         this._lastMenuOpen = isMenu;
 
+        // A sticky (DBus-opened) flyout has no drag lifetime — it survives
+        // intent churn and is closed explicitly or by a re-render (which
+        // re-anchors it afterwards).
+        if (!this._dragActive() && !this._flyout.sticky) {
+            this._cancelDwell();
+            this._flyout.close(true);
+        }
         if (hintChanged) this._syncHint();
         if (dragChanged || menuChanged) this._queueRender();
     }
@@ -586,6 +778,16 @@ export class WorkspaceIndicator extends PanelMenu.Button {
     _render() {
         if (Model.intent.menuOpen) return;
         if (Model.intent.drag) return;
+        if (externalDrag.active) return;
+
+        // A rebuild replaces every group icon; an anchored flyout would be
+        // left pointing at destroyed actors (NaN geometry, dead hit tests).
+        // Sticky flyouts are re-anchored after the solve below.
+        const hadFlyout = this._flyout.isOpen;
+        if (hadFlyout) {
+            journal('[flyout] re-render -> closing flyout (sticky restore if requested)');
+            this._flyout.close(true);
+        }
 
         this._ghost.clear();
 
@@ -623,20 +825,41 @@ export class WorkspaceIndicator extends PanelMenu.Button {
 
         this._thumbsBox?.destroy();
         this._settleActor = null;
+        this._entries = [];
+        this._groupIcons.clear();
+
         this._thumbsBox = new St.BoxLayout({
-            style_class: 'workspace-indicator-class', y_expand: true, x_expand: true, reactive: true,
+            style_class: 'workspace-indicator-class',
+            y_expand: true, reactive: true,
+            clip_to_allocation: true,
         });
+        this._mainBox.add_child(this._thumbsBox);
 
         const seen = new Set();
+        for (const entry of model.workspaces) {
+            this._entries.push(this._buildThumbShell(entry));
+            this._thumbsBox.add_child(this._entries[this._entries.length - 1].actor);
+        }
         for (const entry of model.workspaces)
-            this._thumbsBox.add_child(this._buildThumbnail(entry, seen));
-        this._mainBox.add_child(this._thumbsBox);
+            for (const w of entry.windows) seen.add(`${w.get_id()}:${entry.index}`);
+
+        this._solveGrouping(model);
 
         for (const [key, ctrl] of this._controllers) {
             if (!seen.has(key)) {
                 ctrl.destroy();
                 this._controllers.delete(key);
             }
+        }
+
+        // A sticky (DBus-opened) flyout was closed at the top of this
+        // render because the rebuild replaced its anchor actor; re-open it
+        // on the freshly built group icon (open() retries until the new
+        // actor's allocation lands).
+        if (hadFlyout && this._stickyRequest && !this._flyout.isOpen) {
+            const req = this._stickyRequest;
+            journal(`[flyout] re-render -> restoring sticky flyout ws=${req.workspaceIndex} app="${req.appId}"`);
+            this._toggleGroupFlyout(req.workspaceIndex, req.appId);
         }
 
         if (this._settleActor) Interactions.settleIcon(this._settleActor);
@@ -647,8 +870,10 @@ export class WorkspaceIndicator extends PanelMenu.Button {
 
     _buildToolbar(s) {
         if (!this._staticBox) {
-            this._staticBox = new St.BoxLayout({ y_expand: true });
-            this._mainBox.add_child(this._staticBox);
+            this._staticBox = new St.BoxLayout({
+                y_expand: true, y_align: Clutter.ActorAlign.CENTER,
+            });
+            this._mainBox.insert_child_at_index(this._staticBox, 0);
         }
         this._staticBox.destroy_all_children();
         this._nameLabel = null;
@@ -672,83 +897,801 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         }
     }
 
-    _buildThumbnail(entry, seen) {
+    // ==================== THUMBNAIL SHELL ====================
+    _buildThumbShell(entry) {
         const s = this._settings;
-        // `direct` is the model's display-mode flag. Overlays ignore it —
-        // here it only decides whether we render one icon per window or a
-        // single overflow count button.
-        const { workspace, index, windows, direct } = entry;
-
-        for (const w of windows) seen.add(`${w.get_id()}:${index}`);
 
         const { actor: thumb, box } = UI.createThumbnail({
             minWidth: s.get_int('thumbnail-min-width'),
-            active: index === Model.WorkspaceManager.get_active_workspace_index(),
+            active: entry.index === Model.WorkspaceManager.get_active_workspace_index(),
         });
-        thumb._wsEntry = { workspace, index };
+        thumb._wsEntry = { workspace: entry.workspace, index: entry.index };
+
+        const content = new St.BoxLayout({
+            style_class: 'ws-contents',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        box.add_child(content);
+
+        const shell = { entry, actor: thumb, content, strip: null };
 
         const strip = Interactions.createDropStrip({
-            container: box,
+            container: content,
             ghost: this._ghost,
-            acceptSource: source => direct && source?._dragPayload?.kind === 'window',
+            acceptSource: source => source?._dragPayload?.kind === 'window',
             externalResult: Interactions.DragMotionResult.MOVE_DROP,
             onDragOver: () => {
                 this._ensureLeavePoll();
-                Model.setIntent({ hintWs: index });
+                Model.setIntent({ hintWs: entry.index });
             },
             onExternalDragOver: () => {
-                if (workspace !== Model.WorkspaceManager.get_active_workspace())
-                    workspace.activate(global.get_current_time());
+                if (externalDrag.active) return;
+                if (entry.workspace !== Model.WorkspaceManager.get_active_workspace())
+                    entry.workspace.activate(global.get_current_time());
             },
-            onDrop: (source, dropIndex, dragActor) =>
-                this._dropOnWorkspace(thumb, workspace, direct, source, dropIndex, dragActor),
+            onDrop: (source, dropIndex, dragActor) => {
+                this._cancelDwell();
+                this._flyout.close(true);
+                const grouped = this._isGrouped(entry);
+                return this._dropOnWorkspace(thumb, entry, source,
+                    grouped ? null : dropIndex, dragActor);
+            },
         });
+        shell.strip = strip;
         thumb._delegate = strip.delegate();
 
         thumb.connect('button-press-event', (actor, event) => {
             const b = event.get_button();
-            if (b === Clutter.BUTTON_PRIMARY) workspace.activate(0);
-            else if (b === Clutter.BUTTON_SECONDARY) this._openThumbnailMenu(thumb, workspace);
+            if (b === Clutter.BUTTON_PRIMARY) entry.workspace.activate(0);
+            else if (b === Clutter.BUTTON_SECONDARY) this._openThumbnailMenu(thumb, entry.workspace);
             return Clutter.EVENT_STOP;
         });
 
-        if (!direct) {
-            const overflow = UI.createOverflowButton(windows.length);
-            overflow.connect('clicked', () => this._commands.showWorkspaceWindows(index));
-            box.add_child(overflow);
-            return thumb;
-        }
-
-        const iconSize = s.get_int('icon-size');
-        for (const w of windows) {
-            const key = `${w.get_id()}:${index}`;
-            let ctrl = this._controllers.get(key);
-
-            if (ctrl?.stale) {
-                ctrl.destroy();
-                this._controllers.delete(key);
-                ctrl = undefined;
-            }
-
-            if (ctrl) {
-                box.add_child(ctrl.actor);
-                ctrl.setStrip(strip);
-            } else {
-                const { actor, icon } = UI.createWindowIconActor(w, iconSize);
-                box.add_child(actor);
-                ctrl = new Interactions.WindowIconController({
-                    window: w, actor, icon, settings: s,
-                    strip,
-                    onRequestRender: () => { ctrl.stale = true; this._queueRender(); },
-                });
-                this._controllers.set(key, ctrl);
-            }
-
-            if (w === _settleWindow) { _settleWindow = null; this._settleActor = ctrl.actor; }
-        }
-        return thumb;
+        return shell;
     }
 
+    // ==================== GROUPING ====================
+    _isCollapsed(entry, group) {
+        if (group.count < 2) return false;
+        if (this._settings.get_boolean('group-apps-always')) return true;
+        if (!entry.direct) return true;
+        return this._collapsed.has(group.key);
+    }
+
+    _isGrouped(entry) {
+        return entry.groups.some(g => this._isCollapsed(entry, g));
+    }
+
+    _iconSize() {
+        const base = this._settings.get_int('icon-size');
+        const dense = this._entries.some(e => this._isGrouped(e.entry));
+        if (!dense) return base;
+
+        const rung = Math.min(this._denseStep, SIZE_LADDER.length - 1);
+        return Math.max(SIZE_FLOOR, Math.round(base * SIZE_LADDER[rung]));
+    }
+
+    _widthBudget() {
+        const panelW = Main.panel.width > 0 ? Main.panel.width : Model.screenWidth;
+        const [x] = this.get_transformed_position();
+        const left = Number.isFinite(x) ? Math.max(0, x) : 0;
+
+        let reserve = 28;
+        const rb = Main.panel._rightBox;
+        if (rb && rb.width > 0) reserve += rb.width + 12;
+        else reserve += Math.round(panelW * 0.30);
+
+        return Math.max(200, Math.min(panelW - left - reserve, Math.round(panelW * 0.62)));
+    }
+
+    _naturalWidth() {
+        try { return this._mainBox.get_preferred_width(-1)[1]; }
+        catch (e) { return 0; }
+    }
+
+    _pruneCollapsed(entries) {
+        const valid = new Set();
+        for (const e of entries)
+            for (const g of e.entry.groups)
+                if (g.count > 1) valid.add(g.key);
+        for (const key of [...this._collapsed])
+            if (!valid.has(key)) this._collapsed.delete(key);
+    }
+
+    _collapseCandidates(entries) {
+        if (this._settings.get_boolean('group-apps-always')) return [];
+
+        const activeIdx = Model.WorkspaceManager.get_active_workspace_index();
+        const out = [];
+        for (const e of entries) {
+            if (!e.entry.direct) continue;
+            for (const g of e.entry.groups)
+                if (g.count > 1) out.push({ key: g.key, count: g.count, wsIndex: e.entry.index });
+        }
+        out.sort((a, b) =>
+            b.count - a.count ||
+            (Number(b.wsIndex === activeIdx) - Number(a.wsIndex === activeIdx)) ||
+            a.wsIndex - b.wsIndex);
+        return out;
+    }
+
+    _solveGrouping() {
+        const budget = this._widthBudget();
+        this._pruneCollapsed(this._entries);
+        const candidates = this._collapseCandidates(this._entries);
+
+        this._denseStep = 0;
+        this._renderContents();
+
+        let steps = 0;
+
+        if (this._naturalWidth() > budget) {
+            for (const c of candidates) {
+                if (steps++ >= MAX_SOLVE_STEPS) break;
+                if (this._collapsed.has(c.key)) continue;
+                this._collapsed.add(c.key);
+                this._renderContents();
+                if (this._naturalWidth() <= budget) break;
+            }
+        } else {
+            const reverted = [...candidates].reverse();
+            for (const c of reverted) {
+                if (steps++ >= MAX_SOLVE_STEPS) break;
+                if (!this._collapsed.has(c.key)) continue;
+                this._collapsed.delete(c.key);
+                this._renderContents();
+                if (budget - this._naturalWidth() < SLACK_PX) {
+                    this._collapsed.add(c.key);
+                    this._renderContents();
+                    break;
+                }
+            }
+        }
+
+        let rungs = 0;
+        while (this._naturalWidth() > budget &&
+            this._denseStep < SIZE_LADDER.length - 1 &&
+            rungs++ < SIZE_LADDER.length) {
+            this._denseStep++;
+            this._renderContents();
+        }
+
+        this._thumbsBox.style_class = this._collapsed.size > 0
+            ? 'workspace-indicator-class grouped-layout'
+            : 'workspace-indicator-class';
+    }
+
+    // ==================== CONTENTS ====================
+    _renderContents() {
+        for (const ctrl of this._controllers.values()) {
+            const parent = ctrl.actor.get_parent();
+            if (parent) parent.remove_child(ctrl.actor);
+        }
+        this._groupIcons.clear();
+
+        const sz = this._iconSize();
+        const dense = this._entries.some(e => this._isGrouped(e.entry));
+
+        for (const shell of this._entries) {
+            const { entry, content } = shell;
+            content.destroy_all_children();
+            content.spacing = dense ? 3 : 6;
+
+            if (!entry.windows.length) {
+                content.add_child(new St.Label({ style_class: 'ws-empty', text: 'empty' }));
+                continue;
+            }
+
+            for (const group of entry.groups) {
+                if (this._isCollapsed(entry, group)) {
+                    content.add_child(this._buildGroupIcon(shell, group, sz));
+                    continue;
+                }
+                group.windows.forEach(w =>
+                    content.add_child(this._windowActor(w, entry.index, sz, shell.strip)));
+            }
+        }
+    }
+
+    _windowActor(w, wsIndex, iconSize, strip) {
+        const key = `${w.get_id()}:${wsIndex}`;
+        let ctrl = this._controllers.get(key);
+
+        if (ctrl?.stale) {
+            ctrl.destroy();
+            this._controllers.delete(key);
+            ctrl = undefined;
+        }
+
+        if (ctrl) {
+            ctrl.setStrip(strip);
+        } else {
+            const { actor, icon } = UI.createWindowIconActor(w, iconSize);
+            ctrl = new Interactions.WindowIconController({
+                window: w, actor, icon,
+                settings: this._settings,
+                strip,
+                onRequestRender: () => { ctrl.stale = true; this._queueRender(); },
+            });
+            this._controllers.set(key, ctrl);
+        }
+
+        if (w === _settleWindow) { _settleWindow = null; this._settleActor = ctrl.actor; }
+        return ctrl.actor;
+    }
+
+    _buildGroupIcon(shell, group, iconSize) {
+        const { entry } = shell;
+        const { actor } = UI.createGroupButton({
+            gicon: UI.getWindowAppIcon(group.windows[0]),
+            count: group.count,
+            size: iconSize,
+        });
+        actor.add_style_class_name('window-preview-icon');
+        actor.accessible_name = `${group.appName}, ${group.count} windows`;
+        actor.set_name(`group-${group.key}`);
+
+        this._groupIcons.set(actor, { shell, entry, group });
+
+        actor.connect('clicked', () => this._openGroupSelector(entry, group));
+
+        actor._delegate = {
+            handleDragOver: source => {
+                this._dwellGroup(shell, group, actor);
+                return shell.strip.handleDragOver(source);
+            },
+            acceptDrop: (source, dragActor) => {
+                this._cancelDwell();
+                this._flyout.close(true);
+                return shell.strip.acceptDrop(source, dragActor);
+            },
+        };
+
+        return actor;
+    }
+
+    _openGroupSelector(entry, group) {
+        if (this._dragActive()) return;
+        this._flyout.close(true);
+        this._commands.showGroupWindows?.(entry.index, group.appId);
+    }
+
+    // ==================== FLYOUT ====================
+    _dwellGroup(shell, group, anchor) {
+        if (group.count < 2) {
+            journal(`[flyout] dwell skipped: ${group.appName} count=${group.count}`);
+            return;
+        }
+        if (this._flyout.isOpen && this._flyout.anchor === anchor) return;
+        if (this._dwellKey === group.key) return;
+
+        journal(`[flyout] dwell armed: ${group.appName} x${group.count} key=${group.key}`);
+        this._cancelDwell();
+        this._dwellKey = group.key;
+        this._dwellId = this._scope.timeout(DWELL_MS, () => {
+            this._dwellId = 0;
+            this._dwellKey = null;
+            const active = this._dragActive();
+            journal(`[flyout] dwell fired: dragActive=${active}`);
+            if (!active) return GLib.SOURCE_REMOVE;
+            this._openFlyout(shell, group, anchor);
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _cancelDwell() {
+        if (this._dwellId) { this._scope.cancel(this._dwellId); this._dwellId = 0; }
+        this._dwellKey = null;
+    }
+
+    _openFlyout(shell, group, anchor, { sticky = false, anchorKey = null, attempt = 0 } = {}) {
+        try {
+            const { entry } = shell;
+            let anchorOnStage = false;
+            try { anchorOnStage = !!anchor.get_stage(); } catch (e) { anchorOnStage = false; }
+            journal(`[flyout] _openFlyout ${group.appName} ws=${entry.index} ` +
+                `sticky=${sticky} attempt=${attempt} ` +
+                `hasStrip=${!!shell.strip} anchorOnStage=${anchorOnStage}`);
+            shell.strip.cancel();
+
+            const items = group.windows.map((w, k) => ({
+                window: w,
+                index: group.indices[k],
+                icon: UI.getWindowAppIcon(w),
+                title: w.get_title() || 'Untitled Window',
+                sub: `${group.appName}`.toUpperCase(),
+                color: UI.colorForApp(group.appName),
+            }));
+            journal(`[flyout] items=${items.length}`);
+
+            const opened = this._flyout.open({
+                anchor,
+                title: `${group.appName.toUpperCase()} · ${group.count} WINDOWS · WS ${entry.index + 1}`,
+                items,
+                onDrop: (source, item) => this._dropIntoGroup(shell, source, item),
+                sticky,
+                anchorKey,
+            });
+
+            // open() refuses anchors whose allocation has not landed yet
+            // (NaN geometry). Retry a few times; a re-render in between
+            // replaces the anchor and the retry aborts itself.
+            if (!opened) {
+                let anchorAlive = false;
+                try { anchorAlive = !!anchor.get_stage(); } catch (e) { anchorAlive = false; }
+                if (attempt < 5 && anchorAlive) {
+                    journal(`[flyout] deferring open — retry ${attempt + 1}/5 in 60ms`);
+                    this._scope.timeout(60, () => {
+                        if (!this._flyout.isOpen)
+                            this._openFlyout(shell, group, anchor,
+                                { sticky, anchorKey, attempt: attempt + 1 });
+                        return GLib.SOURCE_REMOVE;
+                    });
+                } else {
+                    journal(`[flyout] giving up after ${attempt + 1} attempt(s)`);
+                }
+            }
+
+            journal(`[flyout] open() returned, isOpen=${this._flyout.isOpen}`);
+        } catch (e) {
+            journal(`[flyout] _openFlyout THREW: ${e.message}\n${e.stack}`);
+        }
+    }
+
+    /**
+     * Flexible group lookup for the DBus entry point. The model appId is
+     * the resolved Shell.App id (e.g. "Alacritty.desktop"); "wm:<name>" is
+     * only the fallback when the tracker has not resolved the window yet,
+     * so callers must not have to know which one applies. Match order:
+     * exact appId (case-insensitive) -> exact display name -> appId
+     * substring -> display-name substring/containment. '' selects the
+     * largest badged group on the workspace.
+     */
+    _findGroup(entry, wanted) {
+        const q = (wanted ?? '').trim().toLowerCase();
+        if (!q) {
+            return [...entry.groups].filter(g => g.count > 1)
+                .sort((a, b) => b.count - a.count)[0] ?? null;
+        }
+        const bare = q.startsWith('wm:') ? q.slice(3).trim() : q;
+        const hit = pred => entry.groups.find(pred) ?? null;
+
+        let g = hit(x => x.appId.toLowerCase() === q);
+        g ??= hit(x => x.appName.toLowerCase() === bare);
+        g ??= hit(x => x.appId.toLowerCase().includes(bare));
+        g ??= hit(x => x.appName.toLowerCase().includes(bare) ||
+            bare.includes(x.appName.toLowerCase()));
+        return g;
+    }
+
+    /**
+     * DBus entry point: open (or close) the group flyout without a drag.
+     * Sticky: no pointer watchdog — stays open until toggled again,
+     * CloseFlyout, a row click, or it is re-anchored across re-renders.
+     * Toggling a different group while one is open switches the anchor.
+     */
+    _toggleGroupFlyout(workspaceIndex, appId = '') {
+        try {
+            if (this._dragActive()) {
+                journal('[flyout.dbus] rejected: drag active');
+                return false;
+            }
+
+            const entry = Model.buildModel().workspaces[workspaceIndex];
+            if (!entry) {
+                journal(`[flyout.dbus] no workspace ${workspaceIndex}`);
+                return false;
+            }
+
+            const group = this._findGroup(entry, appId);
+            if (!group) {
+                // List what IS there so the caller can pass a valid id.
+                journal(`[flyout.dbus] no group matching "${appId}" on ws ${workspaceIndex}; available: ` +
+                    entry.groups.map(g => `${g.appId}(${g.appName} x${g.count})`).join(', '));
+                return false;
+            }
+            if (group.count < 2) {
+                journal(`[flyout.dbus] ${group.appName} has ${group.count} window(s) — ` +
+                    `the flyout needs a badged group (2+)`);
+                return false;
+            }
+
+            const key = `${workspaceIndex}::${group.appId}`;
+            if (this._flyout.isOpen && this._flyout.anchorKey === key) {
+                journal(`[flyout.dbus] toggle off (${key})`);
+                this._closeGroupFlyout();
+                return false;
+            }
+
+            let anchor = null, shell = null;
+            for (const [actor, info] of this._groupIcons) {
+                if (info.group.key === group.key) { anchor = actor; shell = info.shell; break; }
+            }
+            if (!anchor) {
+                // Group rendered expanded (one icon per window): anchor to
+                // the app's first window icon instead of refusing.
+                const ctrl = this._controllers.get(
+                    `${group.windows[0].get_id()}:${entry.index}`);
+                if (ctrl) {
+                    anchor = ctrl.actor;
+                    shell = this._entries.find(s => s.entry.index === entry.index) ?? null;
+                    journal('[flyout.dbus] group not collapsed; anchoring to window icon');
+                }
+            }
+            if (!anchor || !shell) {
+                journal(`[flyout.dbus] no anchor actor for ${group.key}`);
+                return false;
+            }
+
+            journal(`[flyout.dbus] toggle on ${group.appName} x${group.count} ws=${entry.index} ` +
+                `appId=${group.appId}`);
+            this._openFlyout(shell, group, anchor, { sticky: true, anchorKey: key });
+            if (this._flyout.isOpen) {
+                // Remember the raw request so re-renders can re-resolve it.
+                this._stickyRequest = { workspaceIndex, appId };
+                return true;
+            }
+            return false;
+        } catch (e) {
+            journal(`[flyout.dbus] THREW: ${e.message}\n${e.stack}`);
+            return false;
+        }
+    }
+
+    _closeGroupFlyout() {
+        this._stickyRequest = null;
+        if (!this._flyout.isOpen) { journal('[flyout.dbus] close: not open'); return false; }
+        journal('[flyout.dbus] close');
+        this._flyout.close(true);
+        return true;
+    }
+
+    _dropIntoGroup(shell, source, item) {
+        const { entry } = shell;
+        const win = source?._dragPayload?.window;
+        if (!win) return false;
+
+        const sameWs = win.get_workspace() === entry.workspace;
+        Model.placeWindow(win, entry.workspace, item ? item.index : null);
+
+        if (!sameWs) {
+            const monitorIndex = Main.layoutManager.findIndexForActor(shell.actor);
+            if (monitorIndex !== win.get_monitor()) win.move_to_monitor(monitorIndex);
+            win.change_workspace(entry.workspace);
+        }
+
+        _settleWindow = win;
+        Model.setIntent({ drag: null, hintWs: null });
+        return true;
+    }
+
+    // ==================== EXTERNAL DRAG ====================
+    _onExternalChanged(state) {
+        if (state) {
+            if (this._extPollId) return;
+            this._startExternalPoll();
+        } else {
+            this._stopExternalPoll(true);
+        }
+    }
+
+    _stopExternalPoll(teardown) {
+        if (this._extPollId) { this._scope.cancel(this._extPollId); this._extPollId = 0; }
+        if (this._geoRelogId) { this._scope.cancel(this._geoRelogId); this._geoRelogId = 0; }
+        if (!teardown) return;
+
+        this._cancelExtRow();
+        this._cancelExtWorkspace();
+        this._cancelDwell();
+        this._flyout?.close(true);
+        this._restoreExternalMaximize();
+
+        this._extRowKey = null;
+        this._extWsKey = null;
+        this._extGroupKey = null;
+
+        Model.setIntent({ hintWs: null });
+        this._queueRender();
+    }
+
+    _startExternalPoll() {
+        this._cancelDwell();
+        this._flyout.close(true);
+
+        this._extRowKey = null;
+        this._extMaximized = null;
+        this._extSawButton = false;
+        this._extWsKey = null;
+        this._extGroupKey = null;
+        this._extLogAt = 0;
+        if (this._geoRelogId) { this._scope.cancel(this._geoRelogId); this._geoRelogId = 0; }
+
+        journal('[ext] poll START');
+        this._logGroupIcons();
+
+        if (this._extPollId) return;
+        this._extPollId = this._scope.timeout(EXT_TICK_MS, () => this._externalTick());
+    }
+
+    _logGroupIcons(attempt = 0) {
+        journal(`[ext] groupIcons=${this._groupIcons.size}`);
+
+        let pending = false;
+        for (const [actor, info] of this._groupIcons) {
+            const [x, y] = actor.get_transformed_position();
+            const [w, h] = actor.get_transformed_size();
+            const ready = [x, y, w, h].every(Number.isFinite);
+            if (!ready) pending = true;
+
+            // get_transformed_*() return NaN until the actor has been
+            // allocated (next stage paint) — visible/onStage stay true,
+            // which is why the old line looked contradictory.
+            journal(`[ext]   group ${info.group.appName} x${info.group.count} ` +
+                `pos=${fmtNum(x)},${fmtNum(y)} size=${fmtNum(w)}x${fmtNum(h)} ` +
+                `visible=${actor.visible} mapped=${actor.is_mapped()} onStage=${!!actor.get_stage()}`);
+
+            if (!ready) continue;   // ancestor chain is noise until allocation lands
+
+            let a = actor;
+            let depth = 0;
+            while (a && depth++ < 12) {
+                let line;
+                try {
+                    const [px, py] = a.get_transformed_position();
+                    const [aw, ah] = a.get_size();
+                    line = `[ext]     ${a.constructor.name}` +
+                        `${a.name ? `(${a.name})` : ''} ` +
+                        `pos=${fmtNum(px)},${fmtNum(py)} size=${fmtNum(aw)}x${fmtNum(ah)} ` +
+                        `mapped=${a.is_mapped()} scale=${a.scale_x},${a.scale_y}`;
+                } catch (e) {
+                    line = `[ext]     ${a.constructor?.name} threw: ${e.message}`;
+                }
+                journal(line);
+                a = a.get_parent();
+            }
+        }
+
+        if (pending && attempt < 3) {
+            // Re-log once the frame has been allocated so the journal gets
+            // real geometry instead of a NaN line.
+            journal(`[ext] geometry pending — re-logging in 120ms (${attempt + 1}/3)`);
+            if (this._geoRelogId) this._scope.cancel(this._geoRelogId);
+            this._geoRelogId = this._scope.timeout(120, () => {
+                this._geoRelogId = 0;
+                if (externalDrag.active) this._logGroupIcons(attempt + 1);
+                return GLib.SOURCE_REMOVE;
+            });
+        }
+    }
+
+    _externalTick() {
+        try {
+            return this._externalTickInner();
+        } catch (e) {
+            journal(`[ext] tick THREW: ${e.message}\n${e.stack}`);
+            return GLib.SOURCE_CONTINUE;
+        }
+    }
+
+    _shellForWindow(window) {
+        const ws = window.get_workspace();
+        const idx = ws ? ws.index()
+            : Model.WorkspaceManager.get_active_workspace_index();
+        return this._entries.find(s => s.entry.index === idx)
+            ?? this._entries[0] ?? null;
+    }
+
+    _externalTickInner() {
+        if (!externalDrag.active) {
+            this._extPollId = 0;
+            this._stopExternalPoll(true);
+            return GLib.SOURCE_REMOVE;
+        }
+
+        const [x, y, mods] = global.get_pointer();
+
+        if (y < Main.panel.height + 4) {
+            journal(`[ext] PANEL x=${x} y=${y} ` +
+                `overGroup=${!!this._groupIconAt(x, y)} ` +
+                `overWinIcon=${!!this._windowIconAt(x, y)} ` +
+                `overThumb=${!!this._thumbnailAt(x, y)}`);
+        }
+
+        const nowMs = GLib.get_monotonic_time() / 1000;
+        if (nowMs - (this._extLogAt ?? 0) > 500) {
+            this._extLogAt = nowMs;
+
+            const picked = global.stage.get_actor_at_pos(
+                Clutter.PickMode.REACTIVE, x, y);
+
+            journal(`[ext] tick x=${x} y=${y} mods=${mods} held=${buttonHeld(mods)} ` +
+                `sawButton=${this._extSawButton} ` +
+                `flyoutOpen=${this._flyout.isOpen} sticky=${this._flyout.sticky} ` +
+                `overGroup=${!!this._groupIconAt(x, y)} ` +
+                `overWinIcon=${!!this._windowIconAt(x, y)} ` +
+                `overThumb=${!!this._thumbnailAt(x, y)} ` +
+                `picked=${picked?.constructor?.name}:${picked?.name ?? ''}`);
+        }
+
+        if (buttonHeld(mods)) this._extSawButton = true;
+        else if (this._extSawButton) {
+            journal('[ext] button released -> end');
+            externalDrag.end('button-released');
+            return GLib.SOURCE_REMOVE;
+        }
+
+        // (1) Flyout is up: hover a row to preview that window, leave to
+        // restore. The flyout is NOT closed on preview — the user can
+        // move between rows to compare, or drag back out to cancel.
+        if (this._flyout.isOpen) {
+            const hit = this._flyout.pointerAt(x, y);
+            if (hit?.item?.window) this._trackExternalRow(hit.item.window);
+            else this._cancelExtRow();
+            return GLib.SOURCE_CONTINUE;
+        }
+
+        // (2) A badged app group — geometric hit test, so this works even
+        // when stage picking is unreliable during an external drag.
+        const group = this._groupIconAt(x, y);
+        if (group) {
+            if (this._extGroupKey !== group.group.key) {
+                this._extGroupKey = group.group.key;
+                const [gx, gy] = group.actor.get_transformed_position();
+                journal(`[ext] group hit ${group.group.appName} x${group.group.count} ` +
+                    `key=${group.group.key} anchorPos=${fmtNum(gx)},${fmtNum(gy)}`);
+            }
+            this._dwellGroup(group.shell, group.group, group.actor);
+            this._cancelExtRow();
+            return GLib.SOURCE_CONTINUE;
+        }
+        if (this._extGroupKey) {
+            this._extGroupKey = null;
+            journal('[ext] group left');
+        }
+
+        // (3) A plain window icon — dwell to open the flyout when the app
+        // has siblings on this workspace, otherwise fall back to the
+        // classic auto-activate reveal.
+        const ctrl = this._windowIconAt(x, y);
+        if (ctrl) {
+            const shell = this._shellForWindow(ctrl.window);
+            const ownerGroup = shell?.entry.groups
+                .find(g => g.windows.includes(ctrl.window));
+            if (shell && ownerGroup && ownerGroup.count >= 2) {
+                this._dwellGroup(shell, ownerGroup, ctrl.actor);
+            } else {
+                ctrl.notifyExternalDrag();
+                this._cancelDwell();
+            }
+            this._cancelExtRow();
+            return GLib.SOURCE_CONTINUE;
+        }
+
+        this._cancelDwell();
+
+        // (4) A workspace thumbnail
+        this._maybeDwellWorkspace(x, y);
+        return GLib.SOURCE_CONTINUE;
+    }
+
+    _trackExternalRow(win) {
+        const key = String(win.get_id());
+        if (this._extRowKey === key) return;
+
+        this._extRowKey = key;
+        this._cancelExtRowTimer();
+
+        // Switching rows: restore whatever we last maximized before
+        // scheduling the new preview. Keep the flyout open.
+        if (this._extMaximized && this._extMaximized !== win)
+            this._restoreExternalMaximize();
+
+        this._extRowTimer = this._scope.timeout(EXT_PREVIEW_MS, () => {
+            this._extRowTimer = 0;
+            this._previewExternalWindow(win);
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _cancelExtRow() {
+        this._extRowKey = null;
+        this._cancelExtRowTimer();
+        this._restoreExternalMaximize();
+    }
+
+    _cancelExtRowTimer() {
+        if (this._extRowTimer) { this._scope.cancel(this._extRowTimer); this._extRowTimer = 0; }
+    }
+
+    /**
+     * Hover-to-preview: mirror WindowSearchOverlay._revealWindow.
+     * Maximizes and focuses the target so the foreign drag has an
+     * obvious drop target, but leaves the flyout open so the pointer
+     * can move to another row without re-dwelling on the badge.
+     */
+    _previewExternalWindow(win) {
+        try {
+            const time = global.get_current_time();
+            if (win.minimized) win.unminimize();
+            if (win.get_maximized() !== Meta.MaximizeFlags.BOTH) {
+                win.maximize(Meta.MaximizeFlags.BOTH);
+                this._extMaximized = win;
+            }
+            const ws = win.get_workspace();
+            if (ws) ws.activate_with_focus(win, time);
+            else win.activate(time);
+            journal(`[ext] preview ${win.get_id()} "${win.get_title()}"`);
+        } catch (e) {
+            journal(`[WorkspaceIndicator] preview failed: ${e.message}`);
+        }
+    }
+
+    _restoreExternalMaximize() {
+        const win = this._extMaximized;
+        this._extMaximized = null;
+        if (!win) return;
+        try {
+            if (win.get_maximized() === Meta.MaximizeFlags.BOTH)
+                win.unmaximize(Meta.MaximizeFlags.BOTH);
+            journal(`[ext] restore ${win.get_id()} "${win.get_title()}"`);
+        } catch (e) { /* window gone */ }
+    }
+
+    _maybeDwellWorkspace(x, y) {
+        const thumb = this._thumbnailAt(x, y);
+        if (!thumb || thumb.workspace === Model.WorkspaceManager.get_active_workspace()) {
+            this._cancelExtWorkspace();
+            return;
+        }
+
+        const key = `ws:${thumb.index}`;
+        if (this._extWsKey !== key) {
+            this._extWsKey = key;
+            this._cancelExtWorkspace();
+            this._extWsKey = key;
+            this._extWsTimer = this._scope.timeout(EXT_WS_DWELL_MS, () => {
+                this._extWsTimer = 0;
+                if (!externalDrag.active) return GLib.SOURCE_REMOVE;
+                const ws = Model.WorkspaceManager.get_workspace_by_index(thumb.index);
+                try { ws?.activate(global.get_current_time()); } catch (e) { /* gone */ }
+                return GLib.SOURCE_REMOVE;
+            });
+        }
+
+        Model.setIntent({ hintWs: thumb.index });
+    }
+
+    _cancelExtWorkspace() {
+        if (this._extWsTimer) { this._scope.cancel(this._extWsTimer); this._extWsTimer = 0; }
+        this._extWsKey = null;
+    }
+
+    // ---------- hit testing ----------
+    // Geometric tests over our own tracked actors instead of
+    // global.stage.get_actor_at_pos(): picking can be intercepted by
+    // drag-feedback chrome during an external drag, and unallocated actors
+    // pick as nothing. `_actorHit` also rejects NaN geometry for free —
+    // every comparison against NaN is false.
+    _actorHit(x, y, actor) {
+        if (!actor || !actor.get_stage() || !actor.visible) return false;
+        const [ax, ay] = actor.get_transformed_position();
+        const [aw, ah] = actor.get_transformed_size();
+        return x >= ax && x <= ax + aw && y >= ay && y <= ay + ah;
+    }
+
+    _groupIconAt(x, y) {
+        for (const [actor, info] of this._groupIcons)
+            if (this._actorHit(x, y, actor)) return { ...info, actor };
+        return null;
+    }
+
+    _windowIconAt(x, y) {
+        for (const ctrl of this._controllers.values())
+            if (this._actorHit(x, y, ctrl.actor)) return ctrl;
+        return null;
+    }
+
+    // ==================== HINTS / MENUS / DROPS ====================
     _syncHint() {
         const s = this._settings;
         const wsIndex = Model.intent.hintWs;
@@ -786,26 +1729,26 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         });
     }
 
-    _dropOnWorkspace(thumb, workspace, direct, source, dropIndex, dragActor) {
+    _dropOnWorkspace(thumb, entry, source, index, dragActor) {
         Model.setIntent({ hintWs: null });
 
         const win = source?._dragPayload?.window ?? null;
         if (!win) return true;
 
-        const sameWs = win.get_workspace() === workspace;
+        const sameWs = win.get_workspace() === entry.workspace;
 
         if (dragActor && dragActor !== source._actor) {
             dragActor.get_parent()?.remove_child(dragActor);
             try { dragActor.destroy(); } catch (e) { /* ignore */ }
         }
 
-        if (sameWs && !direct) { Model.setIntent({ drag: null }); return true; }
+        if (sameWs && index === null) { Model.setIntent({ drag: null }); return true; }
 
-        Model.placeWindow(win, workspace, direct ? dropIndex : null);
+        Model.placeWindow(win, entry.workspace, index);
         if (!sameWs) {
             const monitorIndex = Main.layoutManager.findIndexForActor(thumb);
             if (monitorIndex !== win.get_monitor()) win.move_to_monitor(monitorIndex);
-            win.change_workspace(workspace);
+            win.change_workspace(entry.workspace);
         }
         _settleWindow = win;
         Model.setIntent({ drag: null });
@@ -816,9 +1759,10 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         if (this._leavePollId) return;
         this._leavePollId = this._scope.timeout(100, () => {
             const [px, py, mods] = global.get_pointer();
-            const held = (mods & Clutter.ModifierType.BUTTON1_MASK) !== 0;
+            const held = buttonHeld(mods) || externalDrag.active;
             if (!held || !this._thumbnailAt(px, py)) {
                 this._leavePollId = 0;
+                this._cancelDwell();
                 Model.setIntent({ hintWs: null });
                 this._ghost.clear();
                 return GLib.SOURCE_REMOVE;
@@ -841,13 +1785,22 @@ export class WorkspaceIndicator extends PanelMenu.Button {
 
     // ==================== LIFECYCLE ====================
     destroy() {
+        this._cancelDwell();
+        this._stopExternalPoll(true);
+        this._extUnsub?.();
+        this._extUnsub = null;
+
         this._renderCoalescer.cancel();
         Model.onIntentChange(null);
         Model.onWorldChange(null);
         Model.resetIntent();
 
+        this._flyout?.destroy();
+        this._flyout = null;
+
         for (const ctrl of this._controllers.values()) ctrl.destroy();
         this._controllers.clear();
+        this._groupIcons.clear();
 
         this._ghost.clear();
         this._ghost = null;
@@ -999,37 +1952,30 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const ease = t => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
 
 // ==================== DISCRETE FOCUS STRIP ====================
+// Prototype neighborOpacity(): the selection is fully opaque, the first
+// neighbour steps down, the second is gone by x = 2.8. No scaling — rows
+// keep one uniform size so the strip reads as beads on a wire.
 function neighborOpacity(x) {
-    if (x <= 1) return 0.95;
-    if (x <= 2) return 0.95 - 0.20 * (x - 1);        // x=2: 0.75
-    return Math.max(0, 0.75 * (1 - (x - 2) / 0.8));  // gone by x=2.8
+    if (x <= 1) return 0.92;
+    if (x <= 2) return 0.92 - 0.40 * (x - 1);          // x = 2 -> 0.52
+    return Math.max(0, 0.52 * (1 - (x - 2) / 0.8));    // gone by x = 2.8
 }
 
-// ==================== RAIL TICK COLORS ====================
-const SOLARIZED = [
-    '#268bd2', '#cb4b16', '#859900', '#d33682',
-    '#2aa198', '#b58900', '#6c71c4', '#dc322f',
-];
-
-function appColor(appName) {
-    let h = 0;
-    for (let i = 0; i < appName.length; i++) h = (h * 31 + appName.charCodeAt(i)) | 0;
-    return SOLARIZED[Math.abs(h) % SOLARIZED.length];
-}
+// Rail ticks borrow the indicator's palette so an app looks the same in
+// the panel and in the scrubber.
+const appColor = name => UI.colorForApp(name);
 
 // ==================== LAYOUT ====================
 // Three independent layout functions, one per region of the screen. Each
 // region owns its geometry exclusively; no cross-references except through
-// derived fields. The band never crosses the rail because the rail reserves
-// a `gutter` on the right and the band is inset by that gutter on both sides.
+// derived fields. The rail reserves a `gutter` on the right and the band is
+// inset by that gutter on both sides, so the band never crosses the rail.
 //
 // The type scale is one number — `overlay.centerLabelSize` — and every text
-// size in the selector derives from it. Bumping one constant grows the whole
-// hierarchy proportionally.
+// size in the selector derives from it.
 
 function computeOverlayLayout(monitor) {
     const W = monitor.width, H = monitor.height;
-    // The single number that drives the whole typographic hierarchy.
     const centerLabelSize = Math.max(40, Math.min(92, Math.round(H * 0.072)));
     return {
         x: monitor.x, y: monitor.y, width: W, height: H,
@@ -1046,15 +1992,13 @@ function computeRailLayout(overlay) {
         x: overlay.width - margin - width,
         y: Math.round((overlay.height - height) / 2),
         width, height, margin, pad,
-        // Total horizontal budget the rail reserves from the right edge.
-        // computeBandLayout uses this to keep clear of the rail.
         gutter: margin + width + margin,
     };
 }
 
 function computeBandLayout(overlay, rail) {
     const selectedHeight = Math.round(overlay.centerLabelSize * 1.95);
-    const searchHeight = 104;
+    const searchHeight = Math.round(overlay.centerLabelSize * 1.1) + 24;
     const height = selectedHeight + searchHeight + 40;
     // Symmetric gutters: left inset equals right inset (= rail.gutter), so
     // the band is centered on the overlay but never touches the rail.
@@ -1083,7 +2027,7 @@ function computeRowLayout(overlay, band) {
     };
 }
 
-// ==================== launcher layout (unchanged) ====================
+// ==================== launcher layout ====================
 function computeLauncherLayout(monitor) {
     const margin = Math.max(24, Math.round(monitor.height * 0.04));
     const searchHeight = 160;
@@ -1375,16 +2319,21 @@ export class WindowSearchOverlay extends SearchOverlayBase {
 
         const search = UI.createSearchField({ width: BAND.searchWidth, hint: 'Type to search…' });
         this._wireEntry(search.entry);
+
+        // Prototype: bare underline field sized off the band, no magnifier.
+        search.entry.set_style(`font-size: ${Math.round(OV.centerLabelSize * 0.55)}px;`);
+        if (search.entry.primary_icon) search.entry.primary_icon.visible = false;
         this._searchRoot = search.actor;
-        band.add_child(new St.Bin({ x_expand: true, x_align: Clutter.ActorAlign.CENTER, child: search.actor }));
+
+        band.add_child(new St.Bin({
+            x_expand: true, x_align: Clutter.ActorAlign.CENTER, child: search.actor,
+        }));
 
         const hint = UI.createSelectorHint(OV);
         this._hintLabel = hint.label;
 
-        for (const actor of [
-            this._tint, this._listLayer,
-            band, hint.actor,
-        ]) this._container.add_child(actor);
+        for (const actor of [this._tint, this._listLayer, band, hint.actor])
+            this._container.add_child(actor);
 
         this._buildRail();
 
@@ -1636,14 +2585,6 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         const mid = (a + b) / 2;
         const half = (b - a) / 2;
 
-        const SECOND_NEIGHBOR_SCALE = 0.62 / 0.88;
-        const scaleAt = (x) => {
-            if (x <= 1.5) return 1;
-            if (x >= 2.0) return SECOND_NEIGHBOR_SCALE;
-            const t = (x - 1.5) / 0.5;
-            return 1 - (1 - SECOND_NEIGHBOR_SCALE) * ease(t);
-        };
-
         this._rows.forEach((row, i) => {
             const d = i - pos;
             const x = Math.abs(d);
@@ -1652,6 +2593,8 @@ export class WindowSearchOverlay extends SearchOverlayBase {
 
             let c, op;
             if (x < 1) {
+                // Sliding into the middle: drifts toward the big title and
+                // fades out as it arrives.
                 c = mid + d * half;
                 op = neighborOpacity(1) * ease((x - 0.2) / 0.8);
             } else {
@@ -1663,9 +2606,9 @@ export class WindowSearchOverlay extends SearchOverlayBase {
             row.show();
             row.set_position(0, Math.round(c - ROW.slotH / 2));
             row.set_opacity(Math.round(op * 255));
+            // Uniform size: no fisheye, no per-row scaling.
             row.set_pivot_point(0.5, 0.5);
-            const s = scaleAt(x);
-            row.set_scale(s, s);
+            row.set_scale(1, 1);
             row.set_reactive(x >= 1);
         });
 
@@ -1830,8 +2773,13 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         } catch (e) { /* window gone */ }
     }
 
+    // Prototype: first Esc clears the query, second cancels the overlay.
     _handleEscape() {
         if (this._closed || this._closing) return;
+        if (this._entry.get_text().length > 0) {
+            this._entry.set_text('');
+            return;
+        }
         this._cancelled = true;
         this._container.add_style_class_name('selector-cancelling');
         GLib.timeout_add(GLib.PRIORITY_DEFAULT, 180, () => {
@@ -1849,8 +2797,42 @@ export class WindowSearchOverlay extends SearchOverlayBase {
     }
 
     _handleExtraKeys(event, symbol) {
-        if (symbol === Clutter.KEY_Page_Down) { this._selectIndex(Math.min(this._selectedIndex + 5, this._results.length - 1)); return Clutter.EVENT_STOP; }
-        if (symbol === Clutter.KEY_Page_Up) { this._selectIndex(Math.max(this._selectedIndex - 5, 0)); return Clutter.EVENT_STOP; }
+        const inEntry = global.stage.get_key_focus() === this._entry.clutter_text;
+        const state = event.get_state();
+
+        // Prototype: typing anywhere focuses the field and types into it.
+        if (!inEntry && !(state & (Clutter.ModifierType.CONTROL_MASK |
+            Clutter.ModifierType.MOD1_MASK | Clutter.ModifierType.SUPER_MASK))) {
+            if (symbol === Clutter.KEY_BackSpace && this._entry.get_text().length > 0) {
+                this._entry.grab_key_focus();
+                this._entry.clutter_text.delete_text(this._entry.get_text().length - 1, -1);
+                return Clutter.EVENT_STOP;
+            }
+            const uc = event.get_key_unicode();
+            const code = typeof uc === 'string' ? uc.codePointAt(0) : uc;
+            if (code && code >= 0x20 && code !== 0x7f) {
+                this._entry.grab_key_focus();
+                this._entry.clutter_text.insert_unichar(code);
+                return Clutter.EVENT_STOP;
+            }
+        }
+
+        if (symbol === Clutter.KEY_Page_Down) {
+            this._selectIndex(Math.min(this._selectedIndex + 5, this._results.length - 1));
+            return Clutter.EVENT_STOP;
+        }
+        if (symbol === Clutter.KEY_Page_Up) {
+            this._selectIndex(Math.max(this._selectedIndex - 5, 0));
+            return Clutter.EVENT_STOP;
+        }
+        if (symbol === Clutter.KEY_Home && !inEntry) {
+            this._selectIndex(0);
+            return Clutter.EVENT_STOP;
+        }
+        if (symbol === Clutter.KEY_End && !inEntry) {
+            this._selectIndex(this._results.length - 1);
+            return Clutter.EVENT_STOP;
+        }
         return undefined;
     }
 
@@ -2826,9 +3808,18 @@ function createExternalDragAutoActivate(window) {
             id = 0;
             if ((GLib.get_monotonic_time() - lastHover) / 1000 > 500)
                 return GLib.SOURCE_REMOVE;
+
             const win = window;
-            if (win.minimized) win.unminimize();
-            win.get_workspace().activate_with_focus(win, global.get_current_time());
+            try {
+                if (win.minimized) win.unminimize();
+                if (win.get_maximized() !== Meta.MaximizeFlags.BOTH)
+                    win.maximize(Meta.MaximizeFlags.BOTH);
+                const ws = win.get_workspace();
+                if (ws) ws.activate_with_focus(win, global.get_current_time());
+                else win.activate(global.get_current_time());
+            } catch (e) {
+                journal(`[externalAutoActivate] failed: ${e.message}`);
+            }
             return GLib.SOURCE_REMOVE;
         });
     }
@@ -2894,6 +3885,8 @@ export class WindowIconController {
     }
 
     setStrip(strip) { this._strip = strip; }
+
+    notifyExternalDrag() { this._external.notify(); }
 
     destroy() {
         this.forceHide();
@@ -3029,9 +4022,15 @@ export class WindowIconController {
         actor.destroy();
     }
 
+    // Prototype `.ws-ico.focused`: ring + 10px halo + a small lift. St CSS
+    // has no `transform`, so the lift is an actor scale on a centred pivot.
     _syncFocus() {
-        if (this.window.appears_focused) this.actor.add_style_class_name('focused');
+        const on = !!this.window.appears_focused;
+        if (on) this.actor.add_style_class_name('focused');
         else this.actor.remove_style_class_name('focused');
+
+        this.actor.set_pivot_point(0.5, 0.5);
+        this.actor.set_scale(on ? 1.06 : 1, on ? 1.06 : 1);
     }
 
     _onPressed(event) {
@@ -3127,11 +4126,198 @@ export class WindowIconController {
         return false;
     }
 }
+// ===== FILE: ./lib/externalDrag.js =====
+// ===== FILE: ./lib/externalDrag.js =====
+// Drags that originate OUTSIDE the shell (Nautilus, Nemo, Firefox, …) never
+// enter the internal St DND chain, so no `handleDragOver`/`acceptDrop` ever
+// fires on our actors. The only reliable early signal is Meta.Selection's
+// SELECTION_DND owner: an external client claims it when the drag starts and
+// replaces it with a Memory source when the drag ends.
+//
+// This is the same approach as the ExternalDragNotify diagnostic extension:
+// BEGIN/CLEAR come exclusively from the Selection watch. Meta.Dnd's
+// dnd-enter / dnd-leave are late and fire per-stage-entry, not per-drag, so
+// they are hooked as DIAGNOSTICS ONLY — a STAGE-ENTER without a preceding
+// BEGIN means the early signal missed that drag.
+
+import Clutter from 'gi://Clutter';
+import GLib from 'gi://GLib';
+import Meta from 'gi://Meta';
+
+import { createLogger } from '../logger.js';
+const journal = createLogger(import.meta.url);
+
+const DRAG_MAX_MS = 30000;
+
+const TEXT_TYPES = [
+    'text/plain;charset=utf-8', 'UTF8_STRING', 'text/plain', 'STRING', 'TEXT',
+];
+
+function typeName(obj) {
+    if (!obj) return 'null';
+    return obj.constructor?.$gtype?.name ?? obj.constructor?.name ?? 'unknown';
+}
+
+function isMemory(source) {
+    return source instanceof Meta.SelectionSourceMemory || typeName(source).includes('Memory');
+}
+
+function mimesOf(source) {
+    try { return source?.get_mimetypes() ?? []; } catch (e) { return []; }
+}
+
+function classify(mimes) {
+    if (mimes.includes('text/uri-list')) return 'files';
+    if (TEXT_TYPES.some(t => mimes.includes(t))) return 'text';
+    if (mimes.length === 0) return 'unknown';
+    return 'other';
+}
+
+class ExternalDragWatcher {
+    constructor() {
+        this._current = null;
+        this._selection = null;
+        this._selectionId = 0;
+        this._dnd = null;
+        this._dndIds = [];
+        this._listeners = new Set();
+        this._expiryId = 0;
+        this._counter = 0;
+        this._started = false;
+    }
+
+    /** { id, kind, mimes, app, startedAt } or null. */
+    get current() { return this._current; }
+
+    get active() { return this._current !== null; }
+
+    /** cb(state|null) — fired on begin and on end, never in between. */
+    onChanged(cb) {
+        this._listeners.add(cb);
+        return () => this._listeners.delete(cb);
+    }
+
+    init() {
+        if (this._started) return;
+        this._started = true;
+
+        // ---- early signal (state transitions) ----
+        this._selection = global.display.get_selection();
+        if (!this._selection) {
+            journal('[externalDrag] no Meta.Selection — external drags unsupported');
+            return;
+        }
+        this._selectionId = this._selection.connect('owner-changed',
+            (sel, type, source) => this._onOwnerChanged(type, source));
+
+        // ---- late signals (diagnostics only, as in ExternalDragNotify) ----
+        try {
+            this._dnd = global.backend.get_dnd();
+            this._dndIds.push(this._dnd.connect('dnd-enter', () => this._onStageEnter()));
+            this._dndIds.push(this._dnd.connect('dnd-leave', () => {
+                journal(`[externalDrag] STAGE-LEAVE${this._current ? ` #${this._current.id}` : ''}`);
+            }));
+        } catch (e) {
+            journal(`[externalDrag] backend dnd hooks unavailable: ${e.message}`);
+        }
+    }
+
+    _onStageEnter() {
+        if (this._current) {
+            const t = Math.round(GLib.get_monotonic_time() / 1000 - this._current.startedAt);
+            journal(`[externalDrag] STAGE-ENTER #${this._current.id} t=${t}ms`);
+        } else {
+            const app = global.display.focus_window?.get_wm_class() ?? 'unknown';
+            journal(`[externalDrag] STAGE-ENTER LATE-ONLY (no early begin) focus=${app}`);
+        }
+    }
+
+    _onOwnerChanged(type, source) {
+        if (type !== Meta.SelectionType.SELECTION_DND) return;
+
+        if (!source || isMemory(source)) { this.end('owner-cleared'); return; }
+
+        const mimes = mimesOf(source);
+        if (mimes.length === 0) { this.end('no-mimes'); return; }
+
+        const previous = this._current;
+        this._current = {
+            // A new begin without an end keeps the same id; otherwise allocate one.
+            id: previous ? previous.id : ++this._counter,
+            kind: classify(mimes),
+            mimes,
+            app: global.display.focus_window?.get_wm_class() ?? 'unknown',
+            startedAt: GLib.get_monotonic_time() / 1000,
+        };
+
+        journal(`[externalDrag] begin #${this._current.id} kind=${this._current.kind} ` +
+            `app=${this._current.app} src=${typeName(source)} n=${mimes.length}`);
+        if (this._current.kind === 'other')
+            journal(`[externalDrag]   mimes=${mimes.join(',')}`);
+
+        if (this._expiryId) GLib.Source.remove(this._expiryId);
+        this._expiryId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, DRAG_MAX_MS, () => {
+            this._expiryId = 0;
+            this.end('expired');
+            return GLib.SOURCE_REMOVE;
+        });
+
+        this._emit();
+    }
+
+    /** Public so the UI's pointer poll can add backstops. */
+    end(reason) {
+        const drag = this._current;
+        if (!drag) return;
+        this._current = null;
+        if (this._expiryId) { GLib.Source.remove(this._expiryId); this._expiryId = 0; }
+        journal(`[externalDrag] end #${drag.id} via=${reason} ` +
+            `after=${Math.round(GLib.get_monotonic_time() / 1000 - drag.startedAt)}ms`);
+        this._emit();
+    }
+
+    _emit() {
+        for (const cb of [...this._listeners]) {
+            try { cb(this._current); }
+            catch (e) { journal(`[externalDrag] listener failed: ${e.message}`); }
+        }
+    }
+
+    destroy() {
+        this.end('destroyed');
+        this._listeners.clear();
+        if (this._selection && this._selectionId) {
+            try { this._selection.disconnect(this._selectionId); } catch (e) { /* gone */ }
+        }
+        this._selection = null;
+        this._selectionId = 0;
+        if (this._dnd) {
+            for (const id of this._dndIds) {
+                try { this._dnd.disconnect(id); } catch (e) { /* gone */ }
+            }
+        }
+        this._dnd = null;
+        this._dndIds = [];
+        this._started = false;
+    }
+}
+
+export const externalDrag = new ExternalDragWatcher();
+
+export function initExternalDrag() { externalDrag.init(); }
+export function destroyExternalDrag() { externalDrag.destroy(); }
+
+/** True when dragging the primary button is plausible. Used as a backstop. */
+export function buttonHeld(mods) {
+    return (mods & Clutter.ModifierType.BUTTON1_MASK) !== 0;
+}
+// ===== FILE: ./lib/dbusService.js =====
 // ===== FILE: ./lib/dbusService.js =====
 import Gio from 'gi://Gio';
 
 import * as OverlayService from './overlayService.js';
 import * as WorkspaceActions from './workspaceActions.js';
+import * as WorkspaceIndicatorModule from './workspaceIndicator.js';
 
 import { createLogger } from '../logger.js';
 const journal = createLogger(import.meta.url);
@@ -3158,6 +4344,14 @@ const MR_DBUS_IFACE = `
       <method name="CycleWindowsOnWorkspace">
          <arg type="u" direction="in" name="workspace_num"/>
       </method>
+      <method name="ToggleGroupFlyout">
+         <arg type="u" direction="in" name="workspace_num"/>
+         <arg type="s" direction="in" name="app_id"/>
+         <arg type="b" direction="out" name="opened"/>
+      </method>
+      <method name="CloseFlyout">
+         <arg type="b" direction="out" name="was_open"/>
+      </method>
    </interface>
 </node>`;
 
@@ -3170,6 +4364,16 @@ const dbusObject = {
     CycleOverlays() { OverlayService.cycleOverlays(); },
     ToggleWorkspaceWindows(n) { OverlayService.toggleWorkspaceWindows(n); },
     CycleWindowsOnWorkspace(n) { WorkspaceActions.cycleWindowsOnWorkspace(n, 1); },
+
+    // app_id is matched flexibly by the indicator: exact model appId
+    // (e.g. "Alacritty.desktop"), "wm:<name>", the bare name, or '' for
+    // the largest badged group on that workspace.
+    ToggleGroupFlyout(workspaceNum, appId) {
+        return WorkspaceIndicatorModule.toggleGroupFlyout(workspaceNum, appId ?? '');
+    },
+    CloseFlyout() {
+        return WorkspaceIndicatorModule.closeGroupFlyout();
+    },
 };
 
 let _ownerId = 0;
@@ -3202,6 +4406,436 @@ export function initDBusService() {
 export function destroyDBusService() {
     _unexport();
     if (_ownerId) { Gio.bus_unown_name(_ownerId); _ownerId = 0; }
+}
+// ===== FILE: ./lib/flyout.js =====
+// ===== FILE: ./lib/flyout.js =====
+// The prototype's #fan.local-anchored: the same strip, detached from the
+// HUD and parked next to a dock icon. Opened by a dwell during an internal
+// window drag (delegate.handleDragOver) or by the external-drag poll
+// (pointerAt) — both drive the same PagedStrip. Also openable without a
+// drag ("sticky", e.g. from DBus): rows are then click-to-activate and the
+// pointer watchdog is off.
+
+import Clutter from 'gi://Clutter';
+import GLib from 'gi://GLib';
+import Pango from 'gi://Pango';
+import St from 'gi://St';
+
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+
+import * as Scheduling from './scheduling.js';
+import * as Interactions from './interactions.js';
+import * as UI from './ui.js';
+import { PagedStrip, ROW_SLOT, VISIBLE_SLOTS } from './strip.js';
+
+import { createLogger } from '../logger.js';
+const journal = createLogger(import.meta.url);
+
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+// Panel metrics scaled ~2x versus the original 12/28/8 layout.
+const PAD = 20;
+const RAIL_W = 48;
+const GAP = 12;
+const HEAD_H = 30;
+const HEAD_Y = 16;
+
+const ROW_ICON_SIZE = 56;
+const ROW_LABEL_SIZE = 26;
+
+export class GroupFlyout {
+    constructor(settings) {
+        this._settings = settings;
+        this._scope = new Scheduling.Scope();
+        this._open = false;
+        this._items = [];
+        this._anchor = null;
+        this._onDrop = null;
+        this._misses = 0;
+        this._opensDown = true;
+        this._rowsW = 240;
+        this._watchId = 0;
+        this._watchLogAt = 0;
+        this._sticky = false;      // DBus-opened flyout (no drag lifetime)
+        this._anchorKey = null;    // identity used by ToggleGroupFlyout
+
+        this._root = new St.Widget({
+            style_class: 'ws-flyout',
+            reactive: true, track_hover: true, clip_to_allocation: true,
+        });
+        this._root.opacity = 0;
+        this._root.visible = false;
+
+        this._head = new St.Label({ style_class: 'ws-flyout-head', text: '' });
+        this._head.clutter_text.set_ellipsize(Pango.EllipsizeMode.END);
+        this._head.clutter_text.set_line_wrap(false);
+
+        this._rowsEl = new St.Widget({ clip_to_allocation: true });
+        this._upEl = new St.Bin({ style_class: 'ws-flyout-edge ws-flyout-edge-up' });
+        this._downEl = new St.Bin({ style_class: 'ws-flyout-edge ws-flyout-edge-down' });
+        this._rail = UI.createRail();
+
+        this._root.add_child(this._head);
+        this._root.add_child(this._upEl);
+        this._root.add_child(this._downEl);
+        this._root.add_child(this._rail.root);
+        this._root.add_child(this._rowsEl);
+
+        Main.layoutManager.addChrome(this._root);
+
+        this._strip = new PagedStrip({
+            rowsEl: this._rowsEl,
+            upEl: this._upEl,
+            downEl: this._downEl,
+            rail: this._rail,
+            makeRow: item => this._makeRow(item),
+            onEdgeStart: () => { this._misses = 0; },
+            alive: () => this._open,
+        });
+
+        this._root._delegate = {
+            handleDragOver: () => {
+                this._misses = 0;
+                const [, py] = global.get_pointer();
+                const [, ry] = this._root.get_transformed_position();
+                this._strip.over(py - ry);
+                return Interactions.DragMotionResult.MOVE_DROP;
+            },
+            acceptDrop: source => {
+                const idx = this._strip.highlighted;
+                const item = idx >= 0 ? this._items[idx] : null;
+                const handled = this._onDrop ? this._onDrop(source, item) : false;
+                this.close(true);
+                return handled;
+            },
+        };
+
+        // Hover highlight + edge auto-scroll when no drag owns the pointer
+        // (DBus-opened flyout). During a drag the grab routes motion to the
+        // drag actor and the external poll drives `over()` instead.
+        this._scope.connect(this._root, 'captured-event', (a, event) => {
+            if (!this._open || event.type() !== Clutter.EventType.MOTION)
+                return Clutter.EVENT_PROPAGATE;
+            const [, sy] = event.get_coords();
+            const [, ry] = this._root.get_transformed_position();
+            this._strip.over(sy - ry);
+            return Clutter.EVENT_PROPAGATE;
+        });
+        this._scope.connect(this._root, 'leave-event', () => {
+            if (this._open) this._strip.clearHover();
+            return Clutter.EVENT_PROPAGATE;
+        });
+    }
+
+    get isOpen() { return this._open; }
+    get anchor() { return this._anchor; }
+    get items() { return this._items; }
+    get sticky() { return this._sticky; }
+    get anchorKey() { return this._anchorKey; }
+
+    /**
+     * Dismissal watchdog. Also emits a throttled state line so the caller
+     * can see whether the flyout is actually visible (opacity, scale,
+     * mapped) while the drag is in flight.
+     */
+    _startWatch() {
+        if (this._watchId) return;
+        journal('[flyout.watch] started');
+        this._watchLogAt = 0;
+        this._watchId = this._scope.timeout(120, () => {
+            if (!this._open) { this._watchId = 0; journal('[flyout.watch] stopped'); return GLib.SOURCE_REMOVE; }
+            const [x, y] = global.get_pointer();
+            const over = this._isOver(x, y);
+
+            const nowMs = GLib.get_monotonic_time() / 1000;
+            if (nowMs - (this._watchLogAt ?? 0) > 500) {
+                this._watchLogAt = nowMs;
+                let rx = NaN, ry = NaN, rw = NaN, rh = NaN;
+                try {
+                    [rx, ry] = this._root.get_transformed_position();
+                    [rw, rh] = this._root.get_transformed_size();
+                } catch (e) { /* actor may be mid-destroy */ }
+                journal(`[flyout.watch] ptr=${x},${y} over=${over} ` +
+                    `bounds=${Math.round(rx)},${Math.round(ry)} ${Math.round(rw)}x${Math.round(rh)} ` +
+                    `opacity=${this._root.opacity} visible=${this._root.visible} ` +
+                    `mapped=${this._root.is_mapped()} scale=${this._root.get_scale().join(',')}`);
+            }
+
+            if (over) this._misses = 0;
+            else if (++this._misses >= 2) {
+                journal(`[flyout.watch] pointer left (${x},${y}) -> close`);
+                this.close();
+            }
+            return GLib.SOURCE_CONTINUE;
+        });
+    }
+
+    _makeRow(item) {
+        const row = UI.createFlyoutRow({
+            gicon: item.icon,
+            title: item.title,
+            sub: item.sub || '',
+            badge: item.badge || '',
+            width: this._rowsW,
+            height: ROW_SLOT,
+            iconSize: ROW_ICON_SIZE,
+            labelSize: ROW_LABEL_SIZE,
+        });
+
+        // Click-to-activate: harmless during a drag (button is held, no
+        // click events are delivered) and the primary interaction for
+        // DBus-opened flyouts, where there is no drag payload to drop.
+        row.connect('button-press-event', (a, e) => {
+            if (e.get_button() !== Clutter.BUTTON_PRIMARY) return Clutter.EVENT_PROPAGATE;
+            this._activateItem(item);
+            return Clutter.EVENT_STOP;
+        });
+        return row;
+    }
+
+    _activateItem(item) {
+        if (!item?.window) return;
+        try {
+            const win = item.window;
+            if (win.minimized) win.unminimize();
+            const ws = win.get_workspace();
+            if (ws) ws.activate_with_focus(win, global.get_current_time());
+            else win.activate(global.get_current_time());
+            journal(`[flyout] row activate "${item.title}"`);
+        } catch (e) {
+            journal(`[flyout] row activate failed: ${e.message}`);
+        }
+        this.close(true);
+    }
+
+    /** Inside the flyout OR back over the icon that opened it. */
+    _isOver(x, y) {
+        return this.contains(x, y) || this.isOverAnchor(x, y);
+    }
+
+    contains(x, y) {
+        if (!this._open || !this._root.get_stage()) return false;
+        const [rx, ry] = this._root.get_transformed_position();
+        const [rw, rh] = this._root.get_transformed_size();
+        return x >= rx && x <= rx + rw && y >= ry && y <= ry + rh;
+    }
+
+    isOverAnchor(x, y) {
+        const a = this._anchor;
+        if (!this._open || !a) return false;
+        try {
+            if (!a.get_stage()) return false;
+            const [ax, ay] = a.get_transformed_position();
+            const [aw, ah] = a.get_transformed_size();
+            return x >= ax && x <= ax + aw && y >= ay && y <= ay + ah;
+        } catch (e) {
+            return false;   // anchor destroyed mid-drag by a re-render
+        }
+    }
+
+    pointerAt(x, y) {
+        if (!this.contains(x, y)) {
+            if (this._strip.highlighted >= 0) this._strip.clearHover();
+            return null;
+        }
+        const [, ry] = this._root.get_transformed_position();
+        const idx = this._strip.over(y - ry);
+        if (idx < 0) return null;
+        return { index: idx, item: this._items[idx] ?? null };
+    }
+
+    open({ anchor, title, items, onDrop, sticky = false, anchorKey = null }) {
+        let onStage = false;
+        try { onStage = !!anchor?.get_stage(); } catch (e) { onStage = false; }
+        if (!anchor || !onStage || !items?.length) {
+            journal(`[flyout.open] rejected anchor=${!!anchor} onStage=${onStage} items=${items?.length}`);
+            return false;
+        }
+
+        if (this._open && this._anchor === anchor) { this._misses = 0; return true; }
+
+        const monitorIndex = Math.max(0, Main.layoutManager.findIndexForActor(anchor));
+        const monitor = Main.layoutManager.monitors[monitorIndex] ?? Main.layoutManager.primaryMonitor;
+
+        this._anchor = anchor;
+        this._items = items;
+        this._onDrop = onDrop;
+
+        const W = clamp(Math.round(monitor.width * 0.26), 560, 1080);
+        const rowsW = W - PAD * 2 - RAIL_W - GAP;
+        const rowsH = Math.min(VISIBLE_SLOTS, items.length) * ROW_SLOT;
+        const H = Math.min(monitor.height - 120, rowsH + HEAD_H + PAD * 2 + 40);
+        const rowsY = Math.round((H - rowsH) / 2);
+        const railH = Math.min(rowsH, 640);
+
+        this._rowsW = rowsW;
+
+        this._head.set_position(PAD, HEAD_Y);
+        this._head.set_size(W - PAD * 2, HEAD_H);
+        this._head.set_text(title || '');
+
+        this._rowsEl.set_position(PAD, rowsY);
+        this._rowsEl.set_size(rowsW, rowsH);
+
+        this._rail.root.set_position(W - PAD - RAIL_W, Math.round((H - railH) / 2));
+        this._rail.root.set_size(RAIL_W, railH);
+
+        this._upEl.set_position(0, 0);
+        this._upEl.set_size(W, Math.max(0, rowsY));
+        this._downEl.set_position(0, rowsY + rowsH);
+        this._downEl.set_size(W, Math.max(0, H - rowsY - rowsH));
+
+        this._root.set_size(W, H);
+
+        // ---------- anchor geometry ----------
+        let ax, ay, aw, ah;
+        try {
+            [ax, ay] = anchor.get_transformed_position();
+            [aw, ah] = anchor.get_transformed_size();
+        } catch (e) {
+            journal(`[flyout.open] anchor geometry threw: ${e.message}`);
+            return false;
+        }
+        // A just-rebuilt anchor has no allocation yet and reports NaN;
+        // placing the flyout at NaN makes it invisible and makes the
+        // watchdog close it instantly. Refuse; the caller retries after
+        // allocation.
+        if (![ax, ay, aw, ah].every(Number.isFinite) || aw <= 0 || ah <= 0) {
+            journal(`[flyout.open] anchor not allocated yet: ax=${ax} ay=${ay} aw=${aw} ah=${ah}`);
+            return false;
+        }
+
+        const left = clamp(ax + aw / 2 - W / 2, monitor.x + 8, monitor.x + monitor.width - W - 8);
+        let top = ay - H - 16;
+        this._opensDown = false;
+        if (top < monitor.y + 8) {
+            top = Math.max(monitor.y + 8, ay + ah + 16);
+            this._opensDown = true;
+        }
+        if (top + H > monitor.y + monitor.height - 8)
+            top = Math.max(monitor.y + 8, monitor.y + monitor.height - H - 8);
+
+        this._root.set_position(Math.round(left), Math.round(top));
+
+        // Float above client windows so a maximized preview cannot hide it.
+        try {
+            Main.layoutManager.uiGroup.set_child_above_sibling(this._root, null);
+            const children = Main.layoutManager.uiGroup.get_children();
+            journal(`[flyout.open] uiGroup: idx=${children.indexOf(this._root)} total=${children.length}`);
+        } catch (e) {
+            journal(`[flyout.open] set_child_above_sibling failed: ${e.message}`);
+        }
+
+        journal(`[flyout.open] monitor=${monitor.x},${monitor.y} ${monitor.width}x${monitor.height} ` +
+            `W=${W} H=${H} left=${Math.round(left)} top=${Math.round(top)} opensDown=${this._opensDown} ` +
+            `anchor=${Math.round(ax)},${Math.round(ay)} ${Math.round(aw)}x${Math.round(ah)}`);
+
+        const px = clamp((ax + aw / 2 - left) / W, 0.08, 0.92);
+        this._root.set_pivot_point(px, this._opensDown ? 0 : 1);
+
+        this._strip.setViewport(H);
+        this._strip.setItems(items, 0);
+        this._strip.clearHover();
+
+        this._open = true;
+        this._sticky = sticky;
+        this._anchorKey = anchorKey;
+        this._misses = 0;
+
+        // ---------- show ----------
+        //
+        // Two independent changes:
+        //
+        //   1. Opacity is set to 255 immediately. The previous version eased
+        //      it from 0 alongside translation_y, and translation_y is not
+        //      an animatable Clutter ease target on all GNOME versions —
+        //      which can make the whole transition fail silently and leave
+        //      opacity pinned at 0. The flyout is then "open" and pickable
+        //      but invisible.
+        //
+        //   2. Only scale and translation are animated, both of which are
+        //      universally supported by Clutter.ease().
+        //
+        this._root.remove_all_transitions();
+        this._root.show();
+        this._root.opacity = 255;
+        this._root.translation_y = this._opensDown ? -12 : 12;
+        this._root.set_scale(0.96, 0.96);
+
+        journal(`[flyout.open] shown: opacity=${this._root.opacity} visible=${this._root.visible} ` +
+            `mapped=${this._root.is_mapped()} x=${this._root.x} y=${this._root.y} ` +
+            `w=${this._root.width} h=${this._root.height} scale=${this._root.get_scale().join(',')}`);
+
+        this._root.ease({
+            translation_y: 0,
+            scale_x: 1, scale_y: 1,
+            duration: 190,
+            mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
+            onComplete: () => {
+                journal(`[flyout.open] ease complete: opacity=${this._root.opacity} ` +
+                    `scale=${this._root.get_scale().join(',')} ` +
+                    `pos=${this._root.x},${this._root.y} size=${this._root.width}x${this._root.height}`);
+            },
+        });
+
+        // Safety net: if for any reason the ease did not bring opacity to
+        // full within 300ms, force it. This is a no-op when the ease works.
+        this._scope.timeout(300, () => {
+            if (this._open && this._root && this._root.opacity < 255) {
+                journal(`[flyout.open] SAFETY FORCE opacity 255 (was ${this._root.opacity})`);
+                this._root.opacity = 255;
+            }
+            return GLib.SOURCE_REMOVE;
+        });
+
+        if (sticky) {
+            journal('[flyout.open] sticky (no drag) — watchdog off, rows are click-to-activate');
+        } else {
+            this._startWatch();
+        }
+
+        return true;
+    }
+
+    close(instant = false) {
+        if (!this._open) return;
+        journal(`[flyout.close] instant=${instant} sticky=${this._sticky}`);
+        this._open = false;
+        this._sticky = false;
+        this._anchorKey = null;
+        this._strip.stopEdge();
+        this._strip.clearHover();
+        this._onDrop = null;
+        this._root.remove_all_transitions();
+
+        if (instant) {
+            this._root.hide();
+            this._anchor = null;
+            return;
+        }
+
+        this._root.ease({
+            opacity: 0,
+            translation_y: this._opensDown ? -12 : 12,
+            scale_x: 0.97, scale_y: 0.97,
+            duration: 130,
+            mode: Clutter.AnimationMode.EASE_IN_QUAD,
+            onComplete: () => { if (!this._open) this._root.hide(); },
+        });
+        this._anchor = null;
+    }
+
+    destroy() {
+        this._open = false;
+        this._sticky = false;
+        this._anchorKey = null;
+        if (this._watchId) { this._scope.cancel(this._watchId); this._watchId = 0; }
+        this._strip?.destroy();
+        this._scope.dispose();
+        try { Main.layoutManager.removeChrome(this._root); } catch (e) { /* already gone */ }
+        this._root.destroy();
+        this._root = null;
+    }
 }
 // ===== FILE: ./lib/scheduling.js =====
 import GLib from 'gi://GLib';
@@ -3304,6 +4938,301 @@ export class Coalescer {
         if (this._id) { GLib.Source.remove(this._id); this._id = 0; }
     }
 }
+// ===== FILE: ./lib/strip.js =====
+// The prototype's createStrip(): a fixed number of visible slots, a view
+// position that scrolls by whole rows, edge hold zones with acceleration,
+// and a rail with ticks + marker. Used by the anchored flyout.
+
+import GLib from 'gi://GLib';
+import St from 'gi://St';
+
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+// Row metrics doubled relative to the original 46/7 layout so the flyout
+// reads as a proper panel on a 4K display rather than a tooltip.
+export const ROW_SLOT = 88;
+export const VISIBLE_SLOTS = 9;
+const HALF = Math.floor(VISIBLE_SLOTS / 2);
+const RAIL_PAD = 16;
+const DEAD = 0.06;
+
+// Tick geometry — must match the marker sizing in ui.createRail().
+const TICK_W = 18;
+const TICK_H = 5;
+
+const speedWord = t => (t < 0.25 ? 'SLOW' : t < 0.6 ? 'MEDIUM' : 'FAST');
+const depthToT = d => Math.max(0, (d - DEAD) / (1 - DEAD));
+const edgeSpeed = d => {
+    const t = depthToT(d);
+    return t <= 0 ? 0 : 0.8 + 30 * t * t;
+};
+
+export class PagedStrip {
+    constructor({ rowsEl, upEl, downEl, rail, makeRow, onEdgeStart = null, alive = null }) {
+        this._rowsEl = rowsEl;
+        this._upEl = upEl;
+        this._downEl = downEl;
+        this._rail = rail;
+        this._makeRow = makeRow;
+        this._onEdgeStart = onEdgeStart;
+        this._alive = alive ?? (() => true);
+
+        const upLabel = new St.Label({ style_class: 'ws-flyout-edge-label' });
+        upLabel.set_x_align(ClutterAlign.CENTER);
+        upLabel.set_y_align(ClutterAlign.END);
+        upEl.set_child(upLabel);
+        this._upLabel = upLabel;
+
+        const downLabel = new St.Label({ style_class: 'ws-flyout-edge-label' });
+        downLabel.set_x_align(ClutterAlign.CENTER);
+        downLabel.set_y_align(ClutterAlign.START);
+        downEl.set_child(downLabel);
+        this._downLabel = downLabel;
+
+        this._items = [];
+        this._rowEls = new Map();
+        this._view = 0;
+        this._highlight = -1;
+        this._slots = 1;
+        this._hostH = 0;
+        this._edgeDir = 0;
+        this._edgeDepth = 0;
+        this._raf = 0;
+        this._last = 0;
+        this._zoneText = { up: '', down: '' };
+        this._zoneAlpha = { up: -1, down: -1 };
+    }
+
+    get count() { return this._items.length; }
+    get highlighted() { return this._highlight; }
+    get selectedIndex() { return Math.max(0, this._highlight); }
+    scrolling() { return this._edgeDir !== 0; }
+
+    setViewport(height) { this._hostH = height; }
+
+    setItems(items, startIndex = 0) {
+        this.stopEdge();
+        this._items = items;
+        this._slots = Math.min(VISIBLE_SLOTS, Math.max(1, items.length));
+        this._rowsEl.set_height(this._slots * ROW_SLOT);
+
+        for (const [, el] of this._rowEls) el.destroy();
+        this._rowEls.clear();
+
+        this._view = this._clampV(Math.max(0, startIndex));
+        this._highlight = Math.round(this._view);
+
+        this._buildRail();
+        this.layout();
+    }
+
+    _isStrip() { return this._items.length > VISIBLE_SLOTS; }
+    _minV() { return this._isStrip() ? HALF : (this._items.length - 1) / 2; }
+    _maxV() { return this._isStrip() ? this._items.length - 1 - HALF : (this._items.length - 1) / 2; }
+    _clampV(v) { return clamp(v, this._minV(), this._maxV()); }
+
+    // ---------- rail ----------
+    _railY(p) {
+        const h = this._rail.root.height;
+        if (this._items.length <= 1) return h / 2;
+        const span = Math.max(1, h - RAIL_PAD * 2);
+        return RAIL_PAD + (p / (this._items.length - 1)) * span;
+    }
+
+    _buildRail() {
+        this._rail.ticks.destroy_all_children();
+        this._rail.root.visible = this._isStrip();
+        if (!this._isStrip()) return;
+
+        const w = this._rail.root.width;
+        this._items.forEach((it, i) => {
+            const tick = new St.Widget({
+                style_class: 'ws-flyout-rail-tick',
+                x: Math.round((w - TICK_W) / 2),
+                y: Math.round(this._railY(i)) - Math.round(TICK_H / 2),
+                width: TICK_W, height: TICK_H,
+            });
+            tick.set_style(`background-color: ${it.color || '#93a1a1'};`);
+            this._rail.ticks.add_child(tick);
+        });
+        this._updateMarker();
+    }
+
+    _updateMarker() {
+        const marker = this._rail.marker;
+        if (!marker) return;
+        if (!this._isStrip()) { marker.visible = false; return; }
+        marker.visible = true;
+
+        const p = clamp(this._view, 0, Math.max(0, this._items.length - 1));
+        const lo = Math.floor(p);
+        const hi = Math.min(this._items.length - 1, lo + 1);
+        const y = this._railY(lo) + (this._railY(hi) - this._railY(lo)) * (p - lo);
+        marker.y = Math.round(y - marker.height / 2);
+    }
+
+    // ---------- rows ----------
+    layout() {
+        const R = this._items.length;
+        const vis = this._slots;
+        const lo = this._isStrip() ? Math.max(0, Math.floor(this._view - HALF - 1)) : 0;
+        const hi = this._isStrip() ? Math.min(R - 1, Math.ceil(this._view + HALF + 1)) : R - 1;
+
+        for (const [r, el] of [...this._rowEls]) {
+            if (r < lo || r > hi) { el.destroy(); this._rowEls.delete(r); }
+        }
+
+        for (let r = lo; r <= hi; r++) {
+            let el = this._rowEls.get(r);
+            if (!el) {
+                el = this._makeRow(this._items[r], r);
+                this._rowEls.set(r, el);
+                this._rowsEl.add_child(el);
+            }
+            const d = r - this._view;
+            const ad = Math.abs(d);
+            el.translation_y = Math.round((d + (vis - 1) / 2) * ROW_SLOT);
+
+            const sel = r === this._highlight;
+            if (sel) el.add_style_class_name('sel');
+            else el.remove_style_class_name('sel');
+
+            const op = this._isStrip()
+                ? Math.max(0, 0.9 - 0.17 * ad) * clamp(HALF + 1 - ad, 0, 1)
+                : 0.85;
+            el.opacity = Math.round((sel ? 1 : op) * 255);
+            el.show();
+        }
+
+        this._updateEdges();
+        this._updateMarker();
+    }
+
+    setHighlight(i) {
+        const idx = clamp(i, -1, Math.max(-1, this._items.length - 1));
+        if (idx === this._highlight) return;
+        this._highlight = idx;
+        this.layout();
+    }
+
+    center(i) {
+        this._view = this._clampV(i);
+        this.layout();
+    }
+
+    // ---------- edges ----------
+    _updateEdges() {
+        const now = Math.round(this._view);
+        const t = depthToT(this._edgeDepth);
+        const above = this._isStrip() ? Math.max(0, now - HALF) : 0;
+        const below = this._isStrip() ? Math.max(0, this._items.length - 1 - HALF - now) : 0;
+
+        const apply = (which, el, label, count, dir, arrow, word) => {
+            const active = this._edgeDir === dir;
+            el.visible = count > 0;
+            if (!el.visible) return;
+            if (active) el.add_style_class_name('active');
+            else el.remove_style_class_name('active');
+
+            const text = `${arrow} ${count} more ${word}${active && t > 0 ? ' · ' + speedWord(t) : ''}`;
+            if (this._zoneText[which] !== text) {
+                this._zoneText[which] = text;
+                label.set_text(text);
+            }
+            const alpha = active ? Math.round(clamp(t * 0.42, 0, 1) * 100) / 100 : 0;
+            if (this._zoneAlpha[which] !== alpha) {
+                this._zoneAlpha[which] = alpha;
+                el.set_style(`background-color: rgba(42, 161, 152, ${alpha});`);
+            }
+        };
+
+        apply('up', this._upEl, this._upLabel, above, -1, '▲', 'above');
+        apply('down', this._downEl, this._downLabel, below, 1, '▼', 'below');
+    }
+
+    setEdge(dir, depth) {
+        this._edgeDepth = depth;
+        if (this._edgeDir !== dir) {
+            this._edgeDir = dir;
+            this._onEdgeStart?.();
+        }
+        if (!this._raf) {
+            this._last = GLib.get_monotonic_time() / 1000;
+            this._raf = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 16, () => this._step());
+        }
+        this._updateEdges();
+    }
+
+    stopEdge() {
+        if (this._raf) { GLib.Source.remove(this._raf); this._raf = 0; }
+        if (!this._edgeDir) return;
+        this._edgeDir = 0;
+        this._edgeDepth = 0;
+        this._updateEdges();
+        this._updateMarker();
+    }
+
+    _step() {
+        this._raf = 0;
+        if (!this._edgeDir) return GLib.SOURCE_REMOVE;
+        if (!this._alive()) { this.stopEdge(); return GLib.SOURCE_REMOVE; }
+
+        const now = GLib.get_monotonic_time() / 1000;
+        const dt = Math.min(now - this._last, 60) / 1000;
+        this._last = now;
+
+        this._view = this._clampV(this._view + this._edgeDir * edgeSpeed(this._edgeDepth) * dt);
+        const r = Math.round(this._view);
+        if (r !== this._highlight) this._highlight = r;
+        this.layout();
+
+        if (this._view <= this._minV() || this._view >= this._maxV()) {
+            this.stopEdge();
+            return GLib.SOURCE_REMOVE;
+        }
+        this._raf = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 16, () => this._step());
+        return GLib.SOURCE_REMOVE;
+    }
+
+    // ---------- pointer ----------
+    over(y) {
+        const rowsTop = this._rowsEl.y;
+        const rowsH = this._rowsEl.height;
+
+        if (this._isStrip()) {
+            if (y < rowsTop && this._view > this._minV() + 0.001) {
+                this.setEdge(-1, clamp((rowsTop - y) / Math.max(1, rowsTop), 0, 1));
+                return this._highlight;
+            }
+            if (y > rowsTop + rowsH && this._view < this._maxV() - 0.001) {
+                const below = Math.max(1, this._hostH - rowsTop - rowsH);
+                this.setEdge(1, clamp((y - rowsTop - rowsH) / below, 0, 1));
+                return this._highlight;
+            }
+        }
+        this.stopEdge();
+
+        if (y < rowsTop - 2 || y > rowsTop + rowsH + 2) return -1;
+
+        const idx = Math.round((y - rowsTop) / ROW_SLOT - (this._slots - 1) / 2 + this._view);
+        if (idx < 0 || idx >= this._items.length) return -1;
+        this.setHighlight(idx);
+        return idx;
+    }
+
+    clearHover() { this.setHighlight(-1); }
+
+    destroy() {
+        this.stopEdge();
+        for (const [, el] of this._rowEls) el.destroy();
+        this._rowEls.clear();
+        this._items = [];
+    }
+}
+
+import Clutter from 'gi://Clutter';
+const ClutterAlign = Clutter.ActorAlign;
+// ===== FILE: ./lib/ui.js =====
 // ===== FILE: ./lib/ui.js =====
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
@@ -3314,6 +5243,19 @@ import St from 'gi://St';
 /**
  * DECLARATIVE UI. Pure builders: data in, actors out.
  */
+
+// ==================== palette ====================
+const SOLARIZED = [
+    '#268bd2', '#cb4b16', '#859900', '#d33682',
+    '#2aa198', '#b58900', '#6c71c4', '#dc322f',
+];
+
+export function colorForApp(appName) {
+    const s = appName || '';
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+    return SOLARIZED[Math.abs(h) % SOLARIZED.length];
+}
 
 // ==================== app / icon resolution ====================
 function resolveApp(window) {
@@ -3370,26 +5312,68 @@ export function createWorkspaceNameLabel(text, fontSizePx) {
 }
 
 export function createThumbnail({ minWidth, active }) {
-    const actor = new St.Button({ style_class: 'workspace-thumbnail', x_expand: true, y_expand: true });
+    const actor = new St.Button({
+        style_class: 'workspace-thumbnail',
+        x_expand: false, y_expand: true,
+        reactive: true, track_hover: true,
+    });
     actor.set_style(`min-width: ${minWidth}px;`);
     if (active) actor.add_style_class_name('active');
-    const box = new St.BoxLayout();
+    const box = new St.BoxLayout({ y_align: Clutter.ActorAlign.CENTER });
     actor.set_child(box);
     return { actor, box };
 }
 
-export function createOverflowButton(count) {
-    const actor = new St.Button({
-        style_class: 'workspace-thumbnail-collection-icon',
-        reactive: true, track_hover: true, can_focus: true,
+/**
+ * Icon + dock-style numeric badge. The badge is drawn OVER the icon's
+ * top-right corner, and the wrapper is exactly icon-sized, so a badged
+ * group occupies the same cell as a plain window icon. The previous
+ * geometry put the badge in a padding strip ABOVE the icon and made the
+ * wrapper size+pad tall, which pushed the icon out of the thumbnail.
+ */
+export function createBadgedIcon({ gicon, size, count }) {
+    const badgeSize = Math.max(14, Math.min(20, Math.round(size * 0.36)));
+    const wrap = new St.Widget({
+        style_class: 'ws-ico-wrap',
+        width: size, height: size,
     });
-    actor.set_child(new St.Label({
-        style_class: 'collection-icon-label',
-        text: `▱ ${count}`,
-        x_align: Clutter.ActorAlign.CENTER,
-        y_align: Clutter.ActorAlign.CENTER,
-    }));
-    return actor;
+
+    const icon = new St.Icon({ gicon, icon_size: size });
+    wrap.add_child(icon);
+    icon.set_position(0, 0);
+
+    if (count > 1) {
+        const label = new St.Label({
+            style_class: 'ws-badge-label',
+            text: String(count),
+            x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        label.set_style(`font-size: ${Math.max(8, Math.round(badgeSize * 0.60))}px;`);
+
+        const badge = new St.Bin({
+            style_class: 'ws-badge',
+            width: badgeSize, height: badgeSize,
+            x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER,
+            child: label,
+        });
+        badge.set_style(`border-radius: ${Math.round(badgeSize / 2)}px;`);
+        wrap.add_child(badge);
+        badge.set_position(size - badgeSize, 0);
+    }
+
+    return { actor: wrap, icon };
+}
+
+export function createGroupButton({ gicon, count, size }) {
+    const { actor: inner, icon } = createBadgedIcon({ gicon, size, count });
+    const button = new St.Button({
+        style_class: 'ws-app-group',
+        reactive: true, track_hover: true, can_focus: true,
+        child: inner,
+    });
+    return { actor: button, icon };
 }
 
 export function createWindowIconActor(window, iconSize) {
@@ -3400,6 +5384,100 @@ export function createWindowIconActor(window, iconSize) {
     const icon = createWindowIconTexture(window, iconSize);
     actor.set_child(icon);
     return { actor, icon };
+}
+
+// ==================== flyout row ====================
+export function createFlyoutRow({
+    gicon, title, sub, badge = '',
+    width, height, iconSize, labelSize,
+}) {
+    const row = new St.BoxLayout({
+        style_class: 'ws-flyout-row',
+        width, height,
+        y_align: Clutter.ActorAlign.CENTER,
+        reactive: true, track_hover: true,
+    });
+
+    row.add_child(new St.Icon({
+        gicon, icon_size: iconSize,
+        style_class: 'ws-flyout-row-icon',
+        y_align: Clutter.ActorAlign.CENTER,
+    }));
+
+    const text = new St.BoxLayout({
+        vertical: true, x_expand: true,
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+
+    // Prototype's fitStart(): truncate from the start, ellipsis first.
+    const titleLabel = new St.Label({
+        style_class: 'ws-flyout-row-title',
+        x_expand: true, x_align: Clutter.ActorAlign.START,
+        text: title,
+    });
+    titleLabel.clutter_text.set_ellipsize(Pango.EllipsizeMode.START);
+    titleLabel.clutter_text.set_line_wrap(false);
+    titleLabel.set_style(`font-size: ${labelSize}px;`);
+    text.add_child(titleLabel);
+
+    if (sub) {
+        const subLabel = new St.Label({
+            style_class: 'ws-flyout-row-app',
+            x_expand: true, x_align: Clutter.ActorAlign.START,
+            text: sub,
+        });
+        subLabel.clutter_text.set_ellipsize(Pango.EllipsizeMode.START);
+        subLabel.clutter_text.set_line_wrap(false);
+        text.add_child(subLabel);
+    }
+
+    row.add_child(text);
+
+    if (badge) {
+        row.add_child(new St.Label({
+            style_class: 'ws-flyout-row-badge',
+            text: badge,
+            y_align: Clutter.ActorAlign.CENTER,
+        }));
+    }
+
+    return row;
+}
+
+// ==================== flyout rail ====================
+export function createRail() {
+    const root = new St.Widget({ style_class: 'ws-flyout-rail', reactive: false });
+
+    // Track and marker widths scale with the enlarged flyout, so they must
+    // be re-centred whenever the rail is resized. Hook to the root's
+    // allocation so both stay correct on any panel size.
+    const TRACK_W = 4;
+    const MARKER_W = 40;
+    const MARKER_H = 12;
+
+    const track = new St.Widget({ style_class: 'ws-flyout-rail-track' });
+    root.add_child(track);
+
+    const ticks = new St.Widget({ reactive: false });
+    root.add_child(ticks);
+
+    const marker = new St.Widget({
+        style_class: 'ws-flyout-rail-marker',
+        width: MARKER_W, height: MARKER_H,
+    });
+    root.add_child(marker);
+
+    root.connect('notify::allocation', () => {
+        const alloc = root.get_allocation_box();
+        const w = Math.round(alloc.x2 - alloc.x1);
+        const h = Math.round(alloc.y2 - alloc.y1);
+        if (w <= 0 || h <= 0) return;
+        track.set_position(Math.round((w - TRACK_W) / 2), 0);
+        track.set_size(TRACK_W, h);
+        marker.x = Math.round((w - MARKER_W) / 2);
+    });
+
+    return { root, track, ticks, marker };
 }
 
 // ==================== clone preview ====================
@@ -3676,8 +5754,6 @@ export function createWindowTitleRow({
         y_align: Clutter.ActorAlign.CENTER,
     });
     if (labelSize != null) label.set_style(`font-size: ${labelSize}px;`);
-    // Explicit width forces START ellipsize to fire when the text overflows.
-    // x_align CENTER keeps short text visually centered inside the reservation.
     label.set_x_align(Clutter.ActorAlign.CENTER);
     label.set_width(labelMax);
     label.clutter_text.set_ellipsize(Pango.EllipsizeMode.START);
@@ -3760,10 +5836,11 @@ export function createSelectorHint(overlayL) {
     return { actor, label: actor };
 }
 // ===== FILE: ./lib/model.js =====
-// Domain state: the shell singletons, the shared constants, and the window
-// model. Everything here is either a live handle grabbed once at module
-// load, or a small piece of bookkeeping about the user's window order.
-// Nothing in this file touches actors.
+// Domain state: shell singletons, shared constants, the window model and
+// the workspace-local app grouping that both the indicator and the
+// flyout consume. Nothing here touches actors.
+
+import Shell from 'gi://Shell';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
@@ -3779,11 +5856,9 @@ export const Display = global.get_display();
 // ==================== TUNABLE CONSTANTS ====================
 export const TimeoutDelay = 200;
 
-// Above this many windows on a workspace, the indicator switches from one
-// icon per window to a single "N windows" overflow button, and top-bar
-// scroll skips that workspace (there is no per-window order to walk).
-// This is a DISPLAY-MODE threshold only. It never filters the window arrays
-// consumed by overlays or menus — those always see every window.
+// Above this many windows on a workspace the indicator groups by app
+// instead of showing one icon per window. DISPLAY MODE ONLY: it never
+// filters the window arrays consumed by overlays or menus.
 export const DIRECT_MODE_MAX_WINDOWS = 5;
 
 export const SettleAnimationDuration = 300;
@@ -3821,6 +5896,52 @@ function isEligible(w) {
     return !w.skip_taskbar && !w.is_override_redirect();
 }
 
+// ==================== APP IDENTITY / GROUPING ====================
+// `appId` is the grouping key. It is stable for the lifetime of the app
+// (Shell.App id) and degrades to the WM class when the tracker has not
+// resolved the window yet.
+
+export function appIdentity(window) {
+    const app = Shell.WindowTracker.get_default().get_window_app(window);
+    if (app) {
+        const id = app.get_id();
+        if (id) return { id, name: app.get_name() || id };
+    }
+    const wm = window.get_wm_class() || window.get_wm_class_instance() || 'unknown';
+    return { id: `wm:${wm}`, name: wm };
+}
+
+export function groupKey(workspaceIndex, appId) {
+    return `${workspaceIndex}::${appId}`;
+}
+
+/**
+ * Same-app windows inside one workspace, in model order.
+ * Returns [{ appId, appName, key, windows, indices, count }] where
+ * `indices[k]` is the position of `windows[k]` inside `entry.windows`.
+ */
+export function groupWindowsInWorkspace(entry) {
+    const out = [];
+    const byId = new Map();
+    entry.windows.forEach((w, i) => {
+        const { id, name } = appIdentity(w);
+        let g = byId.get(id);
+        if (!g) {
+            g = {
+                appId: id, appName: name,
+                key: groupKey(entry.index, id),
+                windows: [], indices: [], count: 0,
+            };
+            byId.set(id, g);
+            out.push(g);
+        }
+        g.windows.push(w);
+        g.indices.push(i);
+        g.count++;
+    });
+    return out;
+}
+
 // ==================== THE REPRESENTATION ====================
 export function buildModel() {
     const live = Display.list_all_windows().filter(isEligible);
@@ -3837,11 +5958,15 @@ export function buildModel() {
         const windows = live
             .filter(w => w.located_on_workspace(workspace))
             .sort((a, b) => ranks.get(a) - ranks.get(b));
-        // Display mode only — never used to filter `windows`.
-        //   direct = true  → one icon per window in the strip, scroll steps per-window
-        //   direct = false → single overflow button, scroll skips this workspace
-        const direct = windows.length <= DIRECT_MODE_MAX_WINDOWS;
-        workspaces.push({ workspace, index: i, windows, direct });
+
+        const entry = {
+            workspace, index: i, windows,
+            // Display mode only: `true` renders one icon per window,
+            // `false` renders one badged icon per app.
+            direct: windows.length <= DIRECT_MODE_MAX_WINDOWS,
+        };
+        entry.groups = groupWindowsInWorkspace(entry);
+        workspaces.push(entry);
     }
     return { workspaces, drag: intent.drag, hintWs: intent.hintWs };
 }
@@ -3899,14 +6024,21 @@ export function disconnectModelSignals() {
 }
 
 // ==================== HELPERS FOR THE UI ====================
-// Windows are returned in model order and are NEVER filtered by `direct`.
-// Overlays and context menus depend on this.
 export function getModelWindows(workspace = null) {
     const model = buildModel();
     if (workspace === null)
         return model.workspaces.flatMap(ws => ws.windows);
     const entry = model.workspaces.find(ws => ws.workspace === workspace);
     return entry ? entry.windows : [];
+}
+
+export function getWorkspaceGroups(workspaceIndex) {
+    const entry = buildModel().workspaces[workspaceIndex];
+    return entry ? entry.groups : [];
+}
+
+export function getGroupWindows(workspaceIndex, appId) {
+    return getWorkspaceGroups(workspaceIndex).find(g => g.appId === appId) ?? null;
 }
 
 // ==================== SNAPSHOT / LOGGING ====================
@@ -3918,7 +6050,7 @@ export function getModelSnapshot(model) {
             index: ws.index,
             windowCount: ws.windows.length,
             direct: ws.direct,
-            windows: ws.windows.map(w => w.get_title() || 'Untitled'),
+            groups: ws.groups.map(g => `${g.appName}:${g.count}`),
         })),
     };
 }
@@ -3937,18 +6069,14 @@ const journal = createLogger(import.meta.url);
 
 // ==================== OVERLAY SERVICE ====================
 // The single place any search overlay is opened or closed.
-//
-// IMPORTANT: overlays ignore the model's display-mode flag (`direct`).
-// They always list every window on the workspace (and every window at all,
-// for "all windows"), so the 5+ threshold that governs the indicator strip
-// has zero effect here.
+// Overlays ignore the model's display-mode flag (`direct`): they always
+// list every window, so the 5+ regrouping threshold never leaks in here.
 
 let _settings = null;
 
-// -------------------- Show / close --------------------
 export function showWindowOverlay(windows, context = null, focusedWindow = null) {
     if (!_settings) {
-        journal('[overlayService] showWindowOverlay before init — ignoring', true);
+        journal('[overlayService] showWindowOverlay before init — ignoring');
         return false;
     }
     SearchOverlays.SearchOverlayBase.closeCurrent();
@@ -3958,8 +6086,6 @@ export function showWindowOverlay(windows, context = null, focusedWindow = null)
 }
 
 export function showAllWindows() {
-    // getModelWindows(null) returns EVERY window across all workspaces —
-    // not filtered by the per-workspace `direct` display-mode flag.
     return showWindowOverlay(
         Model.getModelWindows(null),
         { type: 'all-windows' },
@@ -3968,7 +6094,7 @@ export function showAllWindows() {
 
 export function showAllApps() {
     if (!_settings) {
-        journal('[overlayService] showAllApps before init — ignoring', true);
+        journal('[overlayService] showAllApps before init — ignoring');
         return false;
     }
     SearchOverlays.SearchOverlayBase.closeCurrent();
@@ -3984,43 +6110,29 @@ export function toggleAllApps() {
     return showAllApps();
 }
 
-// Three-state cycle:
-//   1. no overlay (or a non-matching overlay, e.g. a workspace-scoped
-//      window selector) → show the all-windows overlay
-//   2. all-windows overlay is up    → advance to the all-apps overlay
-//   3. all-apps overlay is up       → close the overlay
 export function cycleOverlays() {
     const current = SearchOverlays.SearchOverlayBase.current;
 
-    // (2) All-windows overlay is running → switch to the app launcher.
     if (current instanceof SearchOverlays.WindowSearchOverlay &&
         current._overlayContext?.type === 'all-windows') {
         return showAllApps();
     }
-
-    // (3) All-apps overlay is running → close it.
     if (current instanceof SearchOverlays.AppSearchOverlay) {
         SearchOverlays.SearchOverlayBase.closeCurrent();
         return false;
     }
-
-    // (1) Nothing open (or a different overlay) → show all windows.
     return showAllWindows();
 }
 
 export function showWorkspaceWindows(workspaceIndex) {
     const workspace = Model.WorkspaceManager.get_workspace_by_index(workspaceIndex);
-    if (!workspace)
-        throw new Error(`Workspace ${workspaceIndex} not found`);
+    if (!workspace) throw new Error(`Workspace ${workspaceIndex} not found`);
 
-    // Full window list from the model — `direct` is irrelevant here.
     const windows = Model.buildModel().workspaces[workspaceIndex].windows;
     const focusedWindow = Model.Display.get_tab_list(Meta.TabList.NORMAL, workspace)[0] ?? null;
 
     workspace.activate(global.get_current_time());
-    const opened = showWindowOverlay(windows, { type: 'workspace', workspaceIndex }, focusedWindow);
-    journal(`[overlayService] showWorkspaceWindows ${workspaceIndex} (${windows.length} windows)`);
-    return opened;
+    return showWindowOverlay(windows, { type: 'workspace', workspaceIndex }, focusedWindow);
 }
 
 export function toggleWorkspaceWindows(workspaceIndex) {
@@ -4034,12 +6146,43 @@ export function toggleWorkspaceWindows(workspaceIndex) {
     return showWorkspaceWindows(workspaceIndex);
 }
 
+/**
+ * Anchored on a badged app group in the indicator: the selector shows only
+ * that workspace-local app group, but as a full list (not a flyout).
+ */
+export function showGroupWindows(workspaceIndex, appId) {
+    const entry = Model.buildModel().workspaces[workspaceIndex];
+    if (!entry) return false;
+
+    const group = entry.groups.find(g => g.appId === appId);
+    if (!group || !group.windows.length) return false;
+
+    const focused = Model.Display.focus_window;
+    const start = Math.max(0, group.windows.indexOf(focused));
+    const opened = showWindowOverlay(
+        group.windows,
+        { type: 'group', workspaceIndex, appId, appName: group.appName },
+        focused);
+    journal(`[overlayService] showGroupWindows ws${workspaceIndex} ${group.appName} (${group.windows.length})`);
+    return opened ? start >= 0 : false;
+}
+
+export function toggleGroupWindows(workspaceIndex, appId) {
+    const current = SearchOverlays.SearchOverlayBase.current;
+    if (current instanceof SearchOverlays.WindowSearchOverlay &&
+        current._overlayContext?.type === 'group' &&
+        current._overlayContext.workspaceIndex === workspaceIndex &&
+        current._overlayContext.appId === appId) {
+        SearchOverlays.SearchOverlayBase.closeCurrent();
+        return false;
+    }
+    return showGroupWindows(workspaceIndex, appId);
+}
+
 export function closeOverlay() { return SearchOverlays.SearchOverlayBase.closeCurrent(); }
 
 // -------------------- Lifecycle --------------------
-export function initOverlayService(settings) {
-    _settings = settings;
-}
+export function initOverlayService(settings) { _settings = settings; }
 
 export function destroyOverlayService() {
     closeOverlay();
@@ -4383,6 +6526,29 @@ import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import { ExtensionPreferences } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
+const NUMERIC_KEYS = [
+    { key: 'icon-size', label: 'Icon size', min: 16, max: 256, step: 2 },
+    { key: 'thumbnail-min-width', label: 'Thumbnail minimum width', min: 20, max: 200, step: 2 },
+    { key: 'workspace-name-font-size', label: 'Workspace name', min: 10, max: 100, step: 1 },
+    { key: 'toolbar-icon-size', label: 'Panel toolbar icon size', min: 16, max: 64, step: 2 },
+    { key: 'title-popup-font-size', label: 'Title popup (Ctrl+hold)', min: 8, max: 48, step: 1 },
+    { key: 'collection-search-font-size', label: 'Collection search entry', min: 8, max: 48, step: 1 },
+    { key: 'collection-result-font-size', label: 'Collection result items', min: 8, max: 48, step: 1 },
+    { key: 'collection-result-icon-size', label: 'Search result icon size', min: 16, max: 128, step: 2 },
+    { key: 'clone-title-font-size', label: 'Clone preview title', min: 10, max: 80, step: 1 },
+    { key: 'hover-preview-height', label: 'Hover preview height', min: 200, max: 1200, step: 10 },
+    { key: 'close-button-size', label: 'Close button size', min: 16, max: 64, step: 2 },
+    { key: 'app-preview-icon-size', label: 'App search preview icon size', min: 32, max: 256, step: 2 },
+    { key: 'tooltip-font-size', label: 'Tooltip text', min: 6, max: 32, step: 1 },
+];
+
+const BOOLEAN_KEYS = [
+    ['show-drun-button', 'Show "apps" button'],
+    ['show-window-button', 'Show "all windows" button'],
+    ['show-workspace-names', 'Show workspace names'],
+    ['group-apps-always', 'Always group windows by app'],
+];
+
 export default class WorkspacesOrganizerPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const settings = this.getSettings();
@@ -4393,32 +6559,16 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
         });
         window.add(page);
 
-        // Define all configuration keys (only one icon-size now)
-        const allKeys = [
-            { key: 'icon-size', label: 'Icon size', min: 16, max: 256, step: 2 },
-            { key: 'thumbnail-min-width', label: 'Thumbnail minimum width', min: 20, max: 200, step: 2 },
-            { key: 'workspace-name-font-size', label: 'Workspace name', min: 10, max: 100, step: 1 },
-            { key: 'toolbar-icon-size', label: 'Panel toolbar icon size', min: 16, max: 64, step: 2 },
-            { key: 'title-popup-font-size', label: 'Title popup (Ctrl+hold)', min: 8, max: 48, step: 1 },
-            { key: 'collection-search-font-size', label: 'Collection search entry', min: 8, max: 48, step: 1 },
-            { key: 'collection-result-font-size', label: 'Collection result items', min: 8, max: 48, step: 1 },
-            { key: 'collection-result-icon-size', label: 'Search result icon size', min: 16, max: 128, step: 2 },
-            { key: 'clone-title-font-size', label: 'Clone preview title', min: 10, max: 80, step: 1 },
-            { key: 'hover-preview-height', label: 'Hover preview height', min: 200, max: 1200, step: 10 },
-            { key: 'close-button-size', label: 'Close button size', min: 16, max: 64, step: 2 },
-            { key: 'app-preview-icon-size', label: 'App search preview icon size', min: 32, max: 256, step: 2 },
-            { key: 'tooltip-font-size', label: 'Tooltip text', min: 6, max: 32, step: 1 },
-        ];
+        const byKey = key => NUMERIC_KEYS.find(k => k.key === key);
 
-        // Group: Icon Sizes (now just one row)
+        // Group: Icon Sizes
         const iconGroup = new Adw.PreferencesGroup({
             title: 'Icon Sizes',
             description: 'Size of window icons in workspace thumbnails',
         });
         page.add(iconGroup);
-        this._addSpinRow(iconGroup, allKeys.find(k => k.key === 'icon-size'), settings);
-        this._addSpinRow(iconGroup, allKeys.find(k => k.key === 'app-preview-icon-size'), settings);
-
+        this._addSpinRow(iconGroup, byKey('icon-size'), settings);
+        this._addSpinRow(iconGroup, byKey('app-preview-icon-size'), settings);
 
         // Group: Font Sizes
         const fontGroup = new Adw.PreferencesGroup({
@@ -4429,8 +6579,7 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
         ['workspace-name-font-size', 'title-popup-font-size',
             'collection-search-font-size', 'collection-result-font-size', 'collection-result-icon-size',
             'clone-title-font-size', 'tooltip-font-size'].forEach(key => {
-                const def = allKeys.find(k => k.key === key);
-                this._addSpinRow(fontGroup, def, settings);
+                this._addSpinRow(fontGroup, byKey(key), settings);
             });
 
         // Group: Layout
@@ -4440,22 +6589,25 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
         });
         page.add(layoutGroup);
         ['thumbnail-min-width', 'toolbar-icon-size', 'hover-preview-height', 'close-button-size'].forEach(key => {
-            const def = allKeys.find(k => k.key === key);
-            this._addSpinRow(layoutGroup, def, settings);
+            this._addSpinRow(layoutGroup, byKey(key), settings);
         });
 
+        // Group: Panel contents
         const visibilityGroup = new Adw.PreferencesGroup({
-            title: 'Visibility',
+            title: 'Panel',
             description: 'Toggle panel elements — changes apply immediately, no restart needed',
         });
         page.add(visibilityGroup);
 
-        for (const [key, title] of [
-            ['show-drun-button', 'Show "apps" button'],
-            ['show-window-button', 'Show "all windows" button'],
-            ['show-workspace-names', 'Show workspace names'],
-        ]) {
+        for (const [key, title] of BOOLEAN_KEYS) {
             const row = new Adw.ActionRow({ title });
+
+            if (key === 'group-apps-always') {
+                row.set_subtitle(
+                    'Off: group only when the panel runs out of room. ' +
+                    'On: every app with 2+ windows collapses into one badged icon.');
+            }
+
             const toggle = new Gtk.Switch({ valign: Gtk.Align.CENTER });
             settings.bind(key, toggle, 'active', Gio.SettingsBindFlags.DEFAULT);
             row.add_suffix(toggle);
@@ -4467,17 +6619,14 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
         const miscGroup = new Adw.PreferencesGroup();
         page.add(miscGroup);
 
-        // Reset button
         const resetRow = new Adw.ActionRow({ title: 'Reset all settings to defaults' });
         const resetBtn = new Gtk.Button({
             label: 'Reset',
             css_classes: ['destructive-action'],
         });
         resetBtn.connect('clicked', () => {
-            for (const { key } of allKeys) {
-                settings.reset(key);
-            }
-            // Window stays open – spin buttons update automatically
+            for (const { key } of NUMERIC_KEYS) settings.reset(key);
+            for (const [key] of BOOLEAN_KEYS) settings.reset(key);
         });
         resetRow.add_suffix(resetBtn);
         resetRow.set_activatable_widget(resetBtn);
@@ -4512,6 +6661,8 @@ import * as Interactions from './lib/interactions.js';
 import * as Model from './lib/model.js';
 import * as WorkspaceActions from './lib/workspaceActions.js';
 
+import { initExternalDrag, destroyExternalDrag } from './lib/externalDrag.js'
+
 import { initLogging, createLogger } from './logger.js';
 
 const journal = createLogger(import.meta.url);
@@ -4528,20 +6679,26 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
     }
 
     enable() {
-        initLogging(this.uuid, 'file', false);
+        initLogging(this.uuid, 'file', true);
         journal(`Enabled`);
 
         const settings = this.getSettings();
 
         Model.connectModelSignals(settings);
+        initExternalDrag();
 
         OverlayService.initOverlayService(settings);
         DBusService.initDBusService();
 
+        // Commands the indicator can invoke. `showGroupWindows` is the
+        // click path on a badged app group: the full selector, scoped to
+        // that workspace-local group. The drag path never reaches here —
+        // it goes to GroupFlyout instead.
         this._indicator = new WorkspaceIndicatorModule.WorkspaceIndicator(settings, {
             showAllApps: OverlayService.showAllApps,
             showAllWindows: OverlayService.showAllWindows,
             showWorkspaceWindows: OverlayService.showWorkspaceWindows,
+            showGroupWindows: OverlayService.showGroupWindows,
         });
         Main.panel.addToStatusArea('workspace-indicator', this._indicator, 0, 'left');
 
@@ -4567,6 +6724,7 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
             this._indicator = null;
         }
 
+        destroyExternalDrag();
         Model.disconnectModelSignals();
         Interactions.destroyTooltip();
     }
