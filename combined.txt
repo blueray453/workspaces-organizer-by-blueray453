@@ -1,0 +1,4604 @@
+// ===== FILE: ./stylesheet.css =====
+/* ============================================================
+   Solarized Dark palette reference:
+   base03 #002b36  base02 #073642  base01 #586e75  base00 #657b83
+   base0  #839496  base1  #93a1a1  base2  #eee8d5  base3  #fdf6e3
+   yellow #b58900  orange #cb4b16  red #dc322f  magenta #d33682
+   violet #6c71c4  blue   #268bd2  cyan #2aa198  green #859900
+   ============================================================ */
+
+/* ===== Workspace indicator / thumbnails ===== */
+
+.workspace-indicator-class .workspace-thumbnail {
+    height: 100%;
+    padding: 10px;
+    padding-top: 25px;
+    background-color: rgba(7, 54, 66, 0.65);
+    border: 1px solid rgba(88, 110, 117, 0.4);
+    border-radius: 10px;
+    box-shadow: inset 0 0 0 2px rgba(38, 139, 210, 0.55);
+    transition-duration: 150ms;
+}
+
+.workspace-indicator-class .workspace-thumbnail.active {
+    background-color: rgba(42, 161, 152, 0.28);
+    box-shadow: inset 0 0 0 2px #2aa198;
+}
+
+.workspace-indicator-class .window-preview-icon {
+    border: 1px solid transparent;
+    transition-duration: 120ms;
+}
+
+.workspace-indicator-class .window-preview-icon.focused {
+    background-color: rgba(133, 153, 0, 0.45);
+    border-color: rgba(133, 153, 0, 0.65);
+    box-shadow: inset 0 0 0 2px rgba(133, 153, 0, 0.45);
+}
+
+.workspace-name-label {
+    padding: 20px;
+    font-weight: bold;
+    color: #eee8d5;
+}
+
+.workspace-toolbar-button {
+    padding: 6px;
+    border-radius: 8px;
+    transition-duration: 120ms;
+}
+
+.workspace-toolbar-button:hover {
+    background-color: rgba(38, 139, 210, 0.18);
+}
+
+/* ===== Window collection icon (thumbnail overflow button) =====
+   The button lives inside the thumbnail's padded content area, so it must
+   NOT re-apply padding-top (that was clipping the count vertically). Wide
+   enough for three-digit counts; height left to content so the label's
+   natural size wins. */
+
+.workspace-thumbnail-collection-icon {
+    height: 100%;
+    padding: 12px 24px;
+    background-color: #268bd2;
+    border-radius: 24px;
+    box-shadow: inset 0 0 4px 2px rgba(0, 0, 0, 0.3);
+    transition-duration: 120ms;
+}
+
+.collection-icon-label {
+    color: #fdf6e3;
+    font-size: 32px;
+    font-weight: bold;
+}
+
+/* ===== Clone previews (hover preview) ===== */
+
+.collection-preview-inner {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.clone-title-overlay {
+    color: #fdf6e3;
+    background-color: rgba(0, 0, 0, 0.55);
+    font-weight: bold;
+    padding: 8px 16px;
+    border-radius: 6px;
+}
+
+.window-close-button {
+    background-color: rgba(220, 50, 47, 0.85);
+    border-radius: 6px;
+    padding: 4px;
+    transition-duration: 100ms;
+}
+
+.window-close-button:hover {
+    background-color: #dc322f;
+}
+
+.hover-preview-wrapper {
+    border: 3px solid #268bd2;
+    background-color: #268bd2;
+    border-radius: 10px;
+}
+
+/* ===== Reorderable icon strips ===== */
+
+.window-preview-icon {
+    border-radius: 8px;
+    transition-duration: 120ms;
+}
+
+.reorder-drag-source {
+    border: 3px solid #268bd2;
+    border-radius: 8px;
+}
+
+.drag-placeholder-icon {
+    border: 3px dashed #268bd2;
+    border-radius: 8px;
+    background-color: rgba(38, 139, 210, 0.12);
+}
+
+/* ===== Shared floating tooltip/hint ===== */
+
+.dmenu-tooltip {
+    background-color: rgba(0, 0, 0, 0.85);
+    color: #eee8d5;
+    border: 1px solid rgba(38, 139, 210, 0.5);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 22px;
+    font-weight: bold;
+}
+
+/* ===== Shared search field (launcher + window selector) ===== */
+
+.overlay-search-entry {
+    background-color: rgba(0, 43, 54, 0.92);
+    color: #eee8d5;
+    border: 2px solid #586e75;
+    border-radius: 20px;
+    padding: 20px 34px;
+    font-size: 40px;
+    caret-color: #eee8d5;
+    selection-background-color: #2aa198;
+    selected-color: #002b36;
+    text-align: center;
+}
+
+.overlay-search-entry:focus {
+    border-color: #2aa198;
+    box-shadow: 0 0 0 3px rgba(42, 161, 152, 0.45);
+}
+
+.overlay-search-icon {
+    color: #93a1a1;
+    icon-size: 42px;
+}
+
+.overlay-search-hint {
+    color: #657b83;
+    font-size: 38px;
+    font-weight: bold;
+    letter-spacing: 4px;
+    padding-top: 8px;
+    opacity: 0.7;
+}
+
+/* ===== App launcher ===== */
+
+.launcher-overlay {
+    background-color: rgba(0, 43, 54, 0.94);
+}
+
+.launcher-panel {
+    background-color: rgba(7, 54, 66, 0.72);
+    border: 1px solid rgba(88, 110, 117, 0.9);
+    border-radius: 18px;
+    padding: 14px 20px 0 20px;
+}
+
+.launcher-pinned-section {
+    padding: 8px 0 0 0;
+}
+
+.launcher-pinned-fade-left {
+    background-gradient-direction: horizontal;
+    background-gradient-start: rgba(0, 43, 54, 0.98);
+    background-gradient-end: rgba(0, 43, 54, 0);
+}
+
+.launcher-pinned-fade-right {
+    background-gradient-direction: horizontal;
+    background-gradient-start: rgba(0, 43, 54, 0);
+    background-gradient-end: rgba(0, 43, 54, 0.98);
+}
+
+.launcher-pinned-row .launcher-tile {
+    padding: 16px;
+}
+
+.launcher-heading {
+    color: #657b83;
+    font-size: 38px;
+    font-weight: bold;
+    letter-spacing: 6px;
+    padding: 4px 12px;
+    opacity: 0.75;
+}
+
+.launcher-divider {
+    height: 2px;
+    background-color: rgba(88, 110, 117, 0.85);
+    margin: 0 8px;
+}
+
+.launcher-divider-heading {
+    padding: 6px 0 10px 0;
+}
+
+.launcher-scroll {
+    -st-vfade-offset: 36px;
+}
+
+.launcher-scroll StScrollBar {
+    min-width: 20px;
+    min-height: 20px;
+    padding: 4px;
+}
+
+.launcher-scroll StScrollBar StBin#trough {
+    background-color: rgba(88, 110, 117, 0.3);
+    border-radius: 6px;
+}
+
+.launcher-scroll StScrollBar StButton#vhandle {
+    background-color: rgba(147, 161, 161, 0.8);
+    border-radius: 6px;
+}
+
+.launcher-scroll StScrollBar StButton#vhandle:hover {
+    background-color: #eee8d5;
+}
+
+.launcher-tile {
+    border: 2px solid transparent;
+    border-radius: 18px;
+    padding: 12px 8px;
+}
+
+.launcher-tile:hover {
+    background-color: rgba(147, 161, 161, 0.14);
+}
+
+.launcher-tile.focused {
+    background-color: rgba(42, 161, 152, 0.28);
+    border: 2px solid #2aa198;
+}
+
+.launcher-tile.focused:hover {
+    background-color: rgba(42, 161, 152, 0.38);
+}
+
+.launcher-tile-label {
+    color: #eee8d5;
+    font-size: 52px;
+    font-weight: bold;
+    text-align: center;
+    max-height: 160px;
+    padding-top: 12px;
+}
+
+/* ===== Window selector (v4: discrete focus strip + scrubber) ===== */
+
+.window-selector-overlay {
+    background-color: transparent;
+}
+
+.selector-tint {
+    background-color: rgba(0, 43, 54, 0.08);
+    transition-duration: 220ms;
+}
+
+.window-selector-overlay.selector-cancelling .selector-tint {
+    background-color: rgba(220, 50, 47, 0.22);
+}
+
+.selector-band {
+    background-color: rgba(0, 26, 34, 0.55);
+    box-shadow: 0 0 60px 24px rgba(0, 26, 34, 0.24);
+    padding: 12px 0 0 0;
+}
+
+.selector-band-inner {
+    spacing: 0;
+}
+
+.selector-band-icon {
+    margin-right: 18px;
+}
+
+.selector-band-title-label {
+    color: #fffaf0;
+    font-weight: 700;
+    text-shadow: 0 1px 5px rgba(0, 10, 15, 0.95);
+}
+
+.selector-band-app-label {
+    color: #4fd1c5;
+    font-weight: 700;
+    letter-spacing: 3px;
+    margin-top: 2px;
+    text-shadow: 0 1px 5px rgba(0, 10, 15, 0.95);
+}
+
+/* Uniform-size neighbor rows. Rows sit under the band scrim, so the
+   translucent capsule keeps their labels legible on light previews. */
+.selector-row {
+    padding: 0;
+}
+
+.selector-row-inner {
+    background-color: rgba(0, 18, 26, 0.58);   /* was rgba(0, 20, 30, 0.30) */
+    border-radius: 12px;
+    padding: 6px 22px;
+}
+
+.selector-row-icon {
+    margin-right: 16px;
+}
+
+.selector-row-label {
+    color: #f1ede0;
+    font-weight: 500;              /* was 600 */
+    text-shadow: 0 1px 5px rgba(0, 10, 15, 0.95);
+}
+
+.selector-hint {
+    color: #e8efed;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-align: center;
+    text-shadow: 0 1px 4px rgba(0, 10, 15, 0.95);
+}
+
+/* Scoped underline-style search field. */
+.window-selector-overlay .overlay-search-entry {
+    background-color: transparent;
+    border: none;
+    border-bottom: 2px solid rgba(238, 232, 213, 0.72);
+    border-radius: 0;
+    box-shadow: 0 2px 8px rgba(0, 22, 30, 0.70);
+    color: #fffaf0;
+    text-shadow: 0 1px 4px rgba(0, 10, 15, 0.95);
+}
+
+.window-selector-overlay .overlay-search-entry:focus {
+    border-color: transparent;
+    border-bottom-color: #2aa198;
+    box-shadow: 0 2px 8px rgba(0, 22, 30, 0.70);
+}
+
+.window-selector-overlay .overlay-search-icon {
+    color: #93a1a1;
+    icon-size: 32px;
+}
+
+/* ===== Side scrubber ===== */
+
+.selector-rail {
+    background-color: rgba(0, 18, 26, 0.58);
+    border-radius: 24px;
+    box-shadow: 0 0 14px 4px rgba(0, 22, 30, 0.55);
+}
+
+.selector-rail-track {
+    background-color: rgba(238, 232, 213, 0.55);
+    border-radius: 2px;
+    box-shadow: 0 0 4px 1px rgba(0, 22, 30, 0.7);
+}
+
+.selector-rail-tick {
+    border-radius: 2px;
+    box-shadow: 0 0 2px 1px rgba(0, 22, 30, 0.85);
+}
+
+.selector-rail-marker {
+    background-color: #fffaf0;
+    border-radius: 4px;
+    box-shadow: 0 0 6px 2px rgba(0, 22, 30, 0.9);
+}
+
+.selector-rail-tip {
+    background-color: rgba(0, 22, 30, 0.85);
+    color: #fffaf0;
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-weight: 600;
+    text-shadow: 0 1px 4px rgba(0, 10, 15, 0.95);
+    /* font-size set inline from selectedLabelSize */
+}
+// ===== FILE: ./schemas/org.gnome.shell.extensions.workspaces-organizer-by-blueray453.gschema.xml =====
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.workspaces-organizer-by-blueray453"
+          path="/org/gnome/shell/extensions/workspaces-organizer-by-blueray453/">
+    <key name="show-drun-button" type="b">
+      <default>true</default>
+      <summary>Show the "show apps" panel button</summary>
+      <description>Whether to show the button that opens `gdmenu --drun --fullscreen`.</description>
+    </key>
+    <key name="tooltip-font-size" type="i">
+      <default>14</default>
+      <summary>Font size of floating tooltips</summary>
+      <description>Font size of the workspace name hint, pinned-app hover tooltip, and pinned-app drag insertion hint (points).</description>
+    </key>
+    <key name="show-window-button" type="b">
+      <default>true</default>
+      <summary>Show the "all windows" panel button</summary>
+      <description>Whether to show the button that opens `gdmenu --window --fullscreen`.</description>
+    </key>
+    <key name="show-workspace-names" type="b">
+      <default>true</default>
+      <summary>Show workspace name label and drag-over hint</summary>
+      <description>Whether to show the workspace name in the panel and as a hint while dragging a window over a thumbnail.</description>
+    </key>
+    <key name="toolbar-icon-size" type="i">
+      <default>56</default>
+      <summary>Icon size for panel toolbar buttons</summary>
+      <description>Size of the 'apps' and 'all windows' button icons in the panel (pixels).</description>
+    </key>
+    <key name="app-preview-icon-size" type="i">
+      <default>128</default>
+      <summary>Icon size in the app search overlay's preview panel</summary>
+    </key>
+    <key name="icon-size" type="i">
+      <default>96</default>
+      <summary>Default icon size for window previews</summary>
+      <description>Size of each window icon in the workspace thumbnails (pixels).</description>
+    </key>
+    <key name="thumbnail-min-width" type="i">
+      <default>50</default>
+      <summary>Minimum width of each workspace thumbnail</summary>
+      <description>Minimum width of each workspace thumbnail in the panel (pixels).</description>
+    </key>
+    <key name="workspace-name-font-size" type="i">
+      <default>40</default>
+      <summary>Font size of the workspace name label</summary>
+      <description>Font size of the workspace name displayed in the panel (pixels).</description>
+    </key>
+    <key name="hover-preview-height" type="i">
+      <default>800</default>
+      <summary>Height of the hover preview window clone</summary>
+      <description>Height of the live preview shown when hovering over a window icon (pixels).</description>
+    </key>
+    <key name="title-popup-font-size" type="i">
+      <default>16</default>
+      <summary>Font size of the title popup (Ctrl‑held)</summary>
+      <description>Font size of the title popup shown while holding Ctrl (points).</description>
+    </key>
+    <key name="collection-search-font-size" type="i">
+      <default>18</default>
+      <summary>Font size of the collection overlay search entry</summary>
+      <description>Font size of the search entry in the window collection overlay (points).</description>
+    </key>
+    <key name="collection-result-font-size" type="i">
+      <default>13</default>
+      <summary>Font size of the collection overlay result items</summary>
+      <description>Font size of the search result items in the collection overlay (points).</description>
+    </key>
+    <key name="collection-result-icon-size" type="i">
+      <default>48</default>
+      <summary>Icon size for search result items</summary>
+      <description>Size of application icons shown in the search results overlay (pixels).</description>
+    </key>
+    <key name="clone-title-font-size" type="i">
+      <default>32</default>
+      <summary>Font size of the window title overlay on preview clones</summary>
+      <description>Font size of the window title shown on hover previews and collection overlay previews (pixels).</description>
+    </key>
+    <key name="close-button-size" type="i">
+      <default>32</default>
+      <summary>Size of the close button on previews</summary>
+      <description>Size of the close button icon on previews (pixels).</description>
+    </key>
+  </schema>
+</schemalist>
+// ===== FILE: ./lib/workspaceIndicator.js =====
+import Clutter from 'gi://Clutter';
+import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
+import Meta from 'gi://Meta';
+import St from 'gi://St';
+
+import * as ExtensionModule from 'resource:///org/gnome/shell/extensions/extension.js';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
+
+import * as Model from './model.js';
+import * as Scheduling from './scheduling.js';
+import * as Interactions from './interactions.js';
+import * as UI from './ui.js';
+
+import { createLogger } from '../logger.js';
+const journal = createLogger(import.meta.url);
+
+const _ = ExtensionModule.gettext;
+
+let _instance = null;
+let _settleWindow = null;
+
+const MIN_RENDER_INTERVAL_MS = 100;
+
+export function thumbnailAt(x, y) { return _instance?._thumbnailAt(x, y) ?? null; }
+export function settleOnNextRender(window) { _settleWindow = window; }
+
+export class WorkspaceIndicator extends PanelMenu.Button {
+    static { GObject.registerClass(this); }
+
+    constructor(settings, commands) {
+        super(0.0, _('Workspace Indicator'));
+        this.reactive = false;
+        this._settings = settings;
+        this._commands = commands;
+        _instance = this;
+
+        this._controllers = new Map();
+        this._lastIconSize = undefined;
+        this._lastRenderTime = undefined;
+        this._toolbarKey = null;
+        this._staticBox = null;
+        this._nameLabel = null;
+        this._thumbsBox = null;
+
+        this._scope = new Scheduling.Scope();
+        this._renderCoalescer = new Scheduling.Coalescer(() => this._render());
+        this._leavePollId = 0;
+
+        this._lastHintWs = Model.intent.hintWs;
+        this._lastDragActive = !!Model.intent.drag;
+        this._lastMenuOpen = !!Model.intent.menuOpen;
+
+        this._ghost = Interactions.createReorderGhost({
+            iconSize: () => settings.get_int('icon-size'),
+        });
+
+        this._mainBox = new St.BoxLayout({
+            style_class: 'workspace-indicator-main-box', y_expand: true, x_expand: true, reactive: true,
+        });
+        this.add_child(this._mainBox);
+
+        Model.onIntentChange(() => this._onIntentChanged());
+        Model.onWorldChange(() => this._queueRender());
+
+        this._render();
+    }
+
+    _onIntentChanged() {
+        const hintChanged = Model.intent.hintWs !== this._lastHintWs;
+        const isDragging = !!Model.intent.drag;
+        const isMenu = !!Model.intent.menuOpen;
+        const dragChanged = isDragging !== this._lastDragActive;
+        const menuChanged = isMenu !== this._lastMenuOpen;
+
+        this._lastHintWs = Model.intent.hintWs;
+        this._lastDragActive = isDragging;
+        this._lastMenuOpen = isMenu;
+
+        if (hintChanged) this._syncHint();
+        if (dragChanged || menuChanged) this._queueRender();
+    }
+
+    _queueRender(delay = 0) {
+        const now = GLib.get_monotonic_time() / 1000;
+        const since = now - (this._lastRenderTime ?? 0);
+        if (since < MIN_RENDER_INTERVAL_MS)
+            delay = Math.max(delay, MIN_RENDER_INTERVAL_MS - since);
+        this._renderCoalescer.queue(delay);
+    }
+
+    // ==================== RENDER ====================
+    _render() {
+        if (Model.intent.menuOpen) return;
+        if (Model.intent.drag) return;
+
+        this._ghost.clear();
+
+        const model = Model.buildModel();
+        Model.logModel(model);
+        const s = this._settings;
+
+        const iconSize = s.get_int('icon-size');
+        if (this._lastIconSize !== undefined && this._lastIconSize !== iconSize) {
+            for (const ctrl of this._controllers.values()) ctrl.destroy();
+            this._controllers.clear();
+        }
+        this._lastIconSize = iconSize;
+
+        for (const ctrl of this._controllers.values()) {
+            const parent = ctrl.actor.get_parent();
+            if (parent) parent.remove_child(ctrl.actor);
+        }
+
+        const toolbarKey = [
+            s.get_boolean('show-drun-button'),
+            s.get_boolean('show-window-button'),
+            s.get_boolean('show-workspace-names'),
+            s.get_int('toolbar-icon-size'),
+            s.get_int('workspace-name-font-size'),
+        ].join('|');
+        if (this._toolbarKey !== toolbarKey) {
+            this._toolbarKey = toolbarKey;
+            this._buildToolbar(s);
+        }
+        if (this._nameLabel) {
+            this._nameLabel.set_text(Meta.prefs_get_workspace_name(
+                Model.WorkspaceManager.get_active_workspace_index()));
+        }
+
+        this._thumbsBox?.destroy();
+        this._settleActor = null;
+        this._thumbsBox = new St.BoxLayout({
+            style_class: 'workspace-indicator-class', y_expand: true, x_expand: true, reactive: true,
+        });
+
+        const seen = new Set();
+        for (const entry of model.workspaces)
+            this._thumbsBox.add_child(this._buildThumbnail(entry, seen));
+        this._mainBox.add_child(this._thumbsBox);
+
+        for (const [key, ctrl] of this._controllers) {
+            if (!seen.has(key)) {
+                ctrl.destroy();
+                this._controllers.delete(key);
+            }
+        }
+
+        if (this._settleActor) Interactions.settleIcon(this._settleActor);
+        this._syncHint();
+
+        this._lastRenderTime = GLib.get_monotonic_time() / 1000;
+    }
+
+    _buildToolbar(s) {
+        if (!this._staticBox) {
+            this._staticBox = new St.BoxLayout({ y_expand: true });
+            this._mainBox.add_child(this._staticBox);
+        }
+        this._staticBox.destroy_all_children();
+        this._nameLabel = null;
+
+        const iconSize = s.get_int('toolbar-icon-size');
+        if (s.get_boolean('show-window-button')) {
+            const b = UI.createToolbarButton('focus-windows-symbolic', iconSize, 'All windows');
+            b.connect('clicked', () => this._commands.showAllWindows());
+            this._staticBox.add_child(b);
+        }
+        if (s.get_boolean('show-drun-button')) {
+            const b = UI.createToolbarButton('view-app-grid-symbolic', iconSize, 'Show apps');
+            b.connect('clicked', () => this._commands.showAllApps());
+            this._staticBox.add_child(b);
+        }
+        if (s.get_boolean('show-workspace-names')) {
+            this._nameLabel = UI.createWorkspaceNameLabel(
+                Meta.prefs_get_workspace_name(Model.WorkspaceManager.get_active_workspace_index()),
+                s.get_int('workspace-name-font-size'));
+            this._staticBox.add_child(this._nameLabel);
+        }
+    }
+
+    _buildThumbnail(entry, seen) {
+        const s = this._settings;
+        // `direct` is the model's display-mode flag. Overlays ignore it —
+        // here it only decides whether we render one icon per window or a
+        // single overflow count button.
+        const { workspace, index, windows, direct } = entry;
+
+        for (const w of windows) seen.add(`${w.get_id()}:${index}`);
+
+        const { actor: thumb, box } = UI.createThumbnail({
+            minWidth: s.get_int('thumbnail-min-width'),
+            active: index === Model.WorkspaceManager.get_active_workspace_index(),
+        });
+        thumb._wsEntry = { workspace, index };
+
+        const strip = Interactions.createDropStrip({
+            container: box,
+            ghost: this._ghost,
+            acceptSource: source => direct && source?._dragPayload?.kind === 'window',
+            externalResult: Interactions.DragMotionResult.MOVE_DROP,
+            onDragOver: () => {
+                this._ensureLeavePoll();
+                Model.setIntent({ hintWs: index });
+            },
+            onExternalDragOver: () => {
+                if (workspace !== Model.WorkspaceManager.get_active_workspace())
+                    workspace.activate(global.get_current_time());
+            },
+            onDrop: (source, dropIndex, dragActor) =>
+                this._dropOnWorkspace(thumb, workspace, direct, source, dropIndex, dragActor),
+        });
+        thumb._delegate = strip.delegate();
+
+        thumb.connect('button-press-event', (actor, event) => {
+            const b = event.get_button();
+            if (b === Clutter.BUTTON_PRIMARY) workspace.activate(0);
+            else if (b === Clutter.BUTTON_SECONDARY) this._openThumbnailMenu(thumb, workspace);
+            return Clutter.EVENT_STOP;
+        });
+
+        if (!direct) {
+            const overflow = UI.createOverflowButton(windows.length);
+            overflow.connect('clicked', () => this._commands.showWorkspaceWindows(index));
+            box.add_child(overflow);
+            return thumb;
+        }
+
+        const iconSize = s.get_int('icon-size');
+        for (const w of windows) {
+            const key = `${w.get_id()}:${index}`;
+            let ctrl = this._controllers.get(key);
+
+            if (ctrl?.stale) {
+                ctrl.destroy();
+                this._controllers.delete(key);
+                ctrl = undefined;
+            }
+
+            if (ctrl) {
+                box.add_child(ctrl.actor);
+                ctrl.setStrip(strip);
+            } else {
+                const { actor, icon } = UI.createWindowIconActor(w, iconSize);
+                box.add_child(actor);
+                ctrl = new Interactions.WindowIconController({
+                    window: w, actor, icon, settings: s,
+                    strip,
+                    onRequestRender: () => { ctrl.stale = true; this._queueRender(); },
+                });
+                this._controllers.set(key, ctrl);
+            }
+
+            if (w === _settleWindow) { _settleWindow = null; this._settleActor = ctrl.actor; }
+        }
+        return thumb;
+    }
+
+    _syncHint() {
+        const s = this._settings;
+        const wsIndex = Model.intent.hintWs;
+        const target = (wsIndex !== null && this._thumbsBox)
+            ? this._thumbsBox.get_child_at_index(wsIndex)
+            : null;
+        if (!target || !s.get_boolean('show-workspace-names')) {
+            Interactions.getTooltip().hide();
+            return;
+        }
+        Interactions.getTooltip().showAbove(
+            target,
+            Meta.prefs_get_workspace_name(wsIndex),
+            s.get_int('tooltip-font-size'));
+    }
+
+    _openThumbnailMenu(anchor, workspace) {
+        const windows = Model.getModelWindows(workspace);
+        Interactions.openContextMenu(anchor, menu => {
+            menu.addAction('Close all windows on all workspaces', () => {
+                const now = global.get_current_time();
+                for (const w of Model.getModelWindows(null)) w.delete(now);
+            });
+            if (windows.length > 0) {
+                menu.addAction(`Close all windows except workspace ${workspace.index()}`, () => {
+                    const now = global.get_current_time();
+                    for (const w of Model.getModelWindows(null).filter(w => w.get_workspace() !== workspace))
+                        w.delete(now);
+                });
+                menu.addAction(`Close all windows on workspace ${workspace.index()}`, () => {
+                    const now = global.get_current_time();
+                    for (const w of windows) w.delete(now);
+                });
+            }
+        });
+    }
+
+    _dropOnWorkspace(thumb, workspace, direct, source, dropIndex, dragActor) {
+        Model.setIntent({ hintWs: null });
+
+        const win = source?._dragPayload?.window ?? null;
+        if (!win) return true;
+
+        const sameWs = win.get_workspace() === workspace;
+
+        if (dragActor && dragActor !== source._actor) {
+            dragActor.get_parent()?.remove_child(dragActor);
+            try { dragActor.destroy(); } catch (e) { /* ignore */ }
+        }
+
+        if (sameWs && !direct) { Model.setIntent({ drag: null }); return true; }
+
+        Model.placeWindow(win, workspace, direct ? dropIndex : null);
+        if (!sameWs) {
+            const monitorIndex = Main.layoutManager.findIndexForActor(thumb);
+            if (monitorIndex !== win.get_monitor()) win.move_to_monitor(monitorIndex);
+            win.change_workspace(workspace);
+        }
+        _settleWindow = win;
+        Model.setIntent({ drag: null });
+        return true;
+    }
+
+    _ensureLeavePoll() {
+        if (this._leavePollId) return;
+        this._leavePollId = this._scope.timeout(100, () => {
+            const [px, py, mods] = global.get_pointer();
+            const held = (mods & Clutter.ModifierType.BUTTON1_MASK) !== 0;
+            if (!held || !this._thumbnailAt(px, py)) {
+                this._leavePollId = 0;
+                Model.setIntent({ hintWs: null });
+                this._ghost.clear();
+                return GLib.SOURCE_REMOVE;
+            }
+            return GLib.SOURCE_CONTINUE;
+        });
+    }
+
+    _thumbnailAt(x, y) {
+        if (!this._thumbsBox) return null;
+        for (const thumb of this._thumbsBox.get_children()) {
+            if (!thumb.get_stage() || !thumb._wsEntry) continue;
+            const [tx, ty] = thumb.get_transformed_position();
+            const [tw, th] = thumb.get_transformed_size();
+            if (x >= tx && x <= tx + tw && y >= ty && y <= ty + th)
+                return { ...thumb._wsEntry, actor: thumb };
+        }
+        return null;
+    }
+
+    // ==================== LIFECYCLE ====================
+    destroy() {
+        this._renderCoalescer.cancel();
+        Model.onIntentChange(null);
+        Model.onWorldChange(null);
+        Model.resetIntent();
+
+        for (const ctrl of this._controllers.values()) ctrl.destroy();
+        this._controllers.clear();
+
+        this._ghost.clear();
+        this._ghost = null;
+        _instance = null;
+        _settleWindow = null;
+
+        this._scope.dispose();
+        this._mainBox?.destroy();
+        Main.panel.set_offscreen_redirect(Clutter.OffscreenRedirect.ALWAYS);
+        super.destroy();
+    }
+}
+
+// ==================== TITLE BAR MOVE MONITOR ====================
+export class TitleBarMoveMonitor {
+    constructor() {
+        this._currentDragWindow = null;
+        this._lastSwitchedWorkspace = null;
+        this._cursorTracker = global.backend.get_cursor_tracker();
+        this._cursorPositionId = 0;
+
+        this._beginId = Model.Display.connect('grab-op-begin',
+            (display, window, op) => this._onGrabOpBegin(window, op));
+        this._endId = Model.Display.connect('grab-op-end',
+            (display, window, op) => this._onGrabOpEnd(window, op));
+        this._sessionModeId = Main.sessionMode.connect('updated', () => {
+            if (Main.sessionMode.currentMode === 'unlock-dialog') {
+                journal('[TitleBarMoveMonitor] session locked, resetting drag state');
+                this.reset();
+            }
+        });
+    }
+
+    reset() {
+        this._currentDragWindow = null;
+        this._lastSwitchedWorkspace = null;
+        this._stopGrabTracking();
+        Model.setIntent({ hintWs: null });
+    }
+
+    _isMoveOp(op) { return op === Meta.GrabOp.MOVING || op === Meta.GrabOp.KEYBOARD_MOVING; }
+
+    _onGrabOpBegin(window, op) {
+        if (!this._isMoveOp(op)) return;
+        this._currentDragWindow = window;
+        this._lastSwitchedWorkspace = null;
+        this._startGrabTracking();
+    }
+
+    _onGrabOpEnd(window, op) {
+        const grabbed = this._currentDragWindow;
+        this._currentDragWindow = null;
+        this._lastSwitchedWorkspace = null;
+        this._stopGrabTracking();
+        Model.setIntent({ hintWs: null });
+
+        if (!grabbed || grabbed !== window || !this._isMoveOp(op)) return;
+
+        const [x, y] = this._getPointerPosition();
+        const target = thumbnailAt(x, y);
+        if (target) this._moveWindowTo(target, window);
+    }
+
+    _startGrabTracking() {
+        this._stopGrabTracking();
+        if (!this._cursorTracker) return;
+        this._cursorPositionId = this._cursorTracker.connect('position-invalidated',
+            () => this._onCursorPositionInvalidated());
+    }
+
+    _stopGrabTracking() {
+        if (this._cursorPositionId && this._cursorTracker) {
+            this._cursorTracker.disconnect(this._cursorPositionId);
+            this._cursorPositionId = 0;
+        }
+    }
+
+    _onCursorPositionInvalidated() {
+        if (!this._currentDragWindow) return;
+
+        const [x, y] = this._getPointerPosition();
+        const thumb = thumbnailAt(x, y);
+        Model.setIntent({ hintWs: thumb ? thumb.index : null });
+        if (!thumb) return;
+
+        const ws = thumb.workspace;
+        if (ws === Model.WorkspaceManager.get_active_workspace() || ws === this._lastSwitchedWorkspace) return;
+        this._moveWindowTo(thumb, this._currentDragWindow);
+    }
+
+    _getPointerPosition() {
+        if (this._cursorTracker) {
+            try {
+                const [point] = this._cursorTracker.get_pointer();
+                return [point.x, point.y];
+            } catch (e) { journal(`[TitleBarMoveMonitor] get_pointer failed: ${e}`); }
+        }
+        return global.get_pointer();
+    }
+
+    _moveWindowTo(thumb, window) {
+        const ws = thumb.workspace;
+        const alreadyThere = window.get_workspace() === ws;
+
+        if (!alreadyThere) {
+            Model.placeWindow(window, ws, null);
+            settleOnNextRender(window);
+        }
+        const monitorIndex = Main.layoutManager.findIndexForActor(thumb.actor);
+        if (monitorIndex !== window.get_monitor()) window.move_to_monitor(monitorIndex);
+        window.change_workspace(ws);
+        ws.activate(global.get_current_time());
+        this._lastSwitchedWorkspace = ws;
+    }
+
+    destroy() {
+        this._stopGrabTracking();
+        if (this._beginId) { Model.Display.disconnect(this._beginId); this._beginId = null; }
+        if (this._endId) { Model.Display.disconnect(this._endId); this._endId = null; }
+        if (this._sessionModeId) { Main.sessionMode.disconnect(this._sessionModeId); this._sessionModeId = null; }
+        this._currentDragWindow = null;
+    }
+}
+// ===== FILE: ./lib/searchOverlays.js =====
+import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+import Meta from 'gi://Meta';
+import Pango from 'gi://Pango';
+import Shell from 'gi://Shell';
+import St from 'gi://St';
+
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as AppFavorites from 'resource:///org/gnome/shell/ui/appFavorites.js';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import * as Util from 'resource:///org/gnome/shell/misc/util.js';
+import * as AppMenuModule from 'resource:///org/gnome/shell/ui/appMenu.js';
+
+import * as Scheduling from './scheduling.js';
+import * as Fuzzy from './fuzzy.js';
+import * as Model from './model.js';
+import * as Interactions from './interactions.js';
+import * as UI from './ui.js';
+
+import { createLogger } from '../logger.js';
+const journal = createLogger(import.meta.url);
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const ease = t => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
+
+// ==================== DISCRETE FOCUS STRIP ====================
+function neighborOpacity(x) {
+    if (x <= 1) return 0.95;
+    if (x <= 2) return 0.95 - 0.20 * (x - 1);        // x=2: 0.75
+    return Math.max(0, 0.75 * (1 - (x - 2) / 0.8));  // gone by x=2.8
+}
+
+// ==================== RAIL TICK COLORS ====================
+const SOLARIZED = [
+    '#268bd2', '#cb4b16', '#859900', '#d33682',
+    '#2aa198', '#b58900', '#6c71c4', '#dc322f',
+];
+
+function appColor(appName) {
+    let h = 0;
+    for (let i = 0; i < appName.length; i++) h = (h * 31 + appName.charCodeAt(i)) | 0;
+    return SOLARIZED[Math.abs(h) % SOLARIZED.length];
+}
+
+// ==================== LAYOUT ====================
+// Three independent layout functions, one per region of the screen. Each
+// region owns its geometry exclusively; no cross-references except through
+// derived fields. The band never crosses the rail because the rail reserves
+// a `gutter` on the right and the band is inset by that gutter on both sides.
+//
+// The type scale is one number — `overlay.centerLabelSize` — and every text
+// size in the selector derives from it. Bumping one constant grows the whole
+// hierarchy proportionally.
+
+function computeOverlayLayout(monitor) {
+    const W = monitor.width, H = monitor.height;
+    // The single number that drives the whole typographic hierarchy.
+    const centerLabelSize = Math.max(40, Math.min(92, Math.round(H * 0.072)));
+    return {
+        x: monitor.x, y: monitor.y, width: W, height: H,
+        centerLabelSize,
+    };
+}
+
+function computeRailLayout(overlay) {
+    const width = 48;
+    const margin = 14;
+    const pad = 10;
+    const height = Math.round(overlay.height * 0.80);
+    return {
+        x: overlay.width - margin - width,
+        y: Math.round((overlay.height - height) / 2),
+        width, height, margin, pad,
+        // Total horizontal budget the rail reserves from the right edge.
+        // computeBandLayout uses this to keep clear of the rail.
+        gutter: margin + width + margin,
+    };
+}
+
+function computeBandLayout(overlay, rail) {
+    const selectedHeight = Math.round(overlay.centerLabelSize * 1.95);
+    const searchHeight = 104;
+    const height = selectedHeight + searchHeight + 40;
+    // Symmetric gutters: left inset equals right inset (= rail.gutter), so
+    // the band is centered on the overlay but never touches the rail.
+    const width = Math.max(400, overlay.width - rail.gutter * 2);
+    return {
+        x: Math.round((overlay.width - width) / 2),
+        y: Math.round((overlay.height - height) / 2),
+        width, height,
+        selectedHeight, searchHeight,
+        searchWidth: Math.min(1100, Math.round(width * 0.85)),
+    };
+}
+
+function computeRowLayout(overlay, band) {
+    const rowLabelSize = Math.round(overlay.centerLabelSize * 0.88);
+    return {
+        rowLabelSize,
+        rowIconSize: Math.round(rowLabelSize * 1.15),
+        slotH: Math.round(rowLabelSize * 1.55),
+        // Row text column stays inside the band's horizontal extent so a
+        // long title truncates before reaching the rail gutter.
+        rowTextMax: Math.round(band.width * 0.85),
+        // Rail tip max width — overlay-relative, not band-relative, because
+        // the tip hangs off to the left of the rail.
+        tipWidth: Math.min(700, Math.round(overlay.width * 0.45)),
+    };
+}
+
+// ==================== launcher layout (unchanged) ====================
+function computeLauncherLayout(monitor) {
+    const margin = Math.max(24, Math.round(monitor.height * 0.04));
+    const searchHeight = 160;
+    const searchWidth = Math.min(1100, monitor.width - margin * 2);
+
+    const searchY = margin;
+    const pinnedY = searchY + searchHeight + 16;
+    const pinnedHeight = 240;
+
+    const resultsY = pinnedY + pinnedHeight + 16;
+    const resultsHeadingHeight = 70;
+    const resultsHeight = Math.max(240, monitor.height - resultsY - margin);
+
+    const fullWidth = monitor.width - margin * 2;
+    const innerWidth = fullWidth - 40;
+    const columns = Math.max(2, Math.min(8, Math.floor(innerWidth / 240)));
+    const tileWidth = Math.floor(innerWidth / columns);
+
+    return {
+        margin, searchWidth,
+        searchX: Math.round((monitor.width - searchWidth) / 2), searchY,
+        fullWidth, fullX: margin,
+        pinnedY, pinnedHeight,
+        resultsY, resultsHeadingHeight, resultsHeight,
+        columns, tileWidth, tileHeight: 340, iconSize: 144,
+        pinnedTileWidth: 200, pinnedTileHeight: 200, pinnedIconSize: 160,
+    };
+}
+
+// ==================== shared overlay base ====================
+export class SearchOverlayBase {
+    static _current = null;
+
+    static get current() {
+        if (SearchOverlayBase._current?._closed) SearchOverlayBase._current = null;
+        return SearchOverlayBase._current;
+    }
+
+    static closeCurrent() {
+        const overlay = SearchOverlayBase.current;
+        if (!overlay) return false;
+        overlay._close();
+        return true;
+    }
+
+    constructor(settings) {
+        this._settings = settings;
+        this._results = [];
+        this._selectedIndex = -1;
+        this._query = '';
+        this._initialKey = null;
+        this._modalGrab = null;
+        this._closed = false;
+        this._closing = false;
+        this._focusGuard = false;
+
+        this._scope = new Scheduling.Scope();
+        this._rowsScope = new Scheduling.Scope();
+    }
+
+    _trackFullscreen() { return true; }
+    _computeResults(query) { return []; }
+    _beforeResults(query, unchanged) { }
+    _renderResults(results) { }
+    _onSelectionChanged(index) { }
+    _getRestoreKey(item) { return null; }
+    _activateResult(index) { }
+    _activateFocused() { if (this._selectedIndex >= 0) this._activateResult(this._selectedIndex); }
+    _initialKeyFocus() { this._entry.grab_key_focus(); }
+    _handleEscape() { this._close(); }
+    _handleExtraKeys(event, symbol) { return undefined; }
+    _onBeforeClose() { }
+    _shouldCloseOnWindowRemoved(window) { return true; }
+
+    _wireEntry(entry) {
+        this._entry = entry;
+        this._scope.connect(entry.clutter_text, 'text-changed', () => this._onSearchChanged());
+        this._scope.connect(entry.clutter_text, 'key-press-event', (a, e) => this._onKeyPress(e));
+    }
+
+    _open() {
+        Main.layoutManager.addChrome(this._container, {
+            affectsInputRegion: true, trackFullscreen: this._trackFullscreen(),
+        });
+        Main.layoutManager.uiGroup.set_child_above_sibling(this._container, null);
+        this._modalGrab = Main.pushModal(this._container, { actionMode: Shell.ActionMode.NORMAL });
+        this._initialKeyFocus();
+        SearchOverlayBase._current = this;
+
+        this._scope.connect(this._container, 'key-press-event', (a, e) => this._onKeyPress(e));
+
+        this._scope.connect(Model.Display, 'notify::focus-window', () => {
+            if (this._closed || this._closing || this._focusGuard) return;
+            this._close();
+        });
+        this._scope.connect(Model.Display, 'window-created', () => {
+            if (!this._closed && !this._closing) this._close();
+        });
+        this._scope.connect(global.window_manager, 'destroy', (wm, actor) => {
+            const window = actor.meta_window;
+            if (!window || this._closed || this._closing || !this._shouldCloseOnWindowRemoved(window)) return;
+            this._close();
+        });
+    }
+
+    _close() {
+        if (this._closed) return;
+        this._closed = true;
+        Interactions.getTooltip().hide();
+        this._onBeforeClose();
+
+        if (this._modalGrab) { Main.popModal(this._modalGrab); this._modalGrab = null; }
+        this._rowsScope.dispose();
+        this._scope.dispose();
+
+        Main.layoutManager.removeChrome(this._container);
+        this._container.destroy();
+    }
+
+    _onSearchChanged() {
+        if (this._closed) return;
+        const query = this._entry.get_text().trim();
+        const unchanged = query === this._query;
+        this._query = query;
+        this._beforeResults(query, unchanged);
+        this._setResults(this._computeResults(query), unchanged);
+    }
+
+    _setResults(results, keepSelection = true) {
+        const prev = this._results[this._selectedIndex];
+        let previousKey = keepSelection && prev ? this._getRestoreKey(prev) : null;
+
+        if (previousKey === null && this._initialKey !== null) previousKey = this._initialKey;
+        this._initialKey = null;
+
+        this._results = results;
+        this._rowsScope.dispose();
+        this._rowsScope = new Scheduling.Scope();
+        this._selectedIndex = -1;
+        this._renderResults(results);
+
+        if (results.length === 0) { this._onSelectionChanged(-1); return; }
+        const restored = previousKey !== null
+            ? results.findIndex(item => this._getRestoreKey(item) === previousKey) : -1;
+        this._selectIndex(restored >= 0 ? restored : 0);
+    }
+
+    _selectIndex(index) {
+        if (this._closed || index < 0 || index >= this._results.length) return;
+        if (index === this._selectedIndex) return;
+        this._selectedIndex = index;
+        this._onSelectionChanged(index);
+    }
+
+    _onKeyPress(event) {
+        if (this._closed) return Clutter.EVENT_PROPAGATE;
+        const symbol = event.get_key_symbol();
+        const handled = this._handleExtraKeys(event, symbol);
+        if (handled !== undefined) return handled;
+
+        switch (symbol) {
+            case Clutter.KEY_Escape:
+                this._handleEscape();
+                return Clutter.EVENT_STOP;
+            case Clutter.KEY_Down:
+                this._selectIndex(this._selectedIndex + 1);
+                return Clutter.EVENT_STOP;
+            case Clutter.KEY_Up:
+                this._selectIndex(this._selectedIndex - 1);
+                return Clutter.EVENT_STOP;
+            case Clutter.KEY_Return:
+            case Clutter.KEY_KP_Enter:
+                this._activateFocused();
+                return Clutter.EVENT_STOP;
+            default:
+                return Clutter.EVENT_PROPAGATE;
+        }
+    }
+}
+
+// ==================== window selector ====================
+export class WindowSearchOverlay extends SearchOverlayBase {
+    constructor(windows, settings, focusedWindow = null) {
+        super(settings);
+        this._focusedWindow = focusedWindow ?? Model.Display.focus_window;
+
+        this._items = windows.map(w => ({
+            window: w,
+            title: w.get_title() || 'Untitled Window',
+            appName: this._getAppName(w),
+            icon: UI.getWindowAppIcon(w),
+        }));
+
+        this._rows = [];
+        this._scrollAccum = 0;
+        this._scrollPos = 0;
+        this._scrollTarget = 0;
+        this._tweenId = 0;
+        this._lastFrame = 0;
+        this._lastScrollStep = 0;
+        this._snap = true;
+
+        this._origin = {
+            window: Model.Display.focus_window,
+            workspace: Model.WorkspaceManager.get_active_workspace(),
+        };
+        this._revealed = null;
+        this._revealedAny = false;
+        this._maximizedWindow = null;
+        this._revealTimer = 0;
+        this._guardTimer = 0;
+        this._cancelled = false;
+
+        this._hintLabel = null;
+
+        // Layout instances (set in _buildUI)
+        this._overlayL = null;
+        this._railL = null;
+        this._bandL = null;
+        this._rowL = null;
+
+        // Rail state
+        this._rail = null;
+        this._railTicksBox = null;
+        this._railTicks = [];
+        this._railMarker = null;
+        this._railTip = null;
+        this._railGrab = null;
+        this._railDragging = false;
+        this._railH = 0;
+        this._railPad = 0;
+
+        this._buildUI();
+        this._initialKey = this._focusedWindow ?? null;
+        this._onSearchChanged();
+        this._open();
+    }
+
+    _trackFullscreen() { return false; }
+    _getRestoreKey(item) { return item.window; }
+
+    _shouldCloseOnWindowRemoved(window) {
+        return this._results.some(item => item.window === window);
+    }
+
+    _matchItem(query, item) {
+        const r = Fuzzy.fuzzyMatch(query, `${item.title} ${item.appName}`);
+        if (!r.matched) return r;
+        return { ...r, indices: new Set([...r.indices].filter(i => i < item.title.length)) };
+    }
+
+    _computeResults(query) {
+        if (!query) return this._items.map(item => ({ ...item, indices: null }));
+
+        const scored = [];
+        for (const item of this._items) {
+            const r = this._matchItem(query, item);
+            if (r.matched) scored.push({ ...item, score: r.score, indices: r.indices });
+        }
+        return scored.sort((a, b) => b.score - a.score);
+    }
+
+    _getAppName(window) {
+        const app = Shell.WindowTracker.get_default().get_window_app(window);
+        return app ? app.get_name() : (window.get_wm_class() || 'Unknown');
+    }
+
+    _buildUI() {
+        const monitor = Main.layoutManager.primaryMonitor;
+        this._monitor = monitor;
+        this._overlayL = computeOverlayLayout(monitor);
+        this._railL = computeRailLayout(this._overlayL);
+        this._bandL = computeBandLayout(this._overlayL, this._railL);
+        this._rowL = computeRowLayout(this._overlayL, this._bandL);
+
+        const OV = this._overlayL;
+        const BAND = this._bandL;
+
+        this._container = UI.createFullscreenContainer(monitor, 'window-selector-overlay');
+        this._container.add_style_class_name('search-mode');
+
+        const size = { width: OV.width, height: OV.height };
+        this._tint = new St.Widget({ style_class: 'selector-tint', reactive: false, opacity: 255, ...size });
+        this._listLayer = new St.Widget(size);
+
+        const { band, titleBin } = UI.createSelectionBand(BAND);
+        this._bandBin = titleBin;
+        this._band = band;
+
+        const search = UI.createSearchField({ width: BAND.searchWidth, hint: 'Type to search…' });
+        this._wireEntry(search.entry);
+        this._searchRoot = search.actor;
+        band.add_child(new St.Bin({ x_expand: true, x_align: Clutter.ActorAlign.CENTER, child: search.actor }));
+
+        const hint = UI.createSelectorHint(OV);
+        this._hintLabel = hint.label;
+
+        for (const actor of [
+            this._tint, this._listLayer,
+            band, hint.actor,
+        ]) this._container.add_child(actor);
+
+        this._buildRail();
+
+        this._scope.connect(this._container, 'scroll-event', (a, e) => this._onScroll(e));
+        this._scope.connect(this._container, 'button-release-event', (a, e) => this._onClick(e));
+
+        this._scope.connect(global.stage, 'notify::key-focus', () => {
+            if (this._closed || this._closing) return;
+            if (global.stage.get_key_focus() === this._entry.clutter_text) return;
+            this._refocusEntry();
+        });
+    }
+
+    // ----- rail widget tree -----
+    _buildRail() {
+        const RL = this._railL;
+        const OV = this._overlayL;
+        const ROW = this._rowL;
+
+        this._railH = RL.height;
+        this._railPad = RL.pad;
+
+        this._rail = new St.Widget({
+            style_class: 'selector-rail',
+            reactive: true, track_hover: true,
+            x: RL.x, y: RL.y,
+            width: RL.width, height: RL.height,
+        });
+
+        const track = new St.Widget({
+            style_class: 'selector-rail-track',
+            x: Math.round((RL.width - 2) / 2),
+            y: 0, width: 2, height: RL.height,
+        });
+        this._rail.add_child(track);
+
+        this._railTicksBox = new St.Widget({ x: 0, y: 0, width: RL.width, height: RL.height });
+        this._rail.add_child(this._railTicksBox);
+
+        this._railMarker = new St.Widget({
+            style_class: 'selector-rail-marker',
+            x: Math.round((RL.width - 32) / 2),
+            y: 0, width: 32, height: 8,
+        });
+        this._rail.add_child(this._railMarker);
+
+        const tipFontSize = Math.round(OV.centerLabelSize * 0.45);
+        this._railTip = new St.Label({
+            style_class: 'selector-rail-tip', text: '',
+            x: 0, y: 0, width: ROW.tipWidth, opacity: 0,
+        });
+        this._railTip.set_style(`font-size: ${tipFontSize}px; font-weight: 600;`);
+        this._railTip.clutter_text.set_ellipsize(Pango.EllipsizeMode.START);
+        this._railTip.clutter_text.set_line_wrap(false);
+
+        this._container.add_child(this._rail);
+        this._container.add_child(this._railTip);
+
+        this._wireRail();
+    }
+
+    _wireRail() {
+        const rail = this._rail;
+        const scope = this._scope;
+
+        scope.connect(rail, 'button-press-event', (a, e) => {
+            if (e.get_button() !== Clutter.BUTTON_PRIMARY) return Clutter.EVENT_PROPAGATE;
+            this._railDragging = true;
+            this._acquireRailGrab();
+            this._railPointerFromEvent(e);
+            return Clutter.EVENT_STOP;
+        });
+
+        scope.connect(rail, 'motion-event', (a, e) => {
+            if (this._railDragging) {
+                this._railPointerFromEvent(e);
+                return Clutter.EVENT_STOP;
+            }
+            const [, y] = e.get_coords();
+            const [, ry] = rail.get_transformed_position();
+            const idx = this._railIndexFromY(y - ry);
+            const item = this._results[idx];
+            if (item) this._showRailTip(idx, item);
+            return Clutter.EVENT_PROPAGATE;
+        });
+
+        scope.connect(rail, 'button-release-event', (a, e) => {
+            if (!this._railDragging) return Clutter.EVENT_PROPAGATE;
+            this._railDragging = false;
+            this._releaseRailGrab();
+            this._hideRailTip();
+            return Clutter.EVENT_STOP;
+        });
+
+        scope.connect(rail, 'leave-event', () => {
+            if (!this._railDragging) this._hideRailTip();
+            return Clutter.EVENT_PROPAGATE;
+        });
+    }
+
+    _acquireRailGrab() {
+        try {
+            const grab = Clutter.grab?.(this._rail);
+            if (grab) { this._railGrab = { dismiss: () => grab.dismiss() }; return; }
+        } catch (e) {
+            journal(`[rail] Clutter.grab failed: ${e.message}`);
+        }
+        try {
+            const modal = Main.pushModal(this._rail, { actionMode: Shell.ActionMode.NORMAL });
+            this._railGrab = { modal };
+        } catch (e) {
+            journal(`[rail] pushModal fallback failed: ${e.message}`);
+            this._railGrab = null;
+            this._railDragging = false;
+        }
+    }
+
+    _releaseRailGrab() {
+        const g = this._railGrab;
+        this._railGrab = null;
+        if (!g) return;
+        if (g.modal) { try { Main.popModal(g.modal); } catch (e) { /* already popped */ } }
+        else { try { g.dismiss(); } catch (e) { /* already dismissed */ } }
+    }
+
+    _railY(i) {
+        const n = this._results.length;
+        const span = Math.max(1, this._railH - this._railPad * 2);
+        if (n <= 1) return this._railH / 2;
+        return this._railPad + (i / (n - 1)) * span;
+    }
+
+    _railIndexFromY(py) {
+        const n = this._results.length;
+        if (n <= 1) return 0;
+        const span = Math.max(1, this._railH - this._railPad * 2);
+        return clamp(Math.round(((py - this._railPad) / span) * (n - 1)), 0, n - 1);
+    }
+
+    _buildRailTicks() {
+        if (!this._railTicksBox || !this._rail) return;
+        this._railTicksBox.destroy_all_children();
+        this._railTicks = [];
+
+        const n = this._results.length;
+        this._rail.visible = n > 0;
+        if (n === 0) return;
+
+        const W = this._railL.width;
+        for (let i = 0; i < n; i++) {
+            const item = this._results[i];
+            const tick = new St.Widget({
+                style_class: 'selector-rail-tick',
+                x: Math.round((W - 12) / 2),
+                y: Math.round(this._railY(i) - 2),
+                width: 12, height: 4,
+            });
+            tick.set_style(`background-color: ${appColor(item.appName || '')};`);
+            this._railTicksBox.add_child(tick);
+            this._railTicks.push(tick);
+        }
+        this._updateRailMarker();
+    }
+
+    _updateRailMarker() {
+        if (!this._railMarker || !this._results.length) return;
+        const p = clamp(this._scrollPos, 0, this._results.length - 1);
+        const lo = Math.floor(p);
+        const hi = Math.min(this._results.length - 1, lo + 1);
+        const y = this._railY(lo) + (this._railY(hi) - this._railY(lo)) * (p - lo);
+        this._railMarker.set_position(this._railMarker.x, Math.round(y - this._railMarker.height / 2));
+    }
+
+    _railPointerFromEvent(event) {
+        const [, y] = event.get_coords();
+        const [, ry] = this._rail.get_transformed_position();
+        const idx = this._railIndexFromY(y - ry);
+        const item = this._results[idx];
+        if (!item) return;
+        this._selectIndex(idx);
+        this._showRailTip(idx, item);
+    }
+
+    _showRailTip(idx, item) {
+        if (!this._railTip) return;
+        const RL = this._railL, OV = this._overlayL, BAND = this._bandL;
+        const text = `${item.appName} — ${item.title}`;
+        this._railTip.set_text(text);
+
+        const h = this._railTip.height > 0 ? this._railTip.height : 58;
+        const tipX = Math.max(8, RL.x - this._railTip.width - 8);
+        let tipY = RL.y + this._railY(idx) - Math.round(h / 2);
+
+        // If the natural position would land inside the band, park the tip
+        // above it (or below, if there is no room above).
+        if (tipY + h > BAND.y && tipY < BAND.y + BAND.height) {
+            const above = BAND.y - h - 8;
+            tipY = above >= 8 ? above : Math.min(BAND.y + BAND.height + 8, OV.height - h - 8);
+        }
+        tipY = clamp(tipY, 8, OV.height - h - 8);
+
+        this._railTip.set_position(tipX, tipY);
+        this._railTip.opacity = 255;
+    }
+
+    _hideRailTip() {
+        if (this._railTip) this._railTip.opacity = 0;
+    }
+
+    // ----- rows -----
+    _renderResults(results) {
+        const OV = this._overlayL, ROW = this._rowL;
+
+        this._releaseRailGrab();
+        this._railDragging = false;
+        this._hideRailTip();
+
+        this._listLayer.destroy_all_children();
+        this._rows = results.map((item, index) => {
+            const row = UI.createWindowTitleRow({
+                icon: item.icon, title: item.title, indices: item.indices,
+                width: OV.width, height: ROW.slotH,
+                iconSize: ROW.rowIconSize,
+                labelSize: ROW.rowLabelSize,
+                maxWidth: ROW.rowTextMax,
+            });
+            this._rowsScope.connect(row, 'button-press-event', (a, e) => {
+                if (e.get_button() !== Clutter.BUTTON_PRIMARY) return Clutter.EVENT_PROPAGATE;
+                this._selectIndex(index);
+                return Clutter.EVENT_STOP;
+            });
+            this._rowsScope.connect(row, 'button-release-event', (a, e) => {
+                if (e.get_button() !== Clutter.BUTTON_PRIMARY) return Clutter.EVENT_PROPAGATE;
+                return Clutter.EVENT_STOP;
+            });
+            this._listLayer.add_child(row);
+            return row;
+        });
+        this._snap = true;
+        this._buildRailTicks();
+    }
+
+    // ----- discrete focus strip layout -----
+    _layoutRows() {
+        const BAND = this._bandL, ROW = this._rowL;
+        const pos = this._scrollPos;
+        const a = BAND.y - ROW.slotH / 2;
+        const b = BAND.y + BAND.height + ROW.slotH / 2;
+        const mid = (a + b) / 2;
+        const half = (b - a) / 2;
+
+        const SECOND_NEIGHBOR_SCALE = 0.62 / 0.88;
+        const scaleAt = (x) => {
+            if (x <= 1.5) return 1;
+            if (x >= 2.0) return SECOND_NEIGHBOR_SCALE;
+            const t = (x - 1.5) / 0.5;
+            return 1 - (1 - SECOND_NEIGHBOR_SCALE) * ease(t);
+        };
+
+        this._rows.forEach((row, i) => {
+            const d = i - pos;
+            const x = Math.abs(d);
+
+            if (x >= 2.8) { row.hide(); return; }
+
+            let c, op;
+            if (x < 1) {
+                c = mid + d * half;
+                op = neighborOpacity(1) * ease((x - 0.2) / 0.8);
+            } else {
+                c = d > 0 ? b + (x - 1) * ROW.slotH : a - (x - 1) * ROW.slotH;
+                op = neighborOpacity(x);
+            }
+            if (op < 0.01) { row.hide(); return; }
+
+            row.show();
+            row.set_position(0, Math.round(c - ROW.slotH / 2));
+            row.set_opacity(Math.round(op * 255));
+            row.set_pivot_point(0.5, 0.5);
+            const s = scaleAt(x);
+            row.set_scale(s, s);
+            row.set_reactive(x >= 1);
+        });
+
+        this._bandBin.opacity = Math.round(255 * ease(1 - Math.abs(this._selectedIndex - pos)));
+        this._updateRailMarker();
+    }
+
+    // ----- selection -----
+    _onSelectionChanged(index) {
+        if (index < 0) {
+            this._bandBin.set_child(null);
+            this._cancelReveal();
+            this._updateHint();
+            return;
+        }
+        const item = this._results[index];
+        const OV = this._overlayL, BAND = this._bandL;
+
+        this._bandBin.set_child(UI.createBandTitle({
+            icon: item.icon,
+            title: item.title,
+            appName: (item.appName || '').toUpperCase(),
+            width: BAND.width,
+            height: BAND.selectedHeight,
+            iconSize: Math.round(OV.centerLabelSize * 1.55),
+            labelSize: OV.centerLabelSize,
+            appSize: Math.max(12, Math.round(OV.centerLabelSize * 0.30)),
+        }));
+
+        this._scrollTarget = index;
+        if (this._snap) { this._scrollPos = index; this._layoutRows(); this._snap = false; }
+        else this._startTween();
+
+        this._scheduleReveal(item);
+        this._updateHint();
+    }
+
+    _updateHint() {
+        if (!this._hintLabel) return;
+        const total = this._results.length;
+        if (total === 0) {
+            this._hintLabel.set_text('No matching windows   •   Esc to Close');
+            return;
+        }
+        this._hintLabel.set_text(
+            `${this._selectedIndex + 1} / ${total}   •   ↑↓ Navigate   •   Drag the right rail to jump   •   Enter / Click to Activate   •   Esc to Close`);
+    }
+
+    _startTween() {
+        if (this._tweenId) return;
+        this._lastFrame = GLib.get_monotonic_time() / 1000;
+        this._tweenId = this._scope.timeout(16, () => {
+            const now = GLib.get_monotonic_time() / 1000;
+            const dt = Math.min(now - this._lastFrame, 50);
+            this._lastFrame = now;
+            const diff = this._scrollTarget - this._scrollPos;
+            if (Math.abs(diff) < 0.002) {
+                this._scrollPos = this._scrollTarget;
+                this._layoutRows();
+                this._tweenId = 0;
+                return GLib.SOURCE_REMOVE;
+            }
+            this._scrollPos += diff * (1 - Math.exp(-dt / 70));
+            this._layoutRows();
+            return GLib.SOURCE_CONTINUE;
+        });
+    }
+
+    _onScroll(event) {
+        let step = 0;
+        const dir = event.get_scroll_direction();
+        if (dir === Clutter.ScrollDirection.UP) step = -1;
+        else if (dir === Clutter.ScrollDirection.DOWN) step = 1;
+        else if (dir === Clutter.ScrollDirection.SMOOTH) {
+            const [, dy] = event.get_scroll_delta();
+            this._scrollAccum += dy;
+            if (Math.abs(this._scrollAccum) >= 1) {
+                step = Math.sign(this._scrollAccum);
+                this._scrollAccum = 0;
+            }
+        }
+        if (!step) return Clutter.EVENT_STOP;
+
+        const now = GLib.get_monotonic_time() / 1000;
+        if (now - this._lastScrollStep < 50) return Clutter.EVENT_STOP;
+        this._lastScrollStep = now;
+
+        this._selectIndex(clamp(this._selectedIndex + step, 0, this._results.length - 1));
+        return Clutter.EVENT_STOP;
+    }
+
+    _guardFocus(ms = 1200) {
+        this._focusGuard = true;
+        if (this._guardTimer) this._scope.cancel(this._guardTimer);
+        this._guardTimer = this._scope.timeout(ms, () => {
+            this._guardTimer = 0;
+            this._focusGuard = false;
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _scheduleReveal(item) {
+        this._cancelReveal();
+        this._revealTimer = this._scope.timeout(120, () => {
+            this._revealTimer = 0;
+            this._revealWindow(item.window);
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _cancelReveal() {
+        if (!this._revealTimer) return;
+        this._scope.cancel(this._revealTimer);
+        this._revealTimer = 0;
+    }
+
+    _revealWindow(win) {
+        if (this._closed || this._closing || win === this._revealed) return;
+        this._guardFocus();
+        this._releaseRevealed();
+        try {
+            const time = global.get_current_time();
+            if (win.minimized) win.unminimize();
+            const alreadyMax = win.get_maximized() === Meta.MaximizeFlags.BOTH;
+            if (!alreadyMax) { win.maximize(Meta.MaximizeFlags.BOTH); this._maximizedWindow = win; }
+            const ws = win.get_workspace();
+            if (ws) ws.activate_with_focus(win, time);
+            else win.activate(time);
+            this._revealed = win;
+            this._revealedAny = true;
+        } catch (e) {
+            journal(`[WindowSearchOverlay] reveal failed: ${e.message}`, true);
+        }
+        this._refocusEntry();
+    }
+
+    _refocusEntry() {
+        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            if (this._closed || this._closing) return GLib.SOURCE_REMOVE;
+            this._entry.grab_key_focus();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _releaseRevealed() {
+        const win = this._maximizedWindow;
+        this._maximizedWindow = null;
+        if (!win) return;
+        try { win.unmaximize(Meta.MaximizeFlags.BOTH); } catch (e) { /* window gone */ }
+    }
+
+    _restoreOrigin() {
+        if (!this._revealedAny) return;
+        this._revealedAny = false;
+        this._guardFocus();
+        const { window: win, workspace } = this._origin;
+        const time = global.get_current_time();
+        try {
+            const ws = win?.get_workspace();
+            if (ws) ws.activate_with_focus(win, time);
+            else workspace?.activate(time);
+        } catch (e) { /* window gone */ }
+    }
+
+    _handleEscape() {
+        if (this._closed || this._closing) return;
+        this._cancelled = true;
+        this._container.add_style_class_name('selector-cancelling');
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 180, () => {
+            if (!this._closed) this._close();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _onBeforeClose() {
+        this._releaseRailGrab();
+        this._railDragging = false;
+        this._cancelReveal();
+        this._releaseRevealed();
+        if (this._cancelled) this._restoreOrigin();
+    }
+
+    _handleExtraKeys(event, symbol) {
+        if (symbol === Clutter.KEY_Page_Down) { this._selectIndex(Math.min(this._selectedIndex + 5, this._results.length - 1)); return Clutter.EVENT_STOP; }
+        if (symbol === Clutter.KEY_Page_Up) { this._selectIndex(Math.max(this._selectedIndex - 5, 0)); return Clutter.EVENT_STOP; }
+        return undefined;
+    }
+
+    _onClick(event) {
+        if (event.get_button() !== Clutter.BUTTON_PRIMARY) return Clutter.EVENT_PROPAGATE;
+        if (this._closing) return Clutter.EVENT_STOP;
+        const src = event.get_source();
+        if (src && this._searchRoot.contains(src)) {
+            this._entry.grab_key_focus();
+            return Clutter.EVENT_PROPAGATE;
+        }
+        this._activateFocused();
+        return Clutter.EVENT_STOP;
+    }
+
+    _activateResult(index) {
+        if (this._closed || this._closing) return;
+        const item = this._results[index];
+        if (!item) return;
+        const window = item.window;
+
+        this._closing = true;
+        this._cancelReveal();
+        this._releaseRevealed();
+
+        try {
+            if (window.minimized) window.unminimize();
+            const ws = window.get_workspace();
+            if (ws) ws.activate_with_focus(window, global.get_current_time());
+            else window.activate(global.get_current_time());
+        } catch (e) {
+            journal(`[WindowSearchOverlay] activate failed: ${e.message}`, true);
+        }
+
+        this._container.ease({
+            opacity: 0, duration: 220, mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        });
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
+            if (!this._closed) this._close();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _close() {
+        if (this._closed) return;
+        journal('[WindowSearchOverlay] Closing');
+        super._close();
+    }
+}
+
+// ==================== app launcher ====================
+const PINNED_ICON_SIZE = 160;
+
+export class AppSearchOverlay extends SearchOverlayBase {
+    constructor(settings) {
+        super(settings);
+        this._favorites = AppFavorites.getAppFavorites();
+        this._menuManager = null;
+        this._openMenu = null;
+
+        this._justDroppedAppId = null;
+        this._apps = null;
+        this._pinnedScope = new Scheduling.Scope();
+        this._ghost = Interactions.createReorderGhost({ iconSize: () => PINNED_ICON_SIZE });
+
+        this._zone = 'grid';
+        this._pinnedIndex = 0;
+        this._pinnedItems = [];
+        this._pinnedButtons = [];
+        this._buttons = [];
+        this._focusedGridBtn = null;
+        this._focusedPinnedBtn = null;
+        this._searching = false;
+        this._resetScroll = true;
+        this._lastWheel = 0;
+        this._scrollTarget = 0;
+        this._pinnedTarget = 0;
+        this._lastPinnedWheel = 0;
+        this._pinnedAdj = null;
+        this._pinnedLeftFade = null;
+        this._pinnedRightFade = null;
+
+        this._buildUI();
+        this._onSearchChanged();
+        this._refreshFocus();
+        this._open();
+    }
+
+    _initialKeyFocus() { this._container.grab_key_focus(); }
+    _entryFocused() { return global.stage.get_key_focus() === this._entry.clutter_text; }
+    _focusSearch() { this._entry.grab_key_focus(); }
+
+    _getRestoreKey(item) { return item.app.get_id(); }
+    _pinnedVisible() { return this._pinnedSection.visible && this._pinnedButtons.length > 0; }
+
+    _shouldCloseOnWindowRemoved() { return false; }
+
+    _getAllApps() {
+        if (this._apps) return this._apps;
+
+        const appSystem = Shell.AppSystem.get_default();
+        const apps = [];
+        for (const info of Gio.AppInfo.get_all()) {
+            if (!info.should_show()) continue;
+            const app = appSystem.lookup_app(info.get_id());
+            if (app) apps.push({ app, name: app.get_name() || '', icon: app.get_icon() });
+        }
+        apps.sort((a, b) => a.name.localeCompare(b.name));
+        return (this._apps = apps);
+    }
+
+    _launchApp(app) {
+        const name = app.get_name();
+        try {
+            app.launch(global.get_current_time(), -1, 0);
+            journal(`[AppSearchOverlay] ✅ Launched successfully: ${name}`);
+            return true;
+        } catch (e) {
+            journal(`[AppSearchOverlay] ❌ Launch failed for ${name}: ${e.message}`, true);
+            return false;
+        }
+    }
+
+    _computeResults(query) {
+        const all = this._getAllApps();
+        if (!query) return all.map(item => ({ ...item, indices: null }));
+
+        const scored = [];
+        for (const item of all) {
+            const r = Fuzzy.fuzzyMatch(query, item.name);
+            if (r.matched) scored.push({ ...item, score: r.score, indices: r.indices });
+        }
+        scored.sort((a, b) => b.score - a.score);
+
+        const seen = new Set(scored.map(i => i.app.get_id()));
+        for (const item of this._shellSearch(query, all)) {
+            const id = item.app.get_id();
+            if (seen.has(id)) continue;
+            seen.add(id);
+            scored.push({ ...item, score: 0, indices: null });
+        }
+        return scored;
+    }
+
+    _shellSearch(query, allItems) {
+        const appSystem = Shell.AppSystem.get_default();
+        const usage = Shell.AppUsage.get_default();
+
+        let groups;
+        try {
+            groups = Shell.AppSystem.search(query);
+        } catch (e) {
+            journal(`[AppSearchOverlay] Shell.AppSystem.search() threw: ${e.message}`);
+            return [];
+        }
+        if (!groups || groups.length === 0) return [];
+
+        const itemByApp = new Map();
+        for (const item of allItems) itemByApp.set(item.app, item);
+
+        const results = [];
+        for (const group of groups) {
+            if (!group || group.length === 0) continue;
+            const resolved = [];
+            for (const id of group) {
+                const app = appSystem.lookup_app(id);
+                if (!app) continue;
+                const item = itemByApp.get(app);
+                if (item) resolved.push({ id, item });
+            }
+            if (resolved.length === 0) continue;
+            resolved.sort((a, b) => usage.compare(a.id, b.id));
+            for (const { item } of resolved) results.push(item);
+        }
+        return results;
+    }
+
+    _beforeResults(query, unchanged) {
+        const searching = query.length > 0;
+        if (searching && this._zone === 'pinned') this._zone = 'grid';
+        this._searching = searching;
+        this._resetScroll = !unchanged;
+        this._syncSectionVisibility();
+    }
+
+    _syncSectionVisibility() {
+        this._pinnedSection.visible = this._pinnedItems.length > 0;
+        this._allHeadingLabel.set_text(this._searching ? 'RESULTS' : 'ALL APPS');
+    }
+
+    _buildUI() {
+        const monitor = Main.layoutManager.primaryMonitor;
+        const L = this._layout = computeLauncherLayout(monitor);
+        this._cols = L.columns;
+        this._tileW = L.tileWidth;
+        this._container = UI.createFullscreenContainer(monitor, 'launcher-overlay');
+
+        const search = UI.createSearchField({
+            width: L.searchWidth, hint: 'Search', keyHint: "Press '/' to search", x: L.searchX, y: L.searchY,
+        });
+        this._wireEntry(search.entry);
+        this._container.add_child(search.actor);
+
+        const pinned = UI.createPinnedRow();
+        this._pinnedBarBox = pinned.box;
+        this._pinnedLeftFade = pinned.leftFade;
+        this._pinnedRightFade = pinned.rightFade;
+        this._wirePinnedScroll(pinned);
+        this._pinnedStrip = Interactions.createDropStrip({
+            container: this._pinnedBarBox, ghost: this._ghost,
+            acceptSource: source => source?._dragPayload?.kind === 'app',
+            externalResult: Interactions.DragMotionResult.NO_DROP,
+            hint: {
+                show: (anchor, text) => Interactions.getTooltip().showAbove(anchor, text, this._settings.get_int('tooltip-font-size')),
+                hide: () => Interactions.getTooltip().hide(),
+            },
+            hintText: insertion => {
+                if (!insertion.neighbor) return 'Pin here';
+                const name = insertion.neighbor._appName ?? '';
+                return insertion.insertBefore ? `Move before ${name}` : `Move after ${name}`;
+            },
+            onDrop: (source, index, actor) => this._dropPinned(source, index, actor),
+        });
+        this._pinnedBarBox._delegate = this._pinnedStrip.delegate();
+
+        this._pinnedSection = new St.BoxLayout({
+            style_class: 'launcher-pinned-section', vertical: true,
+            x: L.fullX, y: L.pinnedY, width: L.fullWidth, height: L.pinnedHeight,
+        });
+        const pinnedHeading = UI.createDividerHeading('PINNED APPS');
+        this._pinnedSection.add_child(pinnedHeading.actor);
+        this._pinnedSection.add_child(pinned.actor);
+        this._container.add_child(this._pinnedSection);
+
+        const heading = UI.createDividerHeading('ALL APPS');
+        this._allHeadingLabel = heading.label;
+        heading.actor.set_position(L.fullX, L.resultsY);
+        heading.actor.set_size(L.fullWidth, L.resultsHeadingHeight);
+        this._container.add_child(heading.actor);
+
+        const grid = UI.createGridScroll();
+        this._gridScroll = grid.scroll;
+        this._gridBox = grid.box;
+        grid.scroll.set_position(L.fullX, L.resultsY + L.resultsHeadingHeight);
+        grid.scroll.set_size(L.fullWidth, L.resultsHeight - L.resultsHeadingHeight);
+        this._container.add_child(grid.scroll);
+
+        this._scope.connect(this._gridScroll, 'scroll-event', (a, e) => this._onGridScroll(e));
+        this._scope.connect(this._favorites, 'changed', () => this._onFavoritesChanged());
+        this._scope.connect(Shell.AppSystem.get_default(), 'installed-changed', () => { this._apps = null; });
+
+        this._renderPinnedBar();
+    }
+
+    _wirePinnedScroll(pinned) {
+        this._pinnedAdj = pinned.scroll.hadjustment;
+        const update = () => this._updatePinnedFades();
+        this._scope.connect(this._pinnedAdj, 'changed', update);
+        this._scope.connect(this._pinnedAdj, 'notify::value', update);
+        this._scope.connect(pinned.scroll, 'scroll-event', (a, e) => this._onPinnedWheel(e));
+    }
+
+    _updatePinnedFades() {
+        const adj = this._pinnedAdj;
+        if (!adj) return;
+        const eps = 1;
+        this._pinnedLeftFade.visible = adj.value > eps;
+        this._pinnedRightFade.visible = adj.value + adj.page_size < adj.upper - eps;
+    }
+
+    _easePinned(delta) {
+        const adj = this._pinnedAdj;
+        if (!adj) return;
+        const now = GLib.get_monotonic_time() / 1000;
+        if (now - this._lastPinnedWheel > 250) this._pinnedTarget = adj.value;
+        this._lastPinnedWheel = now;
+        const max = Math.max(0, adj.upper - adj.page_size);
+        this._pinnedTarget = clamp(this._pinnedTarget + delta, 0, max);
+        adj.ease(this._pinnedTarget, { duration: 160, mode: Clutter.AnimationMode.EASE_OUT_QUAD });
+    }
+
+    _onPinnedWheel(event) {
+        const dir = event.get_scroll_direction();
+        let d = 0;
+        if (dir === Clutter.ScrollDirection.UP || dir === Clutter.ScrollDirection.LEFT) d = -1;
+        else if (dir === Clutter.ScrollDirection.DOWN || dir === Clutter.ScrollDirection.RIGHT) d = 1;
+        else if (dir === Clutter.ScrollDirection.SMOOTH) {
+            const [dx, dy] = event.get_scroll_delta();
+            d = Math.abs(dx) > Math.abs(dy) ? dx : dy;
+        } else return Clutter.EVENT_PROPAGATE;
+        this._easePinned(d * this._layout.pinnedTileWidth * 0.8);
+        return Clutter.EVENT_STOP;
+    }
+
+    _renderPinnedBar() {
+        this._pinnedScope.dispose();
+        this._pinnedScope = new Scheduling.Scope();
+        this._focusedPinnedBtn = null;
+        this._pinnedBarBox.destroy_all_children();
+        this._pinnedButtons = [];
+        this._pinnedItems = [];
+
+        const L = this._layout;
+
+        this._pinnedBarBox.add_child(new St.Widget({ x_expand: true }));
+        for (const app of this._favorites.getFavorites()) {
+            const id = app.get_id();
+            const name = app.get_name() || '';
+            const icon = app.get_icon();
+            const index = this._pinnedItems.length;
+            this._pinnedItems.push({ app, name, icon });
+
+            const button = UI.createAppTile({
+                icon, name, iconSize: L.pinnedIconSize,
+                width: L.pinnedTileWidth, height: L.pinnedTileHeight,
+                showLabel: false,
+            });
+            button._appName = name;
+
+            this._pinnedScope.connect(button, 'clicked', () => {
+                this._zone = 'pinned'; this._pinnedIndex = index; this._refreshFocus();
+                if (this._launchApp(app)) this._close();
+            });
+            this._pinnedScope.connect(button, 'button-press-event', (a, e) => {
+                if (e.get_button() === Clutter.BUTTON_SECONDARY) {
+                    this._openContextMenuForApp(app, button);
+                    return Clutter.EVENT_STOP;
+                }
+                return Clutter.EVENT_PROPAGATE;
+            });
+            this._pinnedScope.connect(button, 'notify::hover', () => {
+                if (this._closed) return;
+                if (button.hover) {
+                    Interactions.getTooltip().showBelow(button, name, this._settings.get_int('tooltip-font-size'));
+                } else {
+                    Interactions.getTooltip().hide();
+                }
+            });
+
+            Interactions.makeDraggable(button, {
+                iconSize: PINNED_ICON_SIZE,
+                payload: { kind: 'app', appId: id, gicon: icon, name },
+                delegate: this._pinnedStrip.delegate(),
+                onDragBegin: () => { Interactions.getTooltip().hide(); },
+                onDragEnd: () => { this._ghost.clear(); Interactions.getTooltip().hide(); },
+            });
+
+            this._pinnedBarBox.add_child(button);
+            this._pinnedButtons.push(button);
+
+            if (id === this._justDroppedAppId) { this._justDroppedAppId = null; Interactions.settleIcon(button); }
+        }
+        this._pinnedBarBox.add_child(new St.Widget({ x_expand: true }));
+
+        this._pinnedIndex = clamp(this._pinnedIndex, 0, Math.max(0, this._pinnedItems.length - 1));
+        this._syncSectionVisibility();
+        this._scope.idle(() => { this._updatePinnedFades(); return GLib.SOURCE_REMOVE; });
+    }
+
+    _renderResults(results) {
+        const L = this._layout;
+        this._focusedGridBtn = null;
+        this._gridBox.destroy_all_children();
+        this._buttons = [];
+
+        let row = null;
+        results.forEach((item, index) => {
+            if (index % this._cols === 0) {
+                row = new St.BoxLayout({ x_align: Clutter.ActorAlign.CENTER, width: this._cols * this._tileW });
+                this._gridBox.add_child(row);
+            }
+            const button = UI.createAppTile({
+                icon: item.icon, name: item.name, indices: item.indices,
+                iconSize: L.iconSize, width: L.tileWidth, height: L.tileHeight,
+            });
+            this._rowsScope.connect(button, 'clicked', () => {
+                this._zone = 'grid'; this._selectedIndex = index; this._refreshFocus();
+                this._activateResult(index);
+            });
+            this._rowsScope.connect(button, 'button-press-event', (a, e) => {
+                if (e.get_button() === Clutter.BUTTON_SECONDARY) {
+                    this._openContextMenuForApp(item.app, button);
+                    return Clutter.EVENT_STOP;
+                }
+                return Clutter.EVENT_PROPAGATE;
+            });
+            row.add_child(button);
+            this._buttons.push(button);
+        });
+
+        if (this._resetScroll) {
+            this._gridScroll.vadjustment.value = 0;
+            this._scrollTarget = 0;
+        }
+    }
+
+    _onSelectionChanged() { this._refreshFocus(); }
+
+    _refreshFocus() {
+        this._focusedGridBtn?.remove_style_class_name('focused');
+        this._focusedPinnedBtn?.remove_style_class_name('focused');
+        this._focusedGridBtn = this._focusedPinnedBtn = null;
+
+        if (this._zone === 'pinned') {
+            this._focusedPinnedBtn = this._pinnedButtons[this._pinnedIndex] ?? null;
+            this._focusedPinnedBtn?.add_style_class_name('focused');
+        } else {
+            this._focusedGridBtn = this._buttons[this._selectedIndex] ?? null;
+            this._focusedGridBtn?.add_style_class_name('focused');
+        }
+    }
+
+    _scrollToFocus() {
+        if (this._zone === 'grid' && this._focusedGridBtn) {
+            Util.ensureActorVisibleInScrollView(this._gridScroll, this._focusedGridBtn);
+        } else if (this._zone === 'pinned' && this._focusedPinnedBtn && this._pinnedAdj) {
+            const adj = this._pinnedAdj;
+            const [value, , , , , page] = adj.get_values();
+            const box = this._focusedPinnedBtn.get_allocation_box();
+            if (box.x1 < value) adj.ease(box.x1 - 16, { duration: 150, mode: Clutter.AnimationMode.EASE_OUT_QUAD });
+            else if (box.x2 > value + page) adj.ease(box.x2 - page + 16, { duration: 150, mode: Clutter.AnimationMode.EASE_OUT_QUAD });
+        }
+    }
+
+    _afterFocusMove() { this._refreshFocus(); this._scrollToFocus(); }
+
+    _centerX(button) {
+        const [x] = button.get_transformed_position();
+        return x + button.width / 2;
+    }
+
+    _nearestIndex(buttons, cx) {
+        let best = 0, bestDist = Infinity;
+        buttons.forEach((b, i) => {
+            const d = Math.abs(this._centerX(b) - cx);
+            if (d < bestDist) { best = i; bestDist = d; }
+        });
+        return best;
+    }
+
+    _moveFocus(dx, dy) {
+        if (this._zone === 'pinned') {
+            const n = this._pinnedButtons.length;
+            if (dx) this._pinnedIndex = clamp(this._pinnedIndex + dx, 0, n - 1);
+            else if (dy > 0 && this._buttons.length) {
+                const cx = this._centerX(this._pinnedButtons[this._pinnedIndex]);
+                this._zone = 'grid';
+                this._selectedIndex = this._nearestIndex(this._buttons.slice(0, this._cols), cx);
+            }
+            this._afterFocusMove();
+            return;
+        }
+
+        const n = this._buttons.length;
+        if (!n) return;
+        const cols = this._cols;
+        let i = this._selectedIndex;
+        if (dx) i = clamp(i + dx, 0, n - 1);
+        if (dy) {
+            const next = i + dy * cols;
+            if (next < 0) {
+                if (this._pinnedVisible()) {
+                    this._pinnedIndex = this._nearestIndex(this._pinnedButtons, this._centerX(this._buttons[i]));
+                    this._zone = 'pinned';
+                    this._afterFocusMove();
+                }
+                return;
+            }
+            if (next >= n) { if (Math.floor(i / cols) < Math.floor((n - 1) / cols)) i = n - 1; }
+            else i = next;
+        }
+        this._selectedIndex = i;
+        this._afterFocusMove();
+    }
+
+    _onGridScroll(event) {
+        const adj = this._gridScroll.vadjustment;
+        const dir = event.get_scroll_direction();
+        let delta = 0;
+        if (dir === Clutter.ScrollDirection.UP) delta = -1;
+        else if (dir === Clutter.ScrollDirection.DOWN) delta = 1;
+        else if (dir === Clutter.ScrollDirection.SMOOTH) delta = event.get_scroll_delta()[1];
+        else return Clutter.EVENT_PROPAGATE;
+
+        const now = GLib.get_monotonic_time() / 1000;
+        if (now - this._lastWheel > 250) this._scrollTarget = adj.value;
+        this._lastWheel = now;
+
+        const max = adj.upper - adj.page_size;
+        this._scrollTarget = clamp(this._scrollTarget + delta * this._layout.tileHeight * 0.75, 0, Math.max(0, max));
+        adj.ease(this._scrollTarget, { duration: 140, mode: Clutter.AnimationMode.EASE_OUT_QUAD });
+        return Clutter.EVENT_STOP;
+    }
+
+    _handleExtraKeys(event, symbol) {
+        const state = event.get_state();
+        if (symbol === Clutter.KEY_p && (state & Clutter.ModifierType.CONTROL_MASK)) {
+            const item = this._zone === 'pinned' ? this._pinnedItems[this._pinnedIndex] : this._results[this._selectedIndex];
+            if (item) this._togglePin(item);
+            return Clutter.EVENT_STOP;
+        }
+
+        const inEntry = this._entryFocused();
+        switch (symbol) {
+            case Clutter.KEY_slash:
+                if (inEntry) return undefined;
+                this._focusSearch();
+                return Clutter.EVENT_STOP;
+            case Clutter.KEY_Left: this._moveFocus(-1, 0); return Clutter.EVENT_STOP;
+            case Clutter.KEY_Right: this._moveFocus(1, 0); return Clutter.EVENT_STOP;
+            case Clutter.KEY_Up: this._moveFocus(0, -1); return Clutter.EVENT_STOP;
+            case Clutter.KEY_Down: this._moveFocus(0, 1); return Clutter.EVENT_STOP;
+        }
+
+        if (!inEntry && !(state & (Clutter.ModifierType.CONTROL_MASK | Clutter.ModifierType.MOD1_MASK))) {
+            const uc = event.get_key_unicode();
+            const code = typeof uc === 'string' ? uc.codePointAt(0) : uc;
+            if (code && code >= 0x20 && code !== 0x7f) {
+                this._focusSearch();
+                this._entry.clutter_text.insert_unichar(code);
+                return Clutter.EVENT_STOP;
+            }
+        }
+        return undefined;
+    }
+
+    _handleEscape() {
+        if (this._entry.get_text().length > 0) {
+            this._entry.set_text('');
+            this._container.grab_key_focus();
+            return;
+        }
+        this._close();
+    }
+
+    _activateFocused() {
+        if (this._zone === 'pinned') {
+            const item = this._pinnedItems[this._pinnedIndex];
+            if (item && this._launchApp(item.app)) this._close();
+            return;
+        }
+        if (this._selectedIndex >= 0) this._activateResult(this._selectedIndex);
+    }
+
+    _activateResult(index) {
+        if (this._closed) return;
+        const item = this._results[index];
+        if (item && this._launchApp(item.app)) this._close();
+    }
+
+    _dropPinned(source, index, actor) {
+        const appId = source?._dragPayload?.appId;
+        if (!appId) return false;
+
+        const pos = index ?? this._pinnedBarBox.get_children().length;
+        this._justDroppedAppId = appId;
+
+        try { this._favorites.moveFavoriteToPos(appId, pos); }
+        catch (e) { journal(`[AppSearchOverlay] Reorder failed: ${e.message}`); }
+
+        if (actor) { actor.get_parent()?.remove_child(actor); actor.destroy(); }
+        return true;
+    }
+
+    _openContextMenuForApp(app, sourceActor) {
+        this._closeContextMenu();
+        if (!this._menuManager)
+            this._menuManager = new PopupMenu.PopupMenuManager(sourceActor);
+
+        const menu = new AppMenuModule.AppMenu(sourceActor, St.Side.BOTTOM, { favoritesSection: true, showSingleWindows: true });
+        Main.layoutManager.addChrome(menu.actor);
+        menu.actor.hide();
+        this._menuManager.addMenu(menu);
+        menu.setApp(app);
+        this._openMenu = menu;
+
+        menu.connect('open-state-changed', (o, isOpen) => {
+            if (isOpen) return;
+            if (menu === this._openMenu) this._openMenu = null;
+            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                if (!menu.is_destroyed) menu.destroy();
+                return GLib.SOURCE_REMOVE;
+            });
+        });
+        menu.open(true);
+    }
+
+    _closeContextMenu() {
+        if (this._openMenu) {
+            try { this._openMenu.close(); } catch (e) { }
+            this._openMenu = null;
+        }
+    }
+
+    _togglePin(item) {
+        if (this._closed) return;
+        const id = item.app.get_id();
+        if (this._favorites.isFavorite(id)) this._favorites.removeFavorite(id);
+        else this._favorites.addFavorite(id);
+    }
+
+    _onFavoritesChanged() {
+        if (this._closed) return;
+        this._renderPinnedBar();
+        this._onSearchChanged();
+        this._refreshFocus();
+    }
+
+    _onBeforeClose() {
+        this._closeContextMenu();
+        this._ghost.clear();
+        this._pinnedScope.dispose();
+        Interactions.getTooltip().hide();
+        this._apps = null;
+    }
+
+    _close() {
+        if (this._closed) return;
+        super._close();
+    }
+}
+// ===== FILE: ./lib/interactions.js =====
+import Clutter from 'gi://Clutter';
+import GLib from 'gi://GLib';
+import Meta from 'gi://Meta';
+import Mtk from 'gi://Mtk';
+import St from 'gi://St';
+
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as DND from 'resource:///org/gnome/shell/ui/dnd.js';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import * as AppFavorites from 'resource:///org/gnome/shell/ui/appFavorites.js';
+
+import * as Scheduling from './scheduling.js';
+import * as Model from './model.js';
+import * as UI from './ui.js';
+
+import { createLogger } from '../logger.js';
+const journal = createLogger(import.meta.url);
+
+export const DragMotionResult = DND.DragMotionResult;
+
+// ==================== animations ====================
+export function fadeInActor(actor, duration = Model.TimeoutDelay, mode = Clutter.AnimationMode.EASE_OUT_QUAD) {
+    if (!actor) { journal('[fadeInActor] called with null actor'); return; }
+    try {
+        if (!actor.get_stage()) { journal('[fadeInActor] actor not on stage, skipping'); return; }
+        actor.remove_all_transitions();
+        actor.opacity = 0;
+        actor.ease({ opacity: 255, duration, mode });
+    } catch (e) {
+        journal(`[fadeInActor] error: ${e}`);
+    }
+}
+
+export function settleIcon(actor, duration = Model.SettleAnimationDuration, mode = Clutter.AnimationMode.EASE_OUT_QUAD) {
+    if (!actor) { journal('[settleIcon] called with null actor'); return; }
+    try {
+        if (!actor.get_stage()) { journal('[settleIcon] actor not on stage, skipping'); return; }
+        actor.remove_all_transitions();
+        actor.set_pivot_point(0.5, 0.5);
+        actor.set_scale(0.85, 0.85);
+        actor.opacity = 160;
+        actor.ease({ scale_x: 1, scale_y: 1, opacity: 255, duration, mode });
+    } catch (e) {
+        journal(`[settleIcon] error: ${e}`);
+    }
+}
+
+// ==================== shared tooltip ====================
+function createTooltip() {
+    const label = new St.Label({
+        style_class: 'dmenu-tooltip',
+        visible: false,
+        reactive: true,
+        track_hover: true,
+    });
+    Main.layoutManager.addChrome(label);
+
+    function apply(text, fontSize) {
+        if (fontSize != null) label.set_style(`font-size: ${fontSize}pt;`);
+        label.set_text(text);
+        label.show();
+        try { Main.layoutManager.uiGroup.set_child_above_sibling(label, null); }
+        catch (e) { /* nothing else in uiGroup yet */ }
+    }
+
+    function show(actor, text, fontSize, prefer) {
+        apply(text, fontSize);
+
+        const [width, height] = label.get_size();
+        const [actorX, actorY] = actor.get_transformed_position();
+        const actorWidth = actor.get_width();
+        const actorHeight = actor.get_height();
+
+        const monitorIndex = Main.layoutManager.findIndexForActor(actor);
+        const monitor = Main.layoutManager.monitors[monitorIndex] ?? Main.layoutManager.primaryMonitor;
+        const pad = 6;
+
+        const minX = monitor.x + pad;
+        const maxX = monitor.x + monitor.width - width - pad;
+        const minY = monitor.y + pad;
+        const maxY = monitor.y + monitor.height - height - pad;
+
+        let x = Math.round(actorX + (actorWidth - width) / 2);
+        x = Math.max(minX, Math.min(x, maxX));
+
+        const above = Math.round(actorY - height - 8);
+        const below = Math.round(actorY + actorHeight + 8);
+        let y;
+        if (prefer === 'below') { y = below; if (y > maxY) y = above; }
+        else { y = above; if (y < minY) y = below; }
+        y = Math.max(minY, Math.min(y, maxY));
+
+        label.set_position(x, y);
+    }
+
+    return {
+        get hover() { return label.hover; },
+
+        showAbove(actor, text, fontSize = null) { show(actor, text, fontSize, 'above'); },
+        showBelow(actor, text, fontSize = null) { show(actor, text, fontSize, 'below'); },
+
+        showCentered(actor, text, y, fontSize = null, padding = 10) {
+            apply(text, fontSize);
+            const width = label.width;
+            const [actorX] = actor.get_transformed_position();
+            let x = actorX + (actor.get_width() - width) / 2;
+            x = Math.max(padding, Math.min(x, Model.screenWidth - width - padding));
+            label.set_position(Math.round(x), Math.round(y));
+        },
+
+        hide() { label.hide(); },
+
+        destroy() {
+            Main.layoutManager.removeChrome(label);
+            label.destroy();
+        },
+    };
+}
+
+let _sharedTooltip = null;
+
+export function getTooltip() {
+    if (!_sharedTooltip) _sharedTooltip = createTooltip();
+    return _sharedTooltip;
+}
+
+export function destroyTooltip() {
+    _sharedTooltip?.destroy();
+    _sharedTooltip = null;
+}
+
+// ==================== reorder ghost ====================
+export function createReorderGhost({ iconSize, giconFor = s => s._dragPayload?.gicon }) {
+    let container = null;
+    let source = null;
+    let ghost = null;
+    let ghostIndex = null;
+    let snap = null;
+
+    function takeSnapshot() {
+        const src = source._actor ?? source;
+        return container.get_children()
+            .filter(b => b !== src && b._dragItem && b.get_stage())
+            .map(b => {
+                const [x] = b.get_transformed_position();
+                const [w] = b.get_transformed_size();
+                return { item: b, x, width: w, mid: x + w / 2, right: x + w };
+            });
+    }
+
+    function place(insertion) {
+        if (ghostIndex === insertion.index && ghost?.get_parent()) return;
+
+        if (!ghost)
+            ghost = UI.createGhostIcon(giconFor(source), iconSize());
+
+        ghost.get_parent()?.remove_child(ghost);
+
+        const { neighbor, insertBefore } = insertion;
+        if (!neighbor) container.add_child(ghost);
+        else if (insertBefore) container.insert_child_below(ghost, neighbor);
+        else container.insert_child_above(ghost, neighbor);
+
+        ghostIndex = insertion.index;
+    }
+
+    function begin(newContainer, newSource) {
+        if (container !== newContainer) {
+            ghost?.get_parent()?.remove_child(ghost);
+            ghostIndex = null;
+            snap = null;
+        }
+        container = newContainer;
+        if (source !== newSource) { source = newSource; snap = null; }
+    }
+
+    function update(pointerX) {
+        if (!container || !source) return null;
+        if (!snap) snap = takeSnapshot();
+        const insertion = UI.computeInsertion(snap, pointerX);
+        place(insertion);
+        return insertion;
+    }
+
+    function clear() {
+        const g = ghost;
+        ghost = null;
+        ghostIndex = null;
+        snap = null;
+        container = null;
+        source = null;
+        if (!g) return;
+        try { g.get_parent()?.remove_child(g); g.destroy(); }
+        catch (e) { /* already gone */ }
+    }
+
+    return {
+        get index() { return ghostIndex; },
+        begin, update, clear,
+    };
+}
+
+// ==================== draggable ====================
+export function makeDraggable(actor, {
+    iconSize, payload, gicon, delegate = {}, onDragBegin = null, onDragEnd = null,
+}) {
+    actor._dragItem = true;
+    actor._dragPayload = payload;
+    actor._delegate = Object.assign(delegate, {
+        _dragPayload: payload,
+        _actor: actor,
+        getDragActorSource: () => actor,
+        getDragActor: () => UI.createDragActor(gicon ?? payload?.gicon, iconSize),
+    });
+
+    const draggable = DND.makeDraggable(actor, {
+        restoreOnSuccess: false,
+        dragActorMaxSize: iconSize,
+        dragActorOpacity: 178,
+    });
+    draggable.connect('drag-begin', () => { actor.opacity = 80; onDragBegin?.(); });
+    draggable.connect('drag-end', () => {
+        try { actor.opacity = 255; } catch (e) { /* source may be gone */ }
+        onDragEnd?.();
+    });
+    return draggable;
+}
+
+// ==================== drop strip ====================
+export function createDropStrip({
+    container, ghost, acceptSource,
+    externalResult = DragMotionResult.MOVE_DROP,
+    onDragOver = null, onExternalDragOver = null, onDrop,
+    hint = null, hintText = null,
+}) {
+    function handleDragOver(src) {
+        onDragOver?.(src);
+
+        if (!acceptSource(src)) {
+            cancel();
+            onExternalDragOver?.(src);
+            return externalResult;
+        }
+
+        const [pointerX] = global.get_pointer();
+        ghost.begin(container, src);
+        const insertion = ghost.update(pointerX);
+        if (insertion && hint && hintText)
+            hint.show(insertion.neighbor ?? container, hintText(insertion));
+        return DragMotionResult.MOVE_DROP;
+    }
+
+    function acceptDrop(src, actor) {
+        const accepted = acceptSource(src);
+        const index = accepted ? ghost.index : null;
+        cancel();
+        return onDrop(src, index, actor);
+    }
+
+    function cancel() {
+        ghost.clear();
+        hint?.hide();
+    }
+
+    function delegate() {
+        return {
+            handleDragOver: s => handleDragOver(s),
+            acceptDrop: (s, a) => acceptDrop(s, a),
+        };
+    }
+
+    return { handleDragOver, acceptDrop, delegate, cancel };
+}
+
+// ==================== context menu ====================
+let _activeMenu = null;
+
+export function openContextMenu(anchor, populate, { translationY = 0 } = {}) {
+    _activeMenu?.close();
+    const menu = new PopupMenu.PopupMenu(anchor, 0.0, St.Side.TOP);
+    new PopupMenu.PopupMenuManager(anchor).addMenu(menu);
+    Main.uiGroup.add_child(menu.actor);
+    populate(menu);
+
+    _activeMenu = menu;
+    menu.connect('open-state-changed', (m, isOpen) => {
+        if (isOpen) return;
+        if (_activeMenu === menu) _activeMenu = null;
+        Model.setIntent({ menuOpen: false });
+        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => { menu.destroy(); return GLib.SOURCE_REMOVE; });
+    });
+    Model.setIntent({ menuOpen: true });
+    menu.open(true);
+    if (menu._boxPointer && translationY) menu._boxPointer.translation_y = translationY;
+    return menu;
+}
+
+// ==================== active hover ====================
+const ActiveHover = (() => {
+    let current = null;
+    let ctrlPressed = false;
+    let pollId = 0;
+
+    function readCtrl() {
+        const [, , mods] = global.get_pointer();
+        return (mods & Clutter.ModifierType.CONTROL_MASK) !== 0;
+    }
+
+    function stopPoll() {
+        if (pollId) { GLib.Source.remove(pollId); pollId = 0; }
+    }
+
+    function startPoll() {
+        if (pollId) return;
+        ctrlPressed = readCtrl();
+        pollId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, Model.TimeoutDelay, () => {
+            if (!current) { pollId = 0; return GLib.SOURCE_REMOVE; }
+            const ctrl = readCtrl();
+            if (ctrl !== ctrlPressed) {
+                ctrlPressed = ctrl;
+                current.onCtrlChanged(ctrl);
+            }
+            return GLib.SOURCE_CONTINUE;
+        });
+    }
+
+    return {
+        get current() { return current; },
+        get ctrlPressed() { return ctrlPressed; },
+        activate(controller) {
+            if (current && current !== controller) current.forceHide();
+            current = controller;
+            startPoll();
+        },
+        deactivate(controller) {
+            if (current === controller) { current = null; stopPoll(); }
+        },
+    };
+})();
+
+// ==================== external drag auto-activate ====================
+function createExternalDragAutoActivate(window) {
+    const scope = new Scheduling.Scope();
+    let id = 0;
+    let lastHover = 0;
+
+    function notify() {
+        lastHover = GLib.get_monotonic_time();
+        if (id) return;
+        id = scope.timeout(400, () => {
+            id = 0;
+            if ((GLib.get_monotonic_time() - lastHover) / 1000 > 500)
+                return GLib.SOURCE_REMOVE;
+            const win = window;
+            if (win.minimized) win.unminimize();
+            win.get_workspace().activate_with_focus(win, global.get_current_time());
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    function destroy() { scope.dispose(); }
+
+    return { notify, destroy };
+}
+
+// ==================== window icon controller ====================
+export class WindowIconController {
+    static DEBOUNCE = 30;
+
+    constructor({ window, actor, icon, settings, strip, onRequestRender }) {
+        this.window = window;
+        this.actor = actor;
+
+        this._settings = settings;
+        this._strip = strip;
+        this._onRequestRender = onRequestRender;
+        this._scope = new Scheduling.Scope();
+        this._external = createExternalDragAutoActivate(window);
+
+        this._preview = null;
+        this._showingTitle = false;
+        this._hoverId = 0;
+        this._cleanupId = 0;
+
+        const iconSize = settings.get_int('icon-size');
+
+        this._scope.connect(icon, 'stage-views-changed', () => {
+            const rect = new Mtk.Rectangle();
+            [rect.x, rect.y] = icon.get_transformed_position();
+            [rect.width, rect.height] = icon.get_transformed_size();
+            window.set_icon_geometry(rect);
+        });
+
+        this._scope.connect(window, 'notify::wm-class', onRequestRender);
+        this._scope.connect(window, 'notify::mapped', onRequestRender);
+        this._scope.connect(window, 'notify::appears-focused', () => this._syncFocus());
+
+        makeDraggable(actor, {
+            iconSize,
+            payload: { kind: 'window', window, gicon: UI.getWindowAppIcon(window) },
+            delegate: {
+                handleDragOver: (source) => {
+                    if (source === actor._delegate) return DragMotionResult.CONTINUE;
+                    if (!source?._dragPayload?.window) this._external.notify();
+                    return this._strip?.handleDragOver(source) ?? DragMotionResult.CONTINUE;
+                },
+                acceptDrop: (source, dragActor) =>
+                    this._strip?.acceptDrop(source, dragActor) ?? false,
+            },
+            onDragBegin: () => Model.setIntent({ drag: true }),
+            onDragEnd: () => Model.setIntent({ drag: null, hintWs: null }),
+        });
+
+        this._scope.connect(actor, 'notify::hover', () => this._onHover());
+        this._scope.connect(actor, 'button-press-event', (a, e) => this._onPressed(e));
+        this._scope.connect(actor, 'button-release-event', (a, e) => this._onReleased(e));
+
+        this._syncFocus();
+    }
+
+    setStrip(strip) { this._strip = strip; }
+
+    destroy() {
+        this.forceHide();
+        this._external.destroy();
+        this._scope.dispose();
+        this._strip = null;
+        this._onRequestRender = null;
+        try { this.actor?.destroy(); } catch (e) { /* already gone */ }
+    }
+
+    _onHover() {
+        if (this._hoverId) { this._scope.cancel(this._hoverId); this._hoverId = 0; }
+        if (this.actor.hover) {
+            this._cancelCleanup();
+            if (this._isShowing()) { this.onCtrlChanged(ActiveHover.ctrlPressed); return; }
+            this._hoverId = this._scope.timeout(WindowIconController.DEBOUNCE, () => {
+                this._hoverId = 0;
+                if (!this.actor.hover && !this._isShowing()) return GLib.SOURCE_REMOVE;
+                ActiveHover.activate(this);
+                this._render();
+                return GLib.SOURCE_REMOVE;
+            });
+        } else if (this._isShowing()) {
+            this._startCleanup();
+        }
+    }
+
+    onCtrlChanged(ctrl) { this._render(ctrl); }
+
+    forceHide() {
+        if (this._hoverId) { this._scope.cancel(this._hoverId); this._hoverId = 0; }
+        this._cancelCleanup();
+        this._hide();
+        ActiveHover.deactivate(this);
+    }
+
+    _render(ctrl = ActiveHover.ctrlPressed) {
+        if (ctrl) { this._hidePreview(); this._showTitle(); }
+        else { this._hideTitle(); this._showPreview(); }
+    }
+
+    _isShowing() { return this._showingTitle || !!this._preview; }
+
+    _onPreviewHover(isHovered) {
+        if (isHovered) this._cancelCleanup();
+        else if (!this.actor.hover) this._startCleanup();
+    }
+
+    _startCleanup() {
+        this._cancelCleanup();
+        this._cleanupId = this._scope.timeout(Model.TimeoutDelay, () => {
+            this._cleanupId = 0;
+            const tip = getTooltip();
+            if (this.actor.hover || this._preview?.hover || (this._showingTitle && tip.hover))
+                return GLib.SOURCE_REMOVE;
+            this._hide();
+            ActiveHover.deactivate(this);
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _cancelCleanup() {
+        if (this._cleanupId) { this._scope.cancel(this._cleanupId); this._cleanupId = 0; }
+    }
+
+    _hide() {
+        this._hidePreview();
+        this._hideTitle();
+    }
+
+    _showTitle() {
+        this._showingTitle = true;
+        getTooltip().showCentered(
+            this.actor,
+            this.window.get_title() || 'Untitled Window',
+            Model.screenHeight - 200,
+            this._settings.get_int('title-popup-font-size'));
+    }
+
+    _hideTitle() {
+        if (!this._showingTitle) return;
+        this._showingTitle = false;
+        getTooltip().hide();
+    }
+
+    _showPreview() {
+        if (this._preview) return;
+        const win = this.window;
+        const previewHeight = this._settings.get_int('hover-preview-height');
+        const built = UI.createClonePreview(win, previewHeight, {
+            wrapperStyleClass: 'hover-preview-wrapper',
+            showTitle: false,
+            closeButtonSize: this._settings.get_int('close-button-size'),
+            closeButtonOffsetX: 60,
+            closeButtonOffsetY: 10,
+        });
+        if (!built) return;
+
+        if (built.wrapper)
+            this._scope.connect(built.wrapper, 'notify::hover',
+                () => this._onPreviewHover(built.wrapper.hover));
+        if (built.wrapper)
+            this._scope.connect(built.wrapper, 'button-press-event', (a, e) => {
+                if (e.get_button() === Clutter.BUTTON_PRIMARY) {
+                    win.get_workspace().activate_with_focus(win, 0);
+                    this._hide();
+                    return Clutter.EVENT_STOP;
+                }
+                return Clutter.EVENT_PROPAGATE;
+            });
+        if (built.closeButton)
+            this._scope.connect(built.closeButton, 'clicked', () => {
+                win.delete(global.get_current_time());
+                this._hide();
+                return Clutter.EVENT_STOP;
+            });
+
+        const [anchorX] = this.actor.get_transformed_position();
+        const x = Math.max(0, anchorX + (this.actor.get_width() - built.width) / 2);
+        const y = Model.screenHeight - built.height - 200 + 55;
+        built.actor.set_position(x, y);
+
+        this._preview = built.actor;
+        Main.layoutManager.addChrome(this._preview);
+        fadeInActor(this._preview);
+    }
+
+    _hidePreview() {
+        if (!this._preview) return;
+        const actor = this._preview;
+        this._preview = null;
+        Main.layoutManager.removeChrome(actor);
+        actor.destroy();
+    }
+
+    _syncFocus() {
+        if (this.window.appears_focused) this.actor.add_style_class_name('focused');
+        else this.actor.remove_style_class_name('focused');
+    }
+
+    _onPressed(event) {
+        const button = event.get_button();
+        if (button === Clutter.BUTTON_SECONDARY) {
+            this.forceHide();
+            this._openMenu();
+            return Clutter.EVENT_STOP;
+        }
+        return button === Clutter.BUTTON_PRIMARY ? Clutter.EVENT_STOP : Clutter.EVENT_PROPAGATE;
+    }
+
+    _onReleased(event) {
+        if (event.get_button() !== Clutter.BUTTON_PRIMARY) return Clutter.EVENT_PROPAGATE;
+
+        this.forceHide();
+        const win = this.window;
+        const winWs = win.get_workspace();
+        if (winWs === Model.WorkspaceManager.get_active_workspace()) {
+            if (win.minimized) { win.unminimize(); win.activate_with_workspace(0, winWs); }
+            else if (!win.appears_focused || this._isCovered(win)) win.activate_with_workspace(0, winWs);
+            else win.minimize();
+        } else {
+            winWs.activate_with_focus(win, 0);
+        }
+        return Clutter.EVENT_STOP;
+    }
+
+    _openMenu() {
+        const win = this.window;
+        openContextMenu(this.actor, m => {
+            m.addAction(`Activate ${win.title}`, () => win.get_workspace().activate_with_focus(win, 0));
+            m.addAction(`Close ${win.title}`, () => win.delete(0));
+            m.addAction(`Close Except ${win.title}`, () => {
+                const wmClass = win.get_wm_class();
+                const others = Model.getModelWindows(win.get_workspace())
+                    .filter(w => w !== win && w.get_wm_class() === wmClass
+                        && w.get_wm_class_instance() !== 'file_progress');
+                const now = global.get_current_time();
+                for (const w of others) w.delete(now);
+            });
+
+            const app = UI.getWindowApp(win);
+            if (!app) return;
+            m.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
+            const favorites = AppFavorites.getAppFavorites();
+            const isFav = favorites.isFavorite(app.get_id());
+            m.addAction(isFav ? `Unpin ${app.get_name()}` : `Pin ${app.get_name()}`, () => {
+                if (isFav) favorites.removeFavorite(app.get_id());
+                else favorites.addFavorite(app.get_id());
+            });
+
+            const appInfo = app.get_app_info();
+            const actions = appInfo?.list_actions();
+            if (actions?.length) {
+                m.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+                for (const action of actions)
+                    m.addAction(`${appInfo.get_action_name(action)}`, () => app.launch_action(action, 0, -1));
+            }
+        }, { translationY: -35 });
+    }
+
+    _isCovered(window) {
+        if (window.minimized) return false;
+        const workspace = Model.WorkspaceManager.get_active_workspace();
+        const stacked = Model.Display.sort_windows_by_stacking(
+            Model.Display.list_all_windows().filter(w =>
+                !w.minimized &&
+                (w.get_window_type() === Meta.WindowType.NORMAL || w.get_window_type() === Meta.WindowType.DIALOG) &&
+                w.get_workspace() === workspace));
+
+        const index = stacked.indexOf(window);
+        if (index === -1) return false;
+
+        const area = workspace.get_work_area_for_monitor(window.get_monitor());
+        const clip = r => ({
+            l: Math.max(r.x, area.x), t: Math.max(r.y, area.y),
+            r: Math.min(r.x + r.width, area.x + area.width),
+            b: Math.min(r.y + r.height, area.y + area.height),
+        });
+
+        const t = clip(window.get_frame_rect());
+        if (t.r <= t.l || t.b <= t.t) return false;
+
+        for (let i = index + 1; i < stacked.length; i++) {
+            const other = stacked[i];
+            if (other.get_transient_for() === window) continue;
+            const o = clip(other.get_frame_rect());
+            if (o.r <= o.l || o.b <= o.t) continue;
+            if (t.l < o.r && t.r > o.l && t.t < o.b && t.b > o.t) return true;
+        }
+        return false;
+    }
+}
+// ===== FILE: ./lib/dbusService.js =====
+import Gio from 'gi://Gio';
+
+import * as OverlayService from './overlayService.js';
+import * as WorkspaceActions from './workspaceActions.js';
+
+import { createLogger } from '../logger.js';
+const journal = createLogger(import.meta.url);
+
+// ==================== DBUS TRANSPORT ====================
+
+const BUS_NAME = 'io.github.blueray453.TopNotchWorkspaces';
+const BUS_PATH = '/io/github/blueray453/TopNotchWorkspaces/Overlay';
+
+const MR_DBUS_IFACE = `
+<node>
+   <interface name="io.github.blueray453.TopNotchWorkspaces.Overlay">
+      <method name="ShowAllWindows"/>
+      <method name="ShowAllApps"/>
+      <method name="ShowWorkspaceWindows">
+         <arg type="u" direction="in" name="workspace_num"/>
+      </method>
+      <method name="CycleOverlays"/>
+      <method name="ToggleAllApps"/>
+      <method name="ToggleWorkspaceWindows">
+         <arg type="u" direction="in" name="workspace_num"/>
+      </method>
+      <method name="CloseOverlay"/>
+      <method name="CycleWindowsOnWorkspace">
+         <arg type="u" direction="in" name="workspace_num"/>
+      </method>
+   </interface>
+</node>`;
+
+const dbusObject = {
+    CloseOverlay() { OverlayService.closeOverlay(); },
+    ShowAllApps() { OverlayService.showAllApps(); },
+    ShowAllWindows() { OverlayService.showAllWindows(); },
+    ShowWorkspaceWindows(n) { OverlayService.showWorkspaceWindows(n); },
+    ToggleAllApps() { OverlayService.toggleAllApps(); },
+    CycleOverlays() { OverlayService.cycleOverlays(); },
+    ToggleWorkspaceWindows(n) { OverlayService.toggleWorkspaceWindows(n); },
+    CycleWindowsOnWorkspace(n) { WorkspaceActions.cycleWindowsOnWorkspace(n, 1); },
+};
+
+let _ownerId = 0;
+let _exported = null;
+
+function _onBusAcquired(connection) {
+    try {
+        _exported = Gio.DBusExportedObject.wrapJSObject(MR_DBUS_IFACE, dbusObject);
+        _exported.export(connection, BUS_PATH);
+        journal(`[dbusService] Exported on ${BUS_PATH}`);
+    } catch (e) {
+        journal(`[dbusService] Failed to export: ${e.message}`, true);
+    }
+}
+
+function _unexport() {
+    if (!_exported) return;
+    try { _exported.flush(); _exported.unexport(); } catch (e) { /* not exported */ }
+    _exported = null;
+}
+
+export function initDBusService() {
+    _ownerId = Gio.bus_own_name(
+        Gio.BusType.SESSION, BUS_NAME, Gio.BusNameOwnerFlags.NONE,
+        connection => _onBusAcquired(connection),
+        (connection, name) => journal(`[dbusService] ${name}: name acquired`),
+        (connection, name) => { journal(`[dbusService] ${name}: name lost`, true); _unexport(); });
+}
+
+export function destroyDBusService() {
+    _unexport();
+    if (_ownerId) { Gio.bus_unown_name(_ownerId); _ownerId = 0; }
+}
+// ===== FILE: ./lib/scheduling.js =====
+import GLib from 'gi://GLib';
+
+/**
+ * Owns the signals and GLib sources created by one imperative object.
+ */
+export class Scope {
+    constructor() {
+        this._signals = [];
+        this._sources = [];
+        this._disposed = false;
+    }
+
+    get disposed() { return this._disposed; }
+
+    connect(obj, signal, cb) {
+        if (this._disposed) return 0;
+        const id = obj.connect(signal, cb);
+        this._signals.push([obj, id]);
+        return id;
+    }
+
+    timeout(ms, cb, priority = GLib.PRIORITY_DEFAULT) {
+        if (this._disposed) return 0;
+        let id = 0;
+        id = GLib.timeout_add(priority, ms, () => {
+            const r = cb();
+            if (r !== GLib.SOURCE_CONTINUE) this._forgetSource(id);
+            return r ?? GLib.SOURCE_REMOVE;
+        });
+        this._sources.push(id);
+        return id;
+    }
+
+    idle(cb, priority = GLib.PRIORITY_DEFAULT) {
+        if (this._disposed) return 0;
+        let id = 0;
+        id = GLib.idle_add(priority, () => {
+            const r = cb();
+            if (r !== GLib.SOURCE_CONTINUE) this._forgetSource(id);
+            return r ?? GLib.SOURCE_REMOVE;
+        });
+        this._sources.push(id);
+        return id;
+    }
+
+    cancel(id) {
+        if (!id) return;
+        this._forgetSource(id);
+        try { GLib.Source.remove(id); } catch (e) { /* already gone */ }
+    }
+
+    disconnectSignals() {
+        for (const [obj, id] of this._signals) {
+            try { obj.disconnect(id); } catch (e) { /* obj may be gone */ }
+        }
+        this._signals = [];
+    }
+
+    _forgetSource(id) {
+        const i = this._sources.indexOf(id);
+        if (i !== -1) this._sources.splice(i, 1);
+    }
+
+    dispose() {
+        if (this._disposed) return;
+        this._disposed = true;
+        for (const [obj, id] of this._signals) {
+            try { obj.disconnect(id); } catch (e) { /* obj may be gone */ }
+        }
+        for (const id of this._sources) {
+            try { GLib.Source.remove(id); } catch (e) { /* already gone */ }
+        }
+        this._signals = [];
+        this._sources = [];
+    }
+}
+
+export class Coalescer {
+    constructor(fn) {
+        this._fn = fn;
+        this._id = 0;
+        this._delay = 0;
+    }
+
+    queue(delay = 0) {
+        if (this._id) {
+            if (delay >= this._delay) return;
+            GLib.Source.remove(this._id);
+        }
+        this._delay = delay;
+        const run = () => { this._id = 0; this._fn(); return GLib.SOURCE_REMOVE; };
+        this._id = delay
+            ? GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, run)
+            : GLib.idle_add(GLib.PRIORITY_DEFAULT, run);
+    }
+
+    cancel() {
+        if (this._id) { GLib.Source.remove(this._id); this._id = 0; }
+    }
+}
+// ===== FILE: ./lib/ui.js =====
+import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
+import Pango from 'gi://Pango';
+import Shell from 'gi://Shell';
+import St from 'gi://St';
+
+/**
+ * DECLARATIVE UI. Pure builders: data in, actors out.
+ */
+
+// ==================== app / icon resolution ====================
+function resolveApp(window) {
+    return Shell.WindowTracker.get_default().get_window_app(window)
+        || Shell.AppSystem.get_default().lookup_app(window.get_wm_class());
+}
+
+export function getWindowApp(window) { return resolveApp(window); }
+
+export function getWindowAppIcon(window) {
+    const app = resolveApp(window);
+    if (app?.get_app_info()?.get_icon()) return app.get_icon();
+    return window.get_gicon() || new Gio.ThemedIcon({ name: 'applications-system-symbolic' });
+}
+
+function createWindowIconTexture(window, iconSize) {
+    const app = resolveApp(window);
+    if (app?.get_app_info()?.get_icon()) return app.create_icon_texture(iconSize);
+    return St.TextureCache.get_default().load_gicon(null, getWindowAppIcon(window), iconSize);
+}
+
+// ==================== drag visuals ====================
+export function createGhostIcon(gicon, size) {
+    const ghost = new St.Bin({ style_class: 'drag-placeholder-icon', width: size, height: size });
+    ghost.opacity = 140;
+    if (gicon) ghost.set_child(new St.Icon({ gicon, icon_size: size }));
+    return ghost;
+}
+
+export function createDragActor(gicon, size) {
+    const bin = new St.Bin({ style_class: 'reorder-drag-source', width: size, height: size });
+    bin.opacity = 178;
+    if (gicon) bin.set_child(new St.Icon({ gicon, icon_size: size }));
+    return bin;
+}
+
+// ==================== indicator widgets ====================
+export function createToolbarButton(iconName, size, accessibleName) {
+    return new St.Button({
+        style_class: 'workspace-toolbar-button',
+        accessible_name: accessibleName,
+        can_focus: true, track_hover: true,
+        child: new St.Icon({ icon_name: iconName, icon_size: size }),
+    });
+}
+
+export function createWorkspaceNameLabel(text, fontSizePx) {
+    const label = new St.Label({
+        style_class: 'workspace-name-label',
+        y_expand: true, y_align: Clutter.ActorAlign.CENTER, text,
+    });
+    label.set_style(`font-size: ${fontSizePx}px;`);
+    return label;
+}
+
+export function createThumbnail({ minWidth, active }) {
+    const actor = new St.Button({ style_class: 'workspace-thumbnail', x_expand: true, y_expand: true });
+    actor.set_style(`min-width: ${minWidth}px;`);
+    if (active) actor.add_style_class_name('active');
+    const box = new St.BoxLayout();
+    actor.set_child(box);
+    return { actor, box };
+}
+
+export function createOverflowButton(count) {
+    const actor = new St.Button({
+        style_class: 'workspace-thumbnail-collection-icon',
+        reactive: true, track_hover: true, can_focus: true,
+    });
+    actor.set_child(new St.Label({
+        style_class: 'collection-icon-label',
+        text: `▱ ${count}`,
+        x_align: Clutter.ActorAlign.CENTER,
+        y_align: Clutter.ActorAlign.CENTER,
+    }));
+    return actor;
+}
+
+export function createWindowIconActor(window, iconSize) {
+    const actor = new St.Button({
+        style_class: 'window-preview-icon',
+        reactive: true, track_hover: true,
+    });
+    const icon = createWindowIconTexture(window, iconSize);
+    actor.set_child(icon);
+    return { actor, icon };
+}
+
+// ==================== clone preview ====================
+const PREVIEW = { TITLE_MIN: 40, TITLE_MAX: 100, TITLE_FRACTION: 0.2 };
+
+export function createClonePreview(window, targetHeight, options = {}) {
+    if (!window) return null;
+    const windowActor = window.get_compositor_private();
+    if (!windowActor) return null;
+
+    const frame = window.get_frame_rect();
+    const buffer = window.get_buffer_rect();
+    if (frame.height === 0) return null;
+
+    const width = targetHeight * (frame.width / frame.height);
+    const scale = targetHeight / frame.height;
+    const left = (frame.x - buffer.x) * scale;
+    const top = (frame.y - buffer.y) * scale;
+    const right = ((buffer.x + buffer.width) - (frame.x + frame.width)) * scale;
+    const bottom = ((buffer.y + buffer.height) - (frame.y + frame.height)) * scale;
+
+    const inner = new St.BoxLayout({
+        style_class: 'collection-preview-inner',
+        width, height: targetHeight, clip_to_allocation: true,
+    });
+
+    const clone = new Clutter.Clone({
+        source: windowActor,
+        width: width + left + right,
+        height: targetHeight + top + bottom,
+    });
+    clone.set_position(-left, -top);
+
+    const overlay = new Clutter.Actor();
+    overlay.add_child(clone);
+    inner.add_child(overlay);
+
+    if (options.showTitle !== false) {
+        const raw = window.get_title();
+        const text = raw && raw.trim() ? raw : 'Untitled';
+        const titleHeight = Math.min(PREVIEW.TITLE_MAX,
+            Math.max(PREVIEW.TITLE_MIN, targetHeight * PREVIEW.TITLE_FRACTION));
+        const title = new St.Label({
+            style_class: 'clone-title-overlay', text,
+            x_align: Clutter.ActorAlign.FILL, y_align: Clutter.ActorAlign.CENTER,
+        });
+        title.clutter_text.set_x_align(Clutter.ActorAlign.CENTER);
+        title.clutter_text.set_y_align(Clutter.ActorAlign.CENTER);
+        title.clutter_text.set_line_wrap(true);
+        title.set_size(width, titleHeight);
+        title.set_position(0, (targetHeight - titleHeight) / 2);
+        overlay.add_child(title);
+    }
+
+    let closeButton = null;
+    if (options.closeButtonSize) {
+        const size = options.closeButtonSize;
+        closeButton = new St.Button({
+            style_class: 'window-close-button',
+            child: new St.Icon({ icon_name: 'window-close-symbolic', icon_size: size }),
+            x_align: Clutter.ActorAlign.END, y_align: Clutter.ActorAlign.START,
+            reactive: true,
+        });
+        closeButton.set_position(width - (options.closeButtonOffsetX ?? (size + 14)),
+            options.closeButtonOffsetY ?? 10);
+        overlay.add_child(closeButton);
+    }
+
+    if (!options.wrapperStyleClass)
+        return { actor: inner, inner, overlay, closeButton, width, height: targetHeight };
+
+    const wrapper = new St.BoxLayout({
+        style_class: options.wrapperStyleClass,
+        reactive: true, track_hover: true,
+    });
+    wrapper.add_child(inner);
+    return { actor: wrapper, wrapper, inner, overlay, closeButton, width, height: targetHeight };
+}
+
+// ==================== insertion math ====================
+export function computeInsertion(rects, pointerX) {
+    if (rects.length === 0) return { index: 0, neighbor: null, insertBefore: true };
+
+    const first = rects[0];
+    const last = rects[rects.length - 1];
+    let target = last, before = false;
+
+    if (pointerX < first.x) { target = first; before = true; }
+    else if (pointerX < last.right) {
+        for (let i = 0; i < rects.length; i++) {
+            const r = rects[i], next = rects[i + 1];
+            if (pointerX >= r.x && pointerX < r.right) { target = r; before = pointerX < r.mid; break; }
+            if (next && pointerX >= r.right && pointerX <= next.x) {
+                before = (pointerX - r.right) > (next.x - pointerX);
+                target = before ? next : r;
+                break;
+            }
+        }
+    }
+    const i = rects.indexOf(target);
+    return { index: before ? i : i + 1, neighbor: target.item, insertBefore: before };
+}
+
+// ==================== text helpers ====================
+function escapeMarkup(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+export function highlightMarkup(text, indices) {
+    if (!indices || indices.size === 0) return escapeMarkup(text);
+    let out = '', open = false, i = 0;
+    for (const ch of text) {
+        const hit = indices.has(i);
+        if (hit && !open) { out += '<b>'; open = true; }
+        else if (!hit && open) { out += '</b>'; open = false; }
+        out += escapeMarkup(ch);
+        i += ch.length;
+    }
+    return open ? out + '</b>' : out;
+}
+
+const spacer = () => new St.Widget({ x_expand: true });
+
+// ==================== container / field factories ====================
+export function createFullscreenContainer(monitor, styleClass) {
+    return new St.Widget({
+        style_class: styleClass, reactive: true, can_focus: true, clip_to_allocation: true,
+        x: monitor.x, y: monitor.y, width: monitor.width, height: monitor.height,
+    });
+}
+
+export function createSearchField({ width, hint, keyHint = null, x = 0, y = 0 }) {
+    const actor = new St.BoxLayout({ style_class: 'overlay-search', vertical: true, width, x, y });
+    const entry = new St.Entry({
+        style_class: 'overlay-search-entry', hint_text: hint, can_focus: true, x_expand: true,
+        primary_icon: new St.Icon({ icon_name: 'edit-find-symbolic', style_class: 'overlay-search-icon' }),
+    });
+    entry.clutter_text.set_line_alignment(Pango.Alignment.CENTER);
+    actor.add_child(entry);
+    if (keyHint) {
+        const hint = new St.Label({
+            text: keyHint, style_class: 'overlay-search-hint',
+            x_align: Clutter.ActorAlign.CENTER,
+        });
+        hint.clutter_text.set_ellipsize(Pango.EllipsizeMode.NONE);
+        hint.clutter_text.set_line_wrap(false);
+        actor.add_child(hint);
+    }
+    return { actor, entry };
+}
+
+// ==================== app launcher primitives ====================
+export function createDividerHeading(text) {
+    const actor = new St.BoxLayout({ style_class: 'launcher-divider-heading', x_expand: true });
+    const line = () => new St.Widget({ style_class: 'launcher-divider', x_expand: true, y_align: Clutter.ActorAlign.CENTER });
+    const label = new St.Label({ text, style_class: 'launcher-heading', y_align: Clutter.ActorAlign.CENTER });
+    label.clutter_text.set_ellipsize(Pango.EllipsizeMode.NONE);
+    label.clutter_text.set_line_wrap(false);
+    actor.add_child(line());
+    actor.add_child(label);
+    actor.add_child(line());
+    return { actor, label };
+}
+
+export function createPinnedRow() {
+    const wrap = new St.Widget({
+        style_class: 'launcher-pinned-wrap',
+        x_expand: true, y_expand: true,
+    });
+
+    const scroll = new St.ScrollView({
+        style_class: 'launcher-pinned-scroll',
+        overlay_scrollbars: false,
+    });
+    scroll.set_policy(St.PolicyType.EXTERNAL, St.PolicyType.NEVER);
+    const row = new St.BoxLayout({ style_class: 'launcher-pinned-row', x_expand: true });
+    scroll.set_child(row);
+
+    const FADE_W = 96;
+    const leftFade = new St.Widget({
+        style_class: 'launcher-pinned-fade-left',
+        reactive: false, visible: false,
+    });
+    const rightFade = new St.Widget({
+        style_class: 'launcher-pinned-fade-right',
+        reactive: false, visible: false,
+    });
+
+    wrap.add_child(scroll);
+    wrap.add_child(leftFade);
+    wrap.add_child(rightFade);
+
+    wrap.connect('notify::allocation', () => {
+        const alloc = wrap.get_allocation_box();
+        const w = alloc.x2 - alloc.x1;
+        const h = alloc.y2 - alloc.y1;
+        scroll.set_position(0, 0);
+        scroll.set_size(w, h);
+        leftFade.set_position(0, 0);
+        leftFade.set_size(FADE_W, h);
+        rightFade.set_position(w - FADE_W, 0);
+        rightFade.set_size(FADE_W, h);
+    });
+
+    return { actor: wrap, scroll, box: row, leftFade, rightFade };
+}
+
+export function createGridScroll() {
+    const scroll = new St.ScrollView({
+        style_class: 'launcher-scroll', x_expand: true, y_expand: true, overlay_scrollbars: false,
+    });
+    scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
+    const box = new St.BoxLayout({ style_class: 'launcher-grid', vertical: true, x_expand: true });
+    scroll.set_child(box);
+    return { scroll, box };
+}
+
+export function createAppTile({ icon, name, indices = null, iconSize, width, height, showLabel = true }) {
+    const button = new St.Button({
+        style_class: 'launcher-tile', reactive: true, track_hover: true,
+        accessible_name: name, width, height,
+    });
+    const box = new St.BoxLayout({ vertical: true, x_expand: true, y_expand: true });
+    box.add_child(new St.Icon({
+        gicon: icon ?? new Gio.ThemedIcon({ name: 'application-x-executable' }),
+        icon_size: iconSize, x_align: Clutter.ActorAlign.CENTER,
+        y_align: Clutter.ActorAlign.CENTER,
+    }));
+    if (showLabel) {
+        const label = new St.Label({ style_class: 'launcher-tile-label', x_align: Clutter.ActorAlign.CENTER });
+        const text = label.clutter_text;
+        text.set_line_wrap(true);
+        text.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR);
+        text.set_ellipsize(Pango.EllipsizeMode.END);
+        text.set_line_alignment(Pango.Alignment.CENTER);
+        text.set_markup(highlightMarkup(name, indices));
+        label.set_width(width - 24);
+        box.add_child(label);
+    }
+    button.set_child(box);
+    return button;
+}
+
+// ==================== window selector primitives ====================
+export function createWindowTitleRow({
+    icon, title, indices = null,
+    width, height, iconSize, labelSize,
+    maxWidth = width * 0.60, selected = false,
+}) {
+    const row = new St.BoxLayout({
+        style_class: selected ? 'selector-row selector-row-selected' : 'selector-row',
+        width, height,
+    });
+
+    const inner = new St.BoxLayout({
+        style_class: 'selector-row-inner', y_expand: true, y_align: Clutter.ActorAlign.CENTER,
+    });
+
+    const gap = Math.round((labelSize ?? 16) * 0.42);
+    const labelMax = Math.max(80, Math.round(maxWidth) - (iconSize || 0) - gap);
+
+    if (icon) {
+        const iconActor = new St.Icon({
+            gicon: icon, icon_size: iconSize,
+            style_class: 'selector-row-icon',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        iconActor.set_style(`margin-right: ${gap}px;`);
+        inner.add_child(iconActor);
+    }
+
+    const label = new St.Label({
+        style_class: selected ? 'selector-selected-label' : 'selector-row-label',
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    if (labelSize != null) label.set_style(`font-size: ${labelSize}px;`);
+    // Explicit width forces START ellipsize to fire when the text overflows.
+    // x_align CENTER keeps short text visually centered inside the reservation.
+    label.set_x_align(Clutter.ActorAlign.CENTER);
+    label.set_width(labelMax);
+    label.clutter_text.set_ellipsize(Pango.EllipsizeMode.START);
+    label.clutter_text.set_markup(highlightMarkup(title, indices));
+    inner.add_child(label);
+
+    row.add_child(spacer());
+    row.add_child(inner);
+    row.add_child(spacer());
+    return row;
+}
+
+export function createBandTitle({ icon, title, appName, width, height, iconSize, labelSize, appSize }) {
+    const row = new St.BoxLayout({
+        style_class: 'selector-band-title',
+        width, height, x_align: Clutter.ActorAlign.CENTER,
+    });
+
+    const inner = new St.BoxLayout({
+        style_class: 'selector-band-inner', y_align: Clutter.ActorAlign.CENTER,
+    });
+
+    if (icon) {
+        inner.add_child(new St.Icon({
+            gicon: icon, icon_size: iconSize,
+            style_class: 'selector-band-icon', y_align: Clutter.ActorAlign.CENTER,
+        }));
+    }
+    const text = new St.BoxLayout({ vertical: true, style_class: 'selector-band-text' });
+
+    const gap = 18;
+    const textMax = Math.max(100, Math.round(width * 0.85) - (iconSize || 0) - gap);
+    text.set_width(textMax);
+
+    const titleLabel = new St.Label({
+        style_class: 'selector-band-title-label',
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    titleLabel.set_x_align(Clutter.ActorAlign.CENTER);
+    titleLabel.set_width(textMax);
+    titleLabel.set_style(`font-size: ${labelSize}px;`);
+    titleLabel.clutter_text.set_ellipsize(Pango.EllipsizeMode.START);
+    titleLabel.set_text(title);
+    text.add_child(titleLabel);
+
+    const appLabel = new St.Label({
+        style_class: 'selector-band-app-label',
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    appLabel.set_x_align(Clutter.ActorAlign.CENTER);
+    appLabel.set_width(textMax);
+    appLabel.set_style(`font-size: ${appSize}px;`);
+    appLabel.clutter_text.set_ellipsize(Pango.EllipsizeMode.START);
+    appLabel.set_text(appName || '');
+    text.add_child(appLabel);
+
+    inner.add_child(text);
+    row.add_child(spacer());
+    row.add_child(inner);
+    row.add_child(spacer());
+    return row;
+}
+
+export function createSelectionBand(bandL) {
+    const band = new St.BoxLayout({
+        style_class: 'selector-band', vertical: true,
+        x: bandL.x, y: bandL.y, width: bandL.width, height: bandL.height,
+    });
+    const titleBin = new St.Bin({ x_expand: true, height: bandL.selectedHeight });
+    band.add_child(titleBin);
+    return { band, titleBin };
+}
+
+export function createSelectorHint(overlayL) {
+    const actor = new St.Label({
+        text: '', style_class: 'selector-hint',
+        x: 0, y: overlayL.height - 56, width: overlayL.width,
+    });
+    actor.clutter_text.set_ellipsize(Pango.EllipsizeMode.END);
+    return { actor, label: actor };
+}
+// ===== FILE: ./lib/model.js =====
+// Domain state: the shell singletons, the shared constants, and the window
+// model. Everything here is either a live handle grabbed once at module
+// load, or a small piece of bookkeeping about the user's window order.
+// Nothing in this file touches actors.
+
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+
+import { createLogger } from '../logger.js';
+const journal = createLogger(import.meta.url);
+
+// ==================== SHELL SINGLETONS ====================
+export const screenWidth = global.get_screen_width();
+export const screenHeight = global.get_screen_height();
+export const WorkspaceManager = global.get_workspace_manager();
+export const Display = global.get_display();
+
+// ==================== TUNABLE CONSTANTS ====================
+export const TimeoutDelay = 200;
+
+// Above this many windows on a workspace, the indicator switches from one
+// icon per window to a single "N windows" overflow button, and top-bar
+// scroll skips that workspace (there is no per-window order to walk).
+// This is a DISPLAY-MODE threshold only. It never filters the window arrays
+// consumed by overlays or menus — those always see every window.
+export const DIRECT_MODE_MAX_WINDOWS = 5;
+
+export const SettleAnimationDuration = 300;
+
+// ==================== INTENT (transient UI flags) ====================
+export const intent = { drag: null, hintWs: null, menuOpen: false };
+
+let _onIntent = () => { };
+let _onWorld = () => { };
+
+export function onIntentChange(cb) { _onIntent = cb ?? (() => { }); }
+export function onWorldChange(cb) { _onWorld = cb ?? (() => { }); }
+
+export function requestRender() { _onWorld(); }
+
+export function resetIntent() {
+    intent.drag = null;
+    intent.hintWs = null;
+    intent.menuOpen = false;
+}
+
+export function setIntent(patch) {
+    let dirty = false;
+    for (const key of Object.keys(patch)) {
+        if (intent[key] !== patch[key]) { intent[key] = patch[key]; dirty = true; }
+    }
+    if (dirty) _onIntent();
+}
+
+// ==================== USER ORDER ====================
+const ranks = new Map();
+let nextRank = 1;
+
+function isEligible(w) {
+    return !w.skip_taskbar && !w.is_override_redirect();
+}
+
+// ==================== THE REPRESENTATION ====================
+export function buildModel() {
+    const live = Display.list_all_windows().filter(isEligible);
+
+    const liveSet = new Set(live);
+    for (const w of [...ranks.keys()])
+        if (!liveSet.has(w)) ranks.delete(w);
+    for (const w of live)
+        if (!ranks.has(w)) ranks.set(w, nextRank++);
+
+    const workspaces = [];
+    for (let i = 0; i < WorkspaceManager.n_workspaces; i++) {
+        const workspace = WorkspaceManager.get_workspace_by_index(i);
+        const windows = live
+            .filter(w => w.located_on_workspace(workspace))
+            .sort((a, b) => ranks.get(a) - ranks.get(b));
+        // Display mode only — never used to filter `windows`.
+        //   direct = true  → one icon per window in the strip, scroll steps per-window
+        //   direct = false → single overflow button, scroll skips this workspace
+        const direct = windows.length <= DIRECT_MODE_MAX_WINDOWS;
+        workspaces.push({ workspace, index: i, windows, direct });
+    }
+    return { workspaces, drag: intent.drag, hintWs: intent.hintWs };
+}
+
+// ==================== MODEL MUTATIONS ====================
+export function placeWindow(window, workspace, index = null) {
+    const fullList = buildModel().workspaces[workspace.index()].windows;
+    const list = fullList.filter(w => w !== window);
+
+    let at = index === null ? list.length : index;
+    at = Math.max(0, Math.min(at, list.length));
+
+    list.splice(at, 0, window);
+
+    for (const w of list) ranks.set(w, nextRank++);
+}
+
+// ==================== MODEL-OWNED SIGNALS ====================
+let _signals = [];
+let _wsSignals = [];
+let _settings = null;
+
+function _listen(obj, signal, cb) { _signals.push([obj, obj.connect(signal, cb)]); }
+
+function _watchWorkspaces() {
+    for (const [obj, id] of _wsSignals) obj.disconnect(id);
+    _wsSignals = [];
+    for (let i = 0; i < WorkspaceManager.n_workspaces; i++) {
+        const ws = WorkspaceManager.get_workspace_by_index(i);
+        _wsSignals.push([ws, ws.connect('window-added', () => requestRender())]);
+        _wsSignals.push([ws, ws.connect('window-removed', () => requestRender())]);
+    }
+}
+
+export function connectModelSignals(settings = null) {
+    disconnectModelSignals();
+    _settings = settings;
+
+    _listen(WorkspaceManager, 'notify::n-workspaces', () => { _watchWorkspaces(); requestRender(); });
+    _listen(WorkspaceManager, 'workspace-switched', () => requestRender());
+    _listen(Display, 'window-created', () => requestRender());
+    _listen(Main.sessionMode, 'updated', () => requestRender());
+    if (settings)
+        _listen(settings, 'changed', () => requestRender());
+
+    _watchWorkspaces();
+}
+
+export function disconnectModelSignals() {
+    for (const [obj, id] of _wsSignals) obj.disconnect(id);
+    for (const [obj, id] of _signals) obj.disconnect(id);
+    _wsSignals = [];
+    _signals = [];
+    _settings = null;
+}
+
+// ==================== HELPERS FOR THE UI ====================
+// Windows are returned in model order and are NEVER filtered by `direct`.
+// Overlays and context menus depend on this.
+export function getModelWindows(workspace = null) {
+    const model = buildModel();
+    if (workspace === null)
+        return model.workspaces.flatMap(ws => ws.windows);
+    const entry = model.workspaces.find(ws => ws.workspace === workspace);
+    return entry ? entry.windows : [];
+}
+
+// ==================== SNAPSHOT / LOGGING ====================
+export function getModelSnapshot(model) {
+    return {
+        drag: !!model.drag,
+        hintWs: model.hintWs,
+        workspaces: model.workspaces.map(ws => ({
+            index: ws.index,
+            windowCount: ws.windows.length,
+            direct: ws.direct,
+            windows: ws.windows.map(w => w.get_title() || 'Untitled'),
+        })),
+    };
+}
+
+export function logModel(model) {
+    journal('[Model Snapshot]\n' + JSON.stringify(getModelSnapshot(model), null, 2));
+}
+// ===== FILE: ./lib/overlayService.js =====
+import Meta from 'gi://Meta';
+
+import * as SearchOverlays from './searchOverlays.js';
+import * as Model from './model.js';
+
+import { createLogger } from '../logger.js';
+const journal = createLogger(import.meta.url);
+
+// ==================== OVERLAY SERVICE ====================
+// The single place any search overlay is opened or closed.
+//
+// IMPORTANT: overlays ignore the model's display-mode flag (`direct`).
+// They always list every window on the workspace (and every window at all,
+// for "all windows"), so the 5+ threshold that governs the indicator strip
+// has zero effect here.
+
+let _settings = null;
+
+// -------------------- Show / close --------------------
+export function showWindowOverlay(windows, context = null, focusedWindow = null) {
+    if (!_settings) {
+        journal('[overlayService] showWindowOverlay before init — ignoring', true);
+        return false;
+    }
+    SearchOverlays.SearchOverlayBase.closeCurrent();
+    const overlay = new SearchOverlays.WindowSearchOverlay(windows, _settings, focusedWindow);
+    overlay._overlayContext = context;
+    return true;
+}
+
+export function showAllWindows() {
+    // getModelWindows(null) returns EVERY window across all workspaces —
+    // not filtered by the per-workspace `direct` display-mode flag.
+    return showWindowOverlay(
+        Model.getModelWindows(null),
+        { type: 'all-windows' },
+        Model.Display.focus_window);
+}
+
+export function showAllApps() {
+    if (!_settings) {
+        journal('[overlayService] showAllApps before init — ignoring', true);
+        return false;
+    }
+    SearchOverlays.SearchOverlayBase.closeCurrent();
+    new SearchOverlays.AppSearchOverlay(_settings);
+    return true;
+}
+
+export function toggleAllApps() {
+    if (SearchOverlays.SearchOverlayBase.current instanceof SearchOverlays.AppSearchOverlay) {
+        SearchOverlays.SearchOverlayBase.closeCurrent();
+        return false;
+    }
+    return showAllApps();
+}
+
+// Three-state cycle:
+//   1. no overlay (or a non-matching overlay, e.g. a workspace-scoped
+//      window selector) → show the all-windows overlay
+//   2. all-windows overlay is up    → advance to the all-apps overlay
+//   3. all-apps overlay is up       → close the overlay
+export function cycleOverlays() {
+    const current = SearchOverlays.SearchOverlayBase.current;
+
+    // (2) All-windows overlay is running → switch to the app launcher.
+    if (current instanceof SearchOverlays.WindowSearchOverlay &&
+        current._overlayContext?.type === 'all-windows') {
+        return showAllApps();
+    }
+
+    // (3) All-apps overlay is running → close it.
+    if (current instanceof SearchOverlays.AppSearchOverlay) {
+        SearchOverlays.SearchOverlayBase.closeCurrent();
+        return false;
+    }
+
+    // (1) Nothing open (or a different overlay) → show all windows.
+    return showAllWindows();
+}
+
+export function showWorkspaceWindows(workspaceIndex) {
+    const workspace = Model.WorkspaceManager.get_workspace_by_index(workspaceIndex);
+    if (!workspace)
+        throw new Error(`Workspace ${workspaceIndex} not found`);
+
+    // Full window list from the model — `direct` is irrelevant here.
+    const windows = Model.buildModel().workspaces[workspaceIndex].windows;
+    const focusedWindow = Model.Display.get_tab_list(Meta.TabList.NORMAL, workspace)[0] ?? null;
+
+    workspace.activate(global.get_current_time());
+    const opened = showWindowOverlay(windows, { type: 'workspace', workspaceIndex }, focusedWindow);
+    journal(`[overlayService] showWorkspaceWindows ${workspaceIndex} (${windows.length} windows)`);
+    return opened;
+}
+
+export function toggleWorkspaceWindows(workspaceIndex) {
+    const current = SearchOverlays.SearchOverlayBase.current;
+    if (current instanceof SearchOverlays.WindowSearchOverlay &&
+        current._overlayContext?.type === 'workspace' &&
+        current._overlayContext.workspaceIndex === workspaceIndex) {
+        SearchOverlays.SearchOverlayBase.closeCurrent();
+        return false;
+    }
+    return showWorkspaceWindows(workspaceIndex);
+}
+
+export function closeOverlay() { return SearchOverlays.SearchOverlayBase.closeCurrent(); }
+
+// -------------------- Lifecycle --------------------
+export function initOverlayService(settings) {
+    _settings = settings;
+}
+
+export function destroyOverlayService() {
+    closeOverlay();
+    _settings = null;
+}
+// ===== FILE: ./lib/workspaceActions.js =====
+// Window/workspace actions that are neither model state nor overlay logic.
+// Shared by the DBus adapter (CycleWindowsOnWorkspace) and the top-bar
+// scroll handler.
+
+import Meta from 'gi://Meta';
+
+import * as Model from './model.js';
+
+/**
+ * Advance focus through the flat model order — every window across every
+ * workspace that is NOT in overflow mode — by `direction` (+1 next,
+ * -1 previous), wrapping at both ends.
+ *
+ * Workspaces with `direct === false` (i.e. >5 windows) are skipped
+ * entirely: the strip shows a single count button for them, so there is
+ * no per-window order to walk. Windows on overflow workspaces are simply
+ * not in the cycle.
+ *
+ * Sticky windows (`on_all_workspaces`) appear in every workspace's list;
+ * they are deduplicated so a flat walk hits each one once.
+ *
+ * The anchor is the focused window's position in that flat list; when it
+ * isn't in the cycle (focused on an overflow workspace, on a desktop, or
+ * no focus at all) we start at the end the direction points from.
+ *
+ * Does NOT maximize — this is "scroll through the strip", not the DBus
+ * "cycle" action.
+ */
+export function scrollModelWindows(direction = 1) {
+    // const activeIdx = global.workspace_manager.get_active_workspace_index();
+    // if (!model.workspaces[activeIdx]?.direct) return false;
+    const model = Model.buildModel();
+
+    const windows = [];
+    const seen = new Set();
+    for (const entry of model.workspaces) {
+        if (!entry.direct) continue;
+        for (const w of entry.windows) {
+            const id = w.get_id();
+            if (seen.has(id)) continue;
+            seen.add(id);
+            windows.push(w);
+        }
+    }
+    if (windows.length === 0) return false;
+
+    const n = windows.length;
+    const idx = windows.indexOf(Model.Display.focus_window);
+    const nextIdx = idx === -1
+        ? (direction > 0 ? 0 : n - 1)
+        : ((idx + direction) % n + n) % n;
+    const target = windows[nextIdx];
+
+    if (target.minimized) target.unminimize();
+    const ws = target.get_workspace();
+    if (ws) ws.activate_with_focus(target, global.get_current_time());
+    else target.activate(global.get_current_time());
+    return true;
+}
+
+/**
+ * Focus the next (or previous) window on a *specific* workspace, in model
+ * order. Kept workspace-scoped and maximizing for the DBus
+ * CycleWindowsOnWorkspace method, whose contract is "cycle + focus at full
+ * size" and is independent of the display mode.
+ */
+export function cycleWindowsOnWorkspace(workspaceIndex, direction = 1) {
+    const entry = Model.buildModel().workspaces[workspaceIndex];
+    if (!entry || entry.windows.length === 0) return false;
+
+    const windows = entry.windows;
+    const n = windows.length;
+    const idx = windows.indexOf(Model.Display.focus_window);
+
+    const nextIdx = idx === -1
+        ? (direction > 0 ? 0 : n - 1)
+        : ((idx + direction) % n + n) % n;
+    const target = windows[nextIdx];
+
+    if (target.minimized) target.unminimize();
+    target.maximize(Meta.MaximizeFlags.BOTH);
+    target.activate(global.get_current_time());
+    return true;
+}
+// ===== FILE: ./lib/fuzzy.js =====
+// Fuzzy string matching for the search overlays. Pure: no imports, no state,
+// no actors. Both WindowSearchOverlay and AppSearchOverlay run their queries
+// through fuzzyMatch. Returns matched character offsets so callers can bold
+// them in their markup.
+//
+// Order of attempts per token: substring > subsequence > typo-tolerant
+// word-prefix.
+
+function subsequenceMatch(token, text) {
+    const positions = [];
+    let qi = 0, score = 0, consecutive = 0;
+    for (let ti = 0; ti < text.length && qi < token.length; ti++) {
+        if (text[ti] === token[qi]) { score += 1 + consecutive; consecutive++; qi++; positions.push(ti); }
+        else consecutive = 0;
+    }
+    return qi < token.length ? { matched: false } : { matched: true, score, positions };
+}
+
+// Optimal-string-alignment distance (insert / delete / substitute / transpose).
+function osaDistance(a, b) {
+    const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...new Array(b.length).fill(0)]);
+    for (let j = 0; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++) {
+        for (let j = 1; j <= b.length; j++) {
+            const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+            d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+            if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1])
+                d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+        }
+    }
+    return d[a.length][b.length];
+}
+
+function typoMatch(token, text) {
+    if (token.length < 4) return null;
+    const limit = token.length >= 6 ? 2 : 1;
+    for (const m of text.matchAll(/[^\s\-_.\/:—]+/g)) {
+        const word = m[0];
+        for (let len = token.length - 1; len <= token.length + 1; len++) {
+            if (len < 1 || len > word.length) continue;
+            if (osaDistance(token, word.slice(0, len)) <= limit) {
+                const positions = [];
+                for (let i = 0; i < word.length; i++) positions.push(m.index + i);
+                return { score: 10, positions };
+            }
+        }
+    }
+    return null;
+}
+
+export function fuzzyMatch(query, text) {
+    const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const indices = new Set();
+    if (tokens.length === 0) return { matched: true, score: 0, indices };
+
+    const lower = text.toLowerCase();
+    let score = 0;
+    for (const token of tokens) {
+        const idx = lower.indexOf(token);
+        if (idx !== -1) {
+            const boundary = idx === 0 || /[\s\-_.\/]/.test(lower[idx - 1]);
+            score += 60 - Math.min(idx, 40) + (boundary ? 20 : 0);
+            for (let i = idx; i < idx + token.length; i++) indices.add(i);
+            continue;
+        }
+        const sub = subsequenceMatch(token, lower);
+        if (sub.matched) { score += sub.score; sub.positions.forEach(p => indices.add(p)); continue; }
+        const typo = typoMatch(token, lower);
+        if (!typo) return { matched: false, score: -1, indices: new Set() };
+        score += typo.score;
+        typo.positions.forEach(p => indices.add(p));
+    }
+    return { matched: true, score, indices };
+}
+
+// ===== FILE: ./logger.js =====
+import GLib from 'gi://GLib';
+import Gio from 'gi://Gio';
+
+let loggingEnabled = false;
+let logOutput = 'journal';
+let uuid = null;
+let logFile = null;
+
+
+/*
+ * logger.js is in the extension root.
+ */
+const extensionDir = GLib.path_get_dirname(
+    GLib.filename_from_uri(import.meta.url)[0]
+);
+
+
+/*
+ * Initialize logging.
+ *
+ * output:
+ *   'journal' -> GNOME Journal only
+ *   'file'    -> file only
+ *   'both'    -> GNOME Journal + file
+ *
+ * enabled:
+ *   true  -> logging enabled
+ *   false -> logging disabled
+ */
+function initLogging(
+    extensionUuid,
+    output = 'journal',
+    enabled = true
+) {
+    uuid = extensionUuid;
+    logOutput = output;
+    loggingEnabled = enabled;
+
+    if (output === 'file' || output === 'both') {
+        logFile = GLib.build_filenamev([
+            GLib.get_home_dir(),
+            `${uuid}.log`,
+        ]);
+    } else {
+        logFile = null;
+    }
+}
+
+
+/*
+ * Create a logger for a source file.
+ *
+ * Usage:
+ *
+ * const journal = createLogger(import.meta.url);
+ */
+function createLogger(source) {
+    let sourceFile;
+
+    try {
+        sourceFile = GLib.filename_from_uri(source)[0];
+    } catch (e) {
+        sourceFile = source;
+    }
+
+    /*
+     * Convert absolute path into a path
+     * relative to the extension root.
+     */
+    const prefix = `${extensionDir}/`;
+
+    if (sourceFile.startsWith(prefix)) {
+        sourceFile = sourceFile.substring(prefix.length);
+    }
+
+    const relativeSource = sourceFile;
+
+
+    return function journal(msg) {
+
+        /*
+         * Logging disabled?
+         *
+         * Do absolutely nothing.
+         */
+        if (!loggingEnabled)
+            return;
+
+
+        /*
+         * Create timestamp once.
+         */
+        // const timestamp = GLib.DateTime
+        //     .new_now_local()
+        //     .format('%Y-%m-%d %H:%M:%S');
+
+
+        /*
+         * Create the complete message once.
+         *
+         * Both Journal and file receive
+         * exactly this same string.
+         */
+        // const output = `[${timestamp}] [${relativeSource}] ${msg}`;
+        const output = `[${relativeSource}] ${msg}`;
+
+
+        if (
+            logOutput === 'journal' ||
+            logOutput === 'both'
+        ) {
+            writeToJournal(output);
+        }
+
+
+        if (
+            logOutput === 'file' ||
+            logOutput === 'both'
+        ) {
+            writeToFile(output);
+        }
+    };
+}
+
+
+function writeToJournal(output) {
+    GLib.log_structured(
+        uuid,
+        GLib.LogLevelFlags.LEVEL_MESSAGE,
+        {
+            MESSAGE: output,
+            SYSLOG_IDENTIFIER: uuid,
+        }
+    );
+}
+
+
+function writeToFile(output) {
+    if (!logFile)
+        return;
+
+    try {
+        const file = Gio.File.new_for_path(logFile);
+
+        const stream = file.append_to(
+            Gio.FileCreateFlags.NONE,
+            null
+        );
+
+        const bytes =
+            new TextEncoder().encode(`${output}\n`);
+
+        stream.write_all(bytes, null);
+        stream.close(null);
+
+    } catch (e) {
+        /*
+         * Don't call journal() here.
+         */
+        console.error(
+            `[${uuid}] Failed to write log file: ${e}`
+        );
+    }
+}
+
+
+export {
+    initLogging,
+    createLogger,
+};
+// ===== FILE: ./prefs.js =====
+import Gio from 'gi://Gio';
+import Adw from 'gi://Adw';
+import Gtk from 'gi://Gtk';
+import { ExtensionPreferences } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
+
+export default class WorkspacesOrganizerPreferences extends ExtensionPreferences {
+    fillPreferencesWindow(window) {
+        const settings = this.getSettings();
+
+        const page = new Adw.PreferencesPage({
+            title: 'Appearance',
+            icon_name: 'preferences-desktop-font-symbolic',
+        });
+        window.add(page);
+
+        // Define all configuration keys (only one icon-size now)
+        const allKeys = [
+            { key: 'icon-size', label: 'Icon size', min: 16, max: 256, step: 2 },
+            { key: 'thumbnail-min-width', label: 'Thumbnail minimum width', min: 20, max: 200, step: 2 },
+            { key: 'workspace-name-font-size', label: 'Workspace name', min: 10, max: 100, step: 1 },
+            { key: 'toolbar-icon-size', label: 'Panel toolbar icon size', min: 16, max: 64, step: 2 },
+            { key: 'title-popup-font-size', label: 'Title popup (Ctrl+hold)', min: 8, max: 48, step: 1 },
+            { key: 'collection-search-font-size', label: 'Collection search entry', min: 8, max: 48, step: 1 },
+            { key: 'collection-result-font-size', label: 'Collection result items', min: 8, max: 48, step: 1 },
+            { key: 'collection-result-icon-size', label: 'Search result icon size', min: 16, max: 128, step: 2 },
+            { key: 'clone-title-font-size', label: 'Clone preview title', min: 10, max: 80, step: 1 },
+            { key: 'hover-preview-height', label: 'Hover preview height', min: 200, max: 1200, step: 10 },
+            { key: 'close-button-size', label: 'Close button size', min: 16, max: 64, step: 2 },
+            { key: 'app-preview-icon-size', label: 'App search preview icon size', min: 32, max: 256, step: 2 },
+            { key: 'tooltip-font-size', label: 'Tooltip text', min: 6, max: 32, step: 1 },
+        ];
+
+        // Group: Icon Sizes (now just one row)
+        const iconGroup = new Adw.PreferencesGroup({
+            title: 'Icon Sizes',
+            description: 'Size of window icons in workspace thumbnails',
+        });
+        page.add(iconGroup);
+        this._addSpinRow(iconGroup, allKeys.find(k => k.key === 'icon-size'), settings);
+        this._addSpinRow(iconGroup, allKeys.find(k => k.key === 'app-preview-icon-size'), settings);
+
+
+        // Group: Font Sizes
+        const fontGroup = new Adw.PreferencesGroup({
+            title: 'Font Sizes',
+            description: 'Text size in various UI elements',
+        });
+        page.add(fontGroup);
+        ['workspace-name-font-size', 'title-popup-font-size',
+            'collection-search-font-size', 'collection-result-font-size', 'collection-result-icon-size',
+            'clone-title-font-size', 'tooltip-font-size'].forEach(key => {
+                const def = allKeys.find(k => k.key === key);
+                this._addSpinRow(fontGroup, def, settings);
+            });
+
+        // Group: Layout
+        const layoutGroup = new Adw.PreferencesGroup({
+            title: 'Layout',
+            description: 'Sizes and dimensions',
+        });
+        page.add(layoutGroup);
+        ['thumbnail-min-width', 'toolbar-icon-size', 'hover-preview-height', 'close-button-size'].forEach(key => {
+            const def = allKeys.find(k => k.key === key);
+            this._addSpinRow(layoutGroup, def, settings);
+        });
+
+        const visibilityGroup = new Adw.PreferencesGroup({
+            title: 'Visibility',
+            description: 'Toggle panel elements — changes apply immediately, no restart needed',
+        });
+        page.add(visibilityGroup);
+
+        for (const [key, title] of [
+            ['show-drun-button', 'Show "apps" button'],
+            ['show-window-button', 'Show "all windows" button'],
+            ['show-workspace-names', 'Show workspace names'],
+        ]) {
+            const row = new Adw.ActionRow({ title });
+            const toggle = new Gtk.Switch({ valign: Gtk.Align.CENTER });
+            settings.bind(key, toggle, 'active', Gio.SettingsBindFlags.DEFAULT);
+            row.add_suffix(toggle);
+            row.set_activatable_widget(toggle);
+            visibilityGroup.add(row);
+        }
+
+        // Group: Reset and notes
+        const miscGroup = new Adw.PreferencesGroup();
+        page.add(miscGroup);
+
+        // Reset button
+        const resetRow = new Adw.ActionRow({ title: 'Reset all settings to defaults' });
+        const resetBtn = new Gtk.Button({
+            label: 'Reset',
+            css_classes: ['destructive-action'],
+        });
+        resetBtn.connect('clicked', () => {
+            for (const { key } of allKeys) {
+                settings.reset(key);
+            }
+            // Window stays open – spin buttons update automatically
+        });
+        resetRow.add_suffix(resetBtn);
+        resetRow.set_activatable_widget(resetBtn);
+        miscGroup.add(resetRow);
+
+        const note = new Adw.ActionRow({
+            title: 'Changes take effect after restarting the extension (disable & enable).',
+            subtitle: 'You may need to reload GNOME Shell (Alt+F2, r) for some changes.',
+        });
+        miscGroup.add(note);
+    }
+
+    _addSpinRow(group, { key, label, min, max, step }, settings) {
+        const row = new Adw.ActionRow({ title: label });
+        const spin = Gtk.SpinButton.new_with_range(min, max, step);
+        settings.bind(key, spin, 'value', Gio.SettingsBindFlags.DEFAULT);
+        row.add_suffix(spin);
+        row.set_activatable_widget(spin);
+        group.add(row);
+    }
+}
+// ===== FILE: ./extension.js =====
+import Clutter from 'gi://Clutter';
+import GLib from 'gi://GLib';
+import * as ExtensionModule from 'resource:///org/gnome/shell/extensions/extension.js';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+
+import * as WorkspaceIndicatorModule from './lib/workspaceIndicator.js';
+import * as OverlayService from './lib/overlayService.js';
+import * as DBusService from './lib/dbusService.js';
+import * as Interactions from './lib/interactions.js';
+import * as Model from './lib/model.js';
+import * as WorkspaceActions from './lib/workspaceActions.js';
+
+import { initLogging, createLogger } from './logger.js';
+
+const journal = createLogger(import.meta.url);
+
+// Minimum time between two accepted scroll steps.
+const SCROLL_THROTTLE_MS = 150;
+
+export default class TopNotchWorkspaces extends ExtensionModule.Extension {
+    constructor(metadata) {
+        super(metadata);
+        this._indicator = null;
+        this._titleBarMoveMonitor = null;
+        this._lastScrollTime = 0;
+    }
+
+    enable() {
+        initLogging(this.uuid, 'file', false);
+        journal(`Enabled`);
+
+        const settings = this.getSettings();
+
+        Model.connectModelSignals(settings);
+
+        OverlayService.initOverlayService(settings);
+        DBusService.initDBusService();
+
+        this._indicator = new WorkspaceIndicatorModule.WorkspaceIndicator(settings, {
+            showAllApps: OverlayService.showAllApps,
+            showAllWindows: OverlayService.showAllWindows,
+            showWorkspaceWindows: OverlayService.showWorkspaceWindows,
+        });
+        Main.panel.addToStatusArea('workspace-indicator', this._indicator, 0, 'left');
+
+        this._titleBarMoveMonitor = new WorkspaceIndicatorModule.TitleBarMoveMonitor();
+
+        this._lastScrollTime = 0;
+        Main.panel.connectObject('scroll-event',
+            (_actor, event) => this._handleScroll(event), this);
+    }
+
+    disable() {
+        Main.panel.disconnectObject(this);
+
+        DBusService.destroyDBusService();
+        OverlayService.destroyOverlayService();
+
+        if (this._titleBarMoveMonitor) {
+            this._titleBarMoveMonitor.destroy();
+            this._titleBarMoveMonitor = null;
+        }
+        if (this._indicator) {
+            this._indicator.destroy();
+            this._indicator = null;
+        }
+
+        Model.disconnectModelSignals();
+        Interactions.destroyTooltip();
+    }
+
+    // Top-bar scroll: step focus through the model's flat window order —
+    // every window across every non-overflow workspace, deduped for sticky
+    // windows. Workspaces with >5 windows (`direct === false`) are excluded
+    // entirely, so their windows are not in the cycle.
+    _handleScroll(event) {
+        if (event.type() !== Clutter.EventType.SCROLL)
+            return Clutter.EVENT_PROPAGATE;
+
+        let step;
+        switch (event.get_scroll_direction()) {
+            case Clutter.ScrollDirection.UP:
+            case Clutter.ScrollDirection.LEFT:
+                step = -1;
+                break;
+            case Clutter.ScrollDirection.DOWN:
+            case Clutter.ScrollDirection.RIGHT:
+                step = 1;
+                break;
+            default:
+                return Clutter.EVENT_PROPAGATE;
+        }
+
+        const now = GLib.get_monotonic_time() / 1000;
+        if (now - this._lastScrollTime < SCROLL_THROTTLE_MS)
+            return Clutter.EVENT_STOP;
+        this._lastScrollTime = now;
+
+        WorkspaceActions.scrollModelWindows(step);
+        return Clutter.EVENT_STOP;
+    }
+}

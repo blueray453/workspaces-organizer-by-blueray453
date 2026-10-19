@@ -3,40 +3,99 @@
    base03 #002b36  base02 #073642  base01 #586e75  base00 #657b83
    base0  #839496  base1  #93a1a1  base2  #eee8d5  base3  #fdf6e3
    yellow #b58900  orange #cb4b16  red #dc322f  magenta #d33682
-   violet #6c71c4  blue   #268bd2  cyan #2aa198  green #859900
+   violet #6c71c4  blue   #268bd2  cyan #2aa198  green     #859900
    ============================================================ */
 
-/* ===== Workspace indicator / thumbnails ===== */
+/* ===================== INDICATOR ===================== */
 
-.workspace-indicator-class .workspace-thumbnail {
-    height: 100%;
-    padding: 10px;
-    padding-top: 25px;
+.workspace-indicator-main-box {
+    spacing: 6px;
+}
+
+.workspace-indicator-class {
+    spacing: 8px;
+}
+
+/* One workspace capsule. Content-sized (never x_expand) so the
+   overflow / grouping math in the indicator has a real natural width. */
+.workspace-thumbnail {
+    padding: 10px 8px 8px 8px;
     background-color: rgba(7, 54, 66, 0.65);
     border: 1px solid rgba(88, 110, 117, 0.4);
-    border-radius: 10px;
+    border-radius: 8px;
     box-shadow: inset 0 0 0 2px rgba(38, 139, 210, 0.55);
     transition-duration: 150ms;
 }
 
-.workspace-indicator-class .workspace-thumbnail.active {
+.workspace-thumbnail:hover {
+    background-color: rgba(7, 54, 66, 0.95);
+}
+
+.workspace-thumbnail.active {
     background-color: rgba(42, 161, 152, 0.28);
     box-shadow: inset 0 0 0 2px #2aa198;
 }
 
-.workspace-indicator-class .window-preview-icon {
-    border: 1px solid transparent;
+.ws-contents {
+    spacing: 6px;
+}
+
+/* Same mode, denser metrics: mirrors .ws-thumbs.grouped-layout. */
+.workspace-indicator-class.grouped-layout .workspace-thumbnail {
+    padding: 8px 6px 6px 6px;
+}
+
+.workspace-indicator-class.grouped-layout .ws-contents {
+    spacing: 3px;
+}
+
+.ws-empty {
+    color: #657b83;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 0 6px;
+}
+
+/* ---------- window / app icons ---------- */
+
+.window-preview-icon {
+    border-radius: 8px;
     transition-duration: 120ms;
 }
 
-.workspace-indicator-class .window-preview-icon.focused {
-    background-color: rgba(133, 153, 0, 0.45);
-    border-color: rgba(133, 153, 0, 0.65);
-    box-shadow: inset 0 0 0 2px rgba(133, 153, 0, 0.45);
+.window-preview-icon.focused {
+    box-shadow: 0 0 0 2px #2aa198, 0 0 10px rgba(42, 161, 152, 0.65);
+}
+
+.ws-app-group {
+    border-radius: 8px;
+    transition-duration: 120ms;
+}
+
+.ws-app-group:hover {
+    background-color: rgba(38, 139, 210, 0.18);
+}
+
+.ws-app-group:focus {
+    box-shadow: 0 0 0 2px #4fd1c5;
+}
+
+/* Dock style numeric badge (position + size set from JS). */
+.ws-badge {
+    background-color: #101820;
+    border: 1px solid #fdf6e3;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.65);
+}
+
+.ws-badge-label {
+    color: #ffffff;
+    font-weight: 800;
+    padding: 0;
 }
 
 .workspace-name-label {
-    padding: 20px;
+    padding: 0 12px;
     font-weight: bold;
     color: #eee8d5;
 }
@@ -51,32 +110,96 @@
     background-color: rgba(38, 139, 210, 0.18);
 }
 
-/* ===== Window collection icon (thumbnail overflow button) =====
-   The button lives inside the thumbnail's padded content area, so it must
-   NOT re-apply padding-top (that was clipping the count vertically). Wide
-   enough for three-digit counts; height left to content so the label's
-   natural size wins. */
+/* ===================== ANCHORED FLYOUT (the #fan) =====================
+   Absolute layout: every child is positioned from JS, exactly like the
+   prototype's #fan.local-anchored block. */
 
-.workspace-thumbnail-collection-icon {
-    height: 100%;
-    padding: 12px 24px;
-    background-color: #268bd2;
-    border-radius: 24px;
-    box-shadow: inset 0 0 4px 2px rgba(0, 0, 0, 0.3);
+.ws-flyout {
+    background-color: rgba(0, 20, 28, 0.98);
+    border: 1px solid rgba(147, 161, 161, 0.42);
+    border-radius: 12px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.48);
+}
+
+.ws-flyout-head {
+    color: #4fd1c5;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+/* ---------- rows ---------- */
+
+.ws-flyout-row {
+    padding: 0 10px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background-color: rgba(0, 20, 28, 0.45);
     transition-duration: 120ms;
 }
 
-.collection-icon-label {
-    color: #fdf6e3;
-    font-size: 32px;
-    font-weight: bold;
+.ws-flyout-row.sel {
+    background-color: rgba(10, 70, 72, 0.92);
+    border-color: #2aa198;
 }
 
-/* ===== Clone previews (hover preview) ===== */
+.ws-flyout-row-title {
+    color: #eee8d5;
+    font-weight: 600;
+}
+
+.ws-flyout-row-app {
+    color: #4fd1c5;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.ws-flyout-row-badge {
+    color: #4fd1c5;
+    background-color: rgba(79, 209, 197, 0.16);
+    border-radius: 9px;
+    padding: 1px 7px;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+/* ---------- edge hold zones ---------- */
+
+.ws-flyout-edge-label {
+    color: #93a1a1;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.ws-flyout-edge.active .ws-flyout-edge-label {
+    color: #fffaf0;
+}
+
+/* ---------- rail ---------- */
+
+.ws-flyout-rail-track {
+    background-color: rgba(238, 232, 213, 0.6);
+    border-radius: 2px;
+    box-shadow: 0 0 0 1px rgba(0, 22, 30, 0.6);
+}
+
+.ws-flyout-rail-tick {
+    border-radius: 2px;
+    box-shadow: 0 0 0 1px rgba(0, 22, 30, 0.8);
+}
+
+.ws-flyout-rail-marker {
+    background-color: #fffaf0;
+    border-radius: 4px;
+    box-shadow: 0 0 0 2px #001a22;
+}
+
+/* ===================== CLONE PREVIEWS ===================== */
 
 .collection-preview-inner {
     border-radius: 8px;
-    overflow: hidden;
 }
 
 .clone-title-overlay {
@@ -104,12 +227,7 @@
     border-radius: 10px;
 }
 
-/* ===== Reorderable icon strips ===== */
-
-.window-preview-icon {
-    border-radius: 8px;
-    transition-duration: 120ms;
-}
+/* ===================== DRAG VISUALS ===================== */
 
 .reorder-drag-source {
     border: 3px solid #268bd2;
@@ -122,7 +240,7 @@
     background-color: rgba(38, 139, 210, 0.12);
 }
 
-/* ===== Shared floating tooltip/hint ===== */
+/* ===================== TOOLTIP ===================== */
 
 .dmenu-tooltip {
     background-color: rgba(0, 0, 0, 0.85);
@@ -134,7 +252,7 @@
     font-weight: bold;
 }
 
-/* ===== Shared search field (launcher + window selector) ===== */
+/* ===================== SEARCH FIELD ===================== */
 
 .overlay-search-entry {
     background-color: rgba(0, 43, 54, 0.92);
@@ -168,7 +286,7 @@
     opacity: 0.7;
 }
 
-/* ===== App launcher ===== */
+/* ===================== APP LAUNCHER ===================== */
 
 .launcher-overlay {
     background-color: rgba(0, 43, 54, 0.94);
@@ -272,14 +390,14 @@
     padding-top: 12px;
 }
 
-/* ===== Window selector (v4: discrete focus strip + scrubber) ===== */
+/* ===================== WINDOW SELECTOR (focus strip) ===================== */
 
 .window-selector-overlay {
     background-color: transparent;
 }
 
 .selector-tint {
-    background-color: rgba(0, 43, 54, 0.08);
+    background-color: rgba(0, 26, 34, 0.10);
     transition-duration: 220ms;
 }
 
@@ -287,9 +405,12 @@
     background-color: rgba(220, 50, 47, 0.22);
 }
 
+/* The band is the prototype's gradient scrim: St cannot do a three stop
+   vertical gradient, so a flat low alpha + a very wide soft shadow is
+   used to reproduce the "nothing, then a slab, then nothing" read. */
 .selector-band {
-    background-color: rgba(0, 26, 34, 0.55);
-    box-shadow: 0 0 60px 24px rgba(0, 26, 34, 0.24);
+    background-color: rgba(0, 26, 34, 0.34);
+    box-shadow: 0 0 90px 48px rgba(0, 26, 34, 0.34);
     padding: 12px 0 0 0;
 }
 
@@ -304,7 +425,6 @@
 .selector-band-title-label {
     color: #fffaf0;
     font-weight: 700;
-    text-shadow: 0 1px 5px rgba(0, 10, 15, 0.95);
 }
 
 .selector-band-app-label {
@@ -312,17 +432,16 @@
     font-weight: 700;
     letter-spacing: 3px;
     margin-top: 2px;
-    text-shadow: 0 1px 5px rgba(0, 10, 15, 0.95);
 }
 
-/* Uniform-size neighbor rows. Rows sit under the band scrim, so the
-   translucent capsule keeps their labels legible on light previews. */
+/* Neighbor rows: uniform size, capsule backing instead of a CSS halo
+   (St has no text-shadow), same opacity ramp as neighborOpacity(). */
 .selector-row {
     padding: 0;
 }
 
 .selector-row-inner {
-    background-color: rgba(0, 18, 26, 0.58);   /* was rgba(0, 20, 30, 0.30) */
+    background-color: rgba(0, 18, 26, 0.58);
     border-radius: 12px;
     padding: 6px 22px;
 }
@@ -333,8 +452,7 @@
 
 .selector-row-label {
     color: #f1ede0;
-    font-weight: 500;              /* was 600 */
-    text-shadow: 0 1px 5px rgba(0, 10, 15, 0.95);
+    font-weight: 500;
 }
 
 .selector-hint {
@@ -343,10 +461,9 @@
     font-weight: 600;
     letter-spacing: 1px;
     text-align: center;
-    text-shadow: 0 1px 4px rgba(0, 10, 15, 0.95);
 }
 
-/* Scoped underline-style search field. */
+/* Underline-only search field, scoped to the selector. */
 .window-selector-overlay .overlay-search-entry {
     background-color: transparent;
     border: none;
@@ -354,7 +471,8 @@
     border-radius: 0;
     box-shadow: 0 2px 8px rgba(0, 22, 30, 0.70);
     color: #fffaf0;
-    text-shadow: 0 1px 4px rgba(0, 10, 15, 0.95);
+    caret-color: #4fd1c5;
+    padding: 4px 12px;
 }
 
 .window-selector-overlay .overlay-search-entry:focus {
@@ -365,10 +483,10 @@
 
 .window-selector-overlay .overlay-search-icon {
     color: #93a1a1;
-    icon-size: 32px;
+    icon-size: 0px;
 }
 
-/* ===== Side scrubber ===== */
+/* ---------- side scrubber ---------- */
 
 .selector-rail {
     background-color: rgba(0, 18, 26, 0.58);
@@ -399,6 +517,4 @@
     padding: 8px 18px;
     border-radius: 8px;
     font-weight: 600;
-    text-shadow: 0 1px 4px rgba(0, 10, 15, 0.95);
-    /* font-size set inline from selectedLabelSize */
 }

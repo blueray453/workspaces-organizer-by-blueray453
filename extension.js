@@ -36,10 +36,15 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
         OverlayService.initOverlayService(settings);
         DBusService.initDBusService();
 
+        // Commands the indicator can invoke. `showGroupWindows` is the
+        // click path on a badged app group: the full selector, scoped to
+        // that workspace-local group. The drag path never reaches here —
+        // it goes to GroupFlyout instead.
         this._indicator = new WorkspaceIndicatorModule.WorkspaceIndicator(settings, {
             showAllApps: OverlayService.showAllApps,
             showAllWindows: OverlayService.showAllWindows,
             showWorkspaceWindows: OverlayService.showWorkspaceWindows,
+            showGroupWindows: OverlayService.showGroupWindows,
         });
         Main.panel.addToStatusArea('workspace-indicator', this._indicator, 0, 'left');
 

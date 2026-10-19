@@ -1,0 +1,3054 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Workspace manager prototype — app-group overflow, anchored flyout & window selector overlay</title>
+    <style>
+        :root {
+            --panel-h: 88px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #001a22;
+            color: #eee8d5;
+            font-family: 'Cantarell', 'Segoe UI', system-ui, sans-serif;
+        }
+
+        /* ---------- bottom panel ---------- */
+        #panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: var(--panel-h);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 0;
+            padding: 0 12px;
+            background: rgba(0, 20, 28, 0.96);
+            border-top: 1px solid rgba(147, 161, 161, 0.22);
+        }
+
+        .panel-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .panel-right {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 6px;
+            height: 100%;
+            padding-left: 16px;
+            border-left: none;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        /* ---------- left: toolbar + name + thumbs ---------- */
+        .ws-tb {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background 120ms;
+        }
+
+        .ws-tb:hover {
+            background: rgba(38, 139, 210, 0.18);
+        }
+
+        .ws-tb svg {
+            width: 28px;
+            height: 28px;
+        }
+
+        .ws-name {
+            color: #eee8d5;
+            font-weight: 700;
+            padding: 0 12px;
+            white-space: nowrap;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .ws-thumbs {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 0;
+            overflow-x: auto;
+            overflow-y: hidden;
+            justify-content: flex-start;
+            padding: 6px 0;
+            scrollbar-width: none;
+        }
+
+        .ws-thumbs::-webkit-scrollbar {
+            display: none;
+        }
+
+        .ws-thumbs.has-overflow {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(147, 161, 161, 0.65) transparent;
+        }
+
+        .ws-thumbs.has-overflow::-webkit-scrollbar {
+            display: block;
+            height: 4px;
+        }
+
+        .ws-thumbs.has-overflow::-webkit-scrollbar-thumb {
+            background: rgba(147, 161, 161, 0.65);
+            border-radius: 4px;
+        }
+
+        .ws-thumbs.has-overflow::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .ws-thumb {
+            height: 64px;
+            min-width: 68px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 6px 10px;
+            background: rgba(7, 54, 66, 0.65);
+            border: 1px solid rgba(88, 110, 117, 0.4);
+            border-radius: 8px;
+            box-shadow: inset 0 0 0 2px rgba(38, 139, 210, 0.55);
+            cursor: pointer;
+            transition: background 150ms, box-shadow 150ms;
+            overflow: hidden;
+        }
+
+        .ws-thumb:hover {
+            background: rgba(7, 54, 66, 0.95);
+        }
+
+        .ws-contents {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            flex-shrink: 0;
+            min-width: 0;
+        }
+
+        .ws-thumbs.grouped-layout {
+            gap: 4px;
+        }
+
+        .ws-thumbs.grouped-layout .ws-thumb {
+            padding-left: 4px;
+            padding-right: 4px;
+        }
+
+        .ws-thumbs.grouped-layout .ws-contents {
+            gap: 3px;
+        }
+
+        .ws-thumb.active {
+            background: rgba(42, 161, 152, 0.28);
+            box-shadow: inset 0 0 0 2px #2aa198;
+        }
+
+        .ws-ico {
+            position: relative;
+            display: flex;
+            flex-shrink: 0;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: transform 120ms, box-shadow 120ms;
+        }
+
+        .ws-ico svg {
+            display: block;
+        }
+
+        /* Dock-style numeric badge, inspired by the supplied Dash to Panel reference. */
+        .ws-badge {
+            position: absolute;
+            top: -5px;
+            right: -3px;
+            z-index: 2;
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #fdf6e3;
+            border-radius: 50%;
+            background: #101820;
+            color: #ffffff;
+            font-size: 10px;
+            line-height: 1;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.65);
+            pointer-events: none;
+        }
+
+        .ws-app-group {
+            cursor: pointer;
+        }
+
+        .ws-app-group:focus-visible {
+            outline: 2px solid #4fd1c5;
+            outline-offset: 3px;
+        }
+
+        .ws-ico.focused {
+            box-shadow: 0 0 0 2px #2aa198, 0 0 10px rgba(42, 161, 152, 0.65);
+            border-radius: 6px;
+            transform: scale(1.06);
+        }
+
+        .ws-empty {
+            color: #657b83;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 0 6px;
+        }
+
+        /* ---------- right: status placeholders ---------- */
+        .status-clock {
+            height: 48px;
+            min-width: 170px;
+            padding: 0 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            background: rgba(0, 20, 28, 0.55);
+            color: #eee8d5;
+            font-weight: 600;
+            font-size: 19px;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .status-icon {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            flex-shrink: 0;
+            background: rgba(0, 20, 28, 0.55);
+            color: #eee8d5;
+            cursor: pointer;
+            transition: background 120ms;
+        }
+
+        .status-icon:hover {
+            background: rgba(38, 139, 210, 0.22);
+        }
+
+        .status-icon svg {
+            display: block;
+            width: 28px;
+            height: 28px;
+        }
+
+        /* ---------- workspace (drag source) ---------- */
+        #workspace {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: var(--panel-h);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            text-align: center;
+            padding: 40px;
+            transition: filter 200ms, transform 200ms;
+        }
+
+        #workspace h1 {
+            font-size: clamp(22px, 3vw, 32px);
+            font-weight: 600;
+        }
+
+        #workspace p {
+            max-width: 660px;
+            color: #93a1a1;
+            line-height: 1.6;
+        }
+
+        #source-file {
+            width: 128px;
+            height: 128px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            border: 2px dashed #2b5a68;
+            border-radius: 12px;
+            background: #06303b;
+            cursor: grab;
+            user-select: none;
+            transition: border-color 150ms, transform 150ms;
+        }
+
+        #source-file:hover {
+            border-color: #2aa198;
+            transform: translateY(-2px);
+        }
+
+        #source-file .ic {
+            font-size: 40px;
+        }
+
+        #source-file .nm {
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .ctl {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #93a1a1;
+        }
+
+        .ctl span {
+            min-width: 92px;
+            text-align: right;
+        }
+
+        .ctl button {
+            font: inherit;
+            font-weight: 700;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #eee8d5;
+            background: transparent;
+            border: 1px solid #2b5a68;
+        }
+
+        .ctl button:hover {
+            border-color: #2aa198;
+        }
+
+        .ctl button.on {
+            background: #0a4648;
+            border-color: #2aa198;
+            color: #fffaf0;
+        }
+
+        #count-note {
+            font-size: 12px;
+            color: #6f8486;
+            min-height: 18px;
+            max-width: 620px;
+        }
+
+        /* ---------- HUD ---------- */
+        #hud {
+            --band: 340px;
+            --col: 96px;
+            --fan: 320px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: var(--panel-h);
+            z-index: 10;
+            background: #001a22;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 160ms;
+        }
+
+        #hud.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #win {
+            --c: #268bd2;
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: #04212a;
+        }
+
+        #win.swap {
+            animation: swap 160ms ease-out;
+        }
+
+        @keyframes swap {
+            from {
+                opacity: 0.35;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        #win-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            height: 46px;
+            padding: 0 16px;
+            background: var(--c);
+            color: #fdf6e3;
+        }
+
+        #win-bar i {
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.35);
+        }
+
+        #win-title {
+            flex: 1;
+            text-align: center;
+            font-size: 15px;
+            font-weight: 700;
+            white-space: nowrap;
+            padding-right: var(--col);
+        }
+
+        #zones {
+            position: relative;
+            flex: 1;
+            margin-right: var(--col);
+        }
+
+        .zone {
+            position: absolute;
+            margin: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 12px;
+            text-align: center;
+            overflow: hidden;
+            border: 2px dashed color-mix(in srgb, var(--c) 70%, transparent);
+            border-radius: 14px;
+            background: color-mix(in srgb, var(--c) 10%, transparent);
+            transition: background 100ms, border-color 100ms, transform 100ms, opacity 150ms;
+        }
+
+        .z-name {
+            font-size: clamp(16px, 2vw, 26px);
+            font-weight: 700;
+        }
+
+        .z-sub {
+            font-size: 14px;
+            color: #a9b8b8;
+        }
+
+        .z-go {
+            height: 18px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #fffaf0;
+            opacity: 0;
+        }
+
+        .zone.over {
+            border-style: solid;
+            border-color: var(--c);
+            background: color-mix(in srgb, var(--c) 38%, transparent);
+            transform: scale(1.006);
+        }
+
+        .zone.over .z-go {
+            opacity: 1;
+        }
+
+        #hud.browse .zone {
+            opacity: 0.4;
+        }
+
+        #mode-hint {
+            position: absolute;
+            left: 0;
+            right: var(--col);
+            bottom: 16px;
+            z-index: 3;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: #fffaf0;
+            pointer-events: none;
+            text-shadow: 0 0 8px #001a22, 0 0 16px #001a22;
+        }
+
+        #band {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            right: 0;
+            width: var(--col);
+            z-index: 4;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 8px;
+            overflow: hidden;
+            background: rgba(0, 20, 28, 0.94);
+            border-left: 1px solid rgba(147, 161, 161, 0.22);
+            transition: width 150ms ease, background 150ms ease;
+        }
+
+        #band.expanded {
+            width: var(--band);
+            padding: 0 12px;
+            background: rgba(0, 20, 28, 0.74);
+        }
+
+        #band:not(.expanded) .exp-only {
+            display: none;
+        }
+
+        #band:not(.expanded) .row {
+            justify-content: center;
+            padding: 0;
+        }
+
+        #band:not(.expanded) .r-tx {
+            display: none;
+        }
+
+        #band-count {
+            position: absolute;
+            top: 20px;
+            left: 12px;
+            right: 12px;
+            font-size: 13px;
+            color: #cfd8d8;
+            font-variant-numeric: tabular-nums;
+            text-shadow: 0 0 6px #001a22, 0 0 12px #001a22;
+        }
+
+        #band-hint {
+            position: absolute;
+            bottom: 20px;
+            left: 12px;
+            right: 12px;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #cfd8d8;
+            text-shadow: 0 0 6px #001a22, 0 0 12px #001a22;
+        }
+
+        #fan {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            right: var(--band);
+            width: var(--fan);
+            z-index: 5;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 0 10px 0 12px;
+            overflow: hidden;
+            background: rgba(0, 20, 28, 0.95);
+            border-left: 1px solid rgba(147, 161, 161, 0.3);
+            will-change: transform, opacity;
+            contain: layout paint;
+            transform-origin: 100% 50%;
+        }
+
+        #fan.open {
+            display: flex;
+            animation: fanInRight 170ms cubic-bezier(.2, .8, .3, 1) both;
+        }
+
+        /* Same menu, different direction: dock flyout opens upward from the icon. */
+        #fan.open.local-anchored {
+            animation: fanInUp 190ms cubic-bezier(.2, .8, .3, 1) both;
+        }
+
+        #fan.closing {
+            display: flex;
+            animation: fanOutRight 130ms ease-in both;
+        }
+
+        #fan.closing.local-anchored {
+            animation: fanOutDown 150ms ease-in both;
+        }
+
+        @keyframes fanInRight {
+            from {
+                opacity: 0;
+                transform: translateX(18px);
+            }
+
+            to {
+                opacity: 1;
+                transform: none;
+            }
+        }
+
+        @keyframes fanOutRight {
+            from {
+                opacity: 1;
+                transform: none;
+            }
+
+            to {
+                opacity: 0;
+                transform: translateX(18px);
+            }
+        }
+
+        @keyframes fanInUp {
+            from {
+                opacity: 0;
+                transform: translateY(16px) scale(.96);
+            }
+
+            to {
+                opacity: 1;
+                transform: none;
+            }
+        }
+
+        @keyframes fanOutDown {
+            from {
+                opacity: 1;
+                transform: none;
+            }
+
+            to {
+                opacity: 0;
+                transform: translateY(16px) scale(.96);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+
+            #fan.open,
+            #fan.closing {
+                animation: none !important;
+            }
+        }
+
+        /* The same #fan strip can be detached from the HUD and anchored beside a dock icon. */
+        #fan.local-anchored {
+            position: fixed;
+            right: auto !important;
+            bottom: auto !important;
+            z-index: 120;
+            max-width: calc(100vw - 16px);
+            max-height: calc(100vh - var(--panel-h) - 24px);
+            border: 1px solid rgba(147, 161, 161, 0.42);
+            border-radius: 12px;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.48);
+            background: rgba(0, 20, 28, 0.98);
+        }
+
+        #fan.local-anchored .rail {
+            height: min(34vh, 300px);
+        }
+
+        #fan.local-anchored #fan-head {
+            top: 14px;
+        }
+
+        #fan-head {
+            position: absolute;
+            top: 20px;
+            left: 12px;
+            right: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #4fd1c5;
+        }
+
+        .rowsbox {
+            position: relative;
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .row {
+            position: absolute;
+            top: 3px;
+            left: 0;
+            right: 0;
+            height: 46px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 10px;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            background: rgba(0, 20, 28, 0.45);
+            will-change: transform;
+            transition: background 120ms, border-color 120ms;
+        }
+
+        .row.sel {
+            background: rgba(10, 70, 72, 0.92);
+            border-color: #2aa198;
+        }
+
+        .r-tx {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .r-t {
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .r-a {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #4fd1c5;
+        }
+
+        .r-n {
+            margin-left: auto;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: rgba(79, 209, 197, 0.16);
+            color: #4fd1c5;
+            white-space: nowrap;
+        }
+
+        .r-ic svg {
+            display: block;
+        }
+
+        .ez {
+            position: absolute;
+            left: 0;
+            right: 0;
+            display: none;
+            justify-content: center;
+            padding: 8px 0;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            color: #93a1a1;
+            pointer-events: none;
+            --d: 0;
+        }
+
+        .ez.active {
+            color: #fffaf0;
+        }
+
+        .ez.up {
+            align-items: flex-end;
+            background: linear-gradient(to top, rgba(42, 161, 152, calc(var(--d) * 0.42)), rgba(42, 161, 152, 0));
+        }
+
+        .ez.down {
+            align-items: flex-start;
+            background: linear-gradient(to bottom, rgba(42, 161, 152, calc(var(--d) * 0.42)), rgba(42, 161, 152, 0));
+        }
+
+        .rail {
+            position: relative;
+            flex: 0 0 28px;
+            width: 28px;
+            height: min(72vh, 560px);
+        }
+
+        .rail .track {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            margin-left: -1px;
+            background: rgba(238, 232, 213, 0.6);
+            border-radius: 2px;
+            box-shadow: 0 0 0 1px rgba(0, 22, 30, 0.6);
+        }
+
+        .rail .tick {
+            position: absolute;
+            left: 50%;
+            width: 10px;
+            height: 3px;
+            margin: -1.5px 0 0 -5px;
+            border-radius: 2px;
+            box-shadow: 0 0 0 1px rgba(0, 22, 30, 0.8);
+        }
+
+        .rail .marker {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            width: 24px;
+            height: 8px;
+            margin: -4px 0 0 -12px;
+            border-radius: 4px;
+            background: #fffaf0;
+            box-shadow: 0 0 0 2px #001a22;
+        }
+
+        #toast {
+            position: fixed;
+            bottom: calc(var(--panel-h) + 24px);
+            left: 50%;
+            z-index: 300;
+            max-width: calc(100vw - 32px);
+            padding: 12px 18px;
+            border-radius: 12px;
+            background: #a6e3a1;
+            color: #11111b;
+            font-size: 13px;
+            font-weight: 700;
+            opacity: 0;
+            transform: translate(-50%, 8px);
+            pointer-events: none;
+            transition: opacity 180ms, transform 180ms;
+        }
+
+        #toast.visible {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+
+        /* ============================================================
+           WINDOW SELECTOR OVERLAY (focus strip + scrubber)
+           Scoped under #wsel-overlay so it cannot collide with the panel.
+           ============================================================ */
+        #wsel-overlay {
+            --halo:
+                0 0 1px rgba(0, 22, 30, 1),
+                0 0 3px rgba(0, 22, 30, 0.95),
+                0 0 8px rgba(0, 22, 30, 0.85),
+                0 0 18px rgba(0, 22, 30, 0.70),
+                0 2px 30px rgba(0, 22, 30, 0.55);
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            overflow: hidden;
+            display: none;
+            background: #001a22;
+            font-family: 'Cantarell', 'Segoe UI', system-ui, sans-serif;
+        }
+
+        #wsel-overlay.open {
+            display: block;
+        }
+
+        /* ---------- full-screen preview (two layers for crossfade) ---------- */
+        #wsel-revealed {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            cursor: pointer;
+        }
+
+        .wsel-bg-layer {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+        }
+
+        .wsel-bg-layer svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* ---------- barely-there tint ---------- */
+        #wsel-tint {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+            background:
+                radial-gradient(ellipse 90% 80% at 50% 50%,
+                    rgba(0, 26, 34, 0) 55%, rgba(0, 26, 34, 0.22) 100%);
+            transition: opacity 220ms ease;
+        }
+
+        /* ---------- neighbor rows ---------- */
+        #wsel-rows {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+            transition: opacity 220ms ease;
+        }
+
+        .wsel-row {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            will-change: transform, opacity;
+            cursor: pointer;
+        }
+
+        .wsel-row-inner {
+            display: flex;
+            align-items: center;
+            gap: 0.5em;
+            max-width: 60%;
+        }
+
+        .wsel-row-icon {
+            flex-shrink: 0;
+            display: flex;
+            filter: drop-shadow(0 1px 6px rgba(0, 22, 30, 0.8));
+        }
+
+        .wsel-row-icon svg {
+            display: block;
+        }
+
+        .wsel-row-label {
+            color: #f1ede0;
+            font-weight: 600;
+            white-space: nowrap;
+            text-shadow: var(--halo);
+        }
+
+        /* ---------- middle section ---------- */
+        #wsel-band {
+            position: absolute;
+            left: 0;
+            right: 0;
+            z-index: 4;
+            pointer-events: none;
+            background: linear-gradient(to bottom,
+                    rgba(0, 26, 34, 0) 0%, rgba(0, 26, 34, 0.24) 24%,
+                    rgba(0, 26, 34, 0.24) 76%, rgba(0, 26, 34, 0) 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 220ms ease;
+        }
+
+        #wsel-band-selected {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #wsel-band-selected .wsel-sel {
+            display: flex;
+            align-items: center;
+            gap: 0.4em;
+            max-width: 80%;
+            pointer-events: auto;
+            cursor: pointer;
+        }
+
+        .wsel-sel-text {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .wsel-sel-title {
+            color: #fffaf0;
+            font-weight: 700;
+            white-space: nowrap;
+            text-shadow: var(--halo);
+            line-height: 1.15;
+        }
+
+        .wsel-sel-app {
+            color: #4fd1c5;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-top: 0.15em;
+            text-shadow: var(--halo);
+        }
+
+        .wsel-sel-empty {
+            color: #e3ebe9;
+            font-weight: 600;
+            text-shadow: var(--halo);
+        }
+
+        #wsel-search-wrap {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+        }
+
+        #wsel-search-entry {
+            pointer-events: auto;
+            background: transparent;
+            border: none;
+            outline: none;
+            border-bottom: 2px solid rgba(238, 232, 213, 0.75);
+            box-shadow: 0 2px 8px rgba(0, 22, 30, 0.7);
+            color: #fffaf0;
+            text-align: center;
+            font-family: inherit;
+            font-weight: 600;
+            padding: 6px 12px;
+            caret-color: #4fd1c5;
+            text-shadow: var(--halo);
+            transition: border-color 150ms;
+        }
+
+        #wsel-search-entry:focus {
+            border-bottom-color: #2aa198;
+        }
+
+        #wsel-search-entry::placeholder {
+            color: #dfe7e5;
+            opacity: 0.8;
+            text-shadow: var(--halo);
+        }
+
+        /* ---------- side scrubber ---------- */
+        #wsel-rail {
+            position: absolute;
+            right: 14px;
+            top: 10%;
+            bottom: 10%;
+            width: 48px;
+            z-index: 6;
+            touch-action: none;
+            cursor: pointer;
+            transition: opacity 220ms ease;
+        }
+
+        #wsel-rail .wsel-track {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            margin-left: -1px;
+            border-radius: 2px;
+            background: rgba(238, 232, 213, 0.55);
+            box-shadow: 0 0 0 1px rgba(0, 22, 30, 0.55), 0 0 8px rgba(0, 22, 30, 0.6);
+        }
+
+        #wsel-rail .wsel-tick {
+            position: absolute;
+            left: 50%;
+            width: 12px;
+            height: 4px;
+            margin-left: -6px;
+            margin-top: -2px;
+            border-radius: 2px;
+            box-shadow: 0 0 0 1px rgba(0, 22, 30, 0.8);
+        }
+
+        #wsel-marker {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            width: 32px;
+            height: 8px;
+            margin-left: -16px;
+            margin-top: -4px;
+            border-radius: 4px;
+            background: #fffaf0;
+            will-change: transform;
+            box-shadow: 0 0 0 2px rgba(0, 22, 30, 0.85), 0 0 14px rgba(0, 22, 30, 0.7);
+        }
+
+        #wsel-tip {
+            position: absolute;
+            right: 100%;
+            margin-right: 4px;
+            top: 0;
+            white-space: nowrap;
+            font-size: 16px;
+            font-weight: 700;
+            color: #fffaf0;
+            text-shadow: var(--halo);
+            opacity: 0;
+            transition: opacity 120ms;
+            pointer-events: none;
+        }
+
+        #wsel-tip.show {
+            opacity: 1;
+        }
+
+        #wsel-hint {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 26px;
+            z-index: 5;
+            color: #e8efed;
+            text-align: center;
+            pointer-events: none;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            opacity: 0.9;
+            text-shadow: var(--halo);
+            transition: opacity 220ms ease;
+        }
+
+        /* ---------- activate / cancel ---------- */
+        #wsel-overlay.activating #wsel-rows,
+        #wsel-overlay.activating #wsel-band,
+        #wsel-overlay.activating #wsel-tint,
+        #wsel-overlay.activating #wsel-rail,
+        #wsel-overlay.activating #wsel-hint {
+            opacity: 0;
+        }
+
+        #wsel-overlay.cancelling #wsel-tint {
+            background: rgba(220, 50, 47, 0.18);
+        }
+
+        /* Keep the workspace navigator reachable when the decorative status tray is wide. */
+        @media (max-width: 1600px) {
+            .panel-right .status-icon:nth-child(n + 7) {
+                display: none;
+            }
+
+            .status-clock {
+                min-width: 130px;
+                padding: 0 10px;
+                font-size: 16px;
+            }
+        }
+
+        @media (max-width: 1280px) {
+            .panel-right .status-icon:nth-child(n + 5) {
+                display: none;
+            }
+
+            .status-clock {
+                min-width: 110px;
+                height: 42px;
+                padding: 0 8px;
+                font-size: 14px;
+            }
+
+            .status-icon {
+                width: 40px;
+                height: 42px;
+            }
+
+            .ws-name {
+                padding: 0 8px;
+                font-size: 16px;
+            }
+        }
+
+        @media (max-width: 1100px) {
+            .panel-right .status-icon:nth-child(n + 4) {
+                display: none;
+            }
+
+            .status-clock {
+                min-width: 92px;
+                height: 40px;
+                padding: 0 6px;
+                font-size: 13px;
+            }
+
+            .status-icon {
+                width: 36px;
+                height: 40px;
+            }
+
+            .ws-tb {
+                width: 40px;
+                height: 44px;
+            }
+
+            .ws-tb svg {
+                width: 24px;
+                height: 24px;
+            }
+
+            .ws-name {
+                max-width: 100px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                font-size: 14px;
+            }
+
+            #panel {
+                padding: 0 8px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+
+            *,
+            *::before,
+            *::after {
+                transition-duration: 0.01ms !important;
+                animation: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="panel" role="toolbar" aria-label="Workspace indicator">
+        <div class="panel-left">
+            <button class="ws-tb" id="ws-tb-windows" title="All windows" aria-label="All windows">
+                <svg viewBox="0 0 16 16" width="28" height="28" aria-hidden="true">
+                    <rect x="2" y="4" width="8" height="6" rx="1" fill="none" stroke="#eee8d5" stroke-width="1.4" />
+                    <rect x="6" y="6" width="8" height="6" rx="1" fill="#001a22" stroke="#eee8d5" stroke-width="1.4" />
+                </svg>
+            </button>
+            <button class="ws-tb" id="ws-tb-apps" title="Show apps" aria-label="Show apps">
+                <svg viewBox="0 0 16 16" width="28" height="28" aria-hidden="true">
+                    <rect x="2" y="2" width="3" height="3" rx="0.6" fill="#eee8d5" />
+                    <rect x="6.5" y="2" width="3" height="3" rx="0.6" fill="#eee8d5" />
+                    <rect x="11" y="2" width="3" height="3" rx="0.6" fill="#eee8d5" />
+                    <rect x="2" y="6.5" width="3" height="3" rx="0.6" fill="#eee8d5" />
+                    <rect x="6.5" y="6.5" width="3" height="3" rx="0.6" fill="#eee8d5" />
+                    <rect x="11" y="6.5" width="3" height="3" rx="0.6" fill="#eee8d5" />
+                    <rect x="2" y="11" width="3" height="3" rx="0.6" fill="#eee8d5" />
+                    <rect x="6.5" y="11" width="3" height="3" rx="0.6" fill="#eee8d5" />
+                    <rect x="11" y="11" width="3" height="3" rx="0.6" fill="#eee8d5" />
+                </svg>
+            </button>
+            <div class="ws-name" id="ws-name">Workspace 1</div>
+            <div class="ws-thumbs" id="ws-thumbs"></div>
+        </div>
+
+        <div class="panel-right" aria-label="System status (placeholders)">
+            <div class="status-clock" id="status-clock">Sat 1:23 PM</div>
+
+            <div class="status-icon" title="Network" aria-label="Network">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M4 12 Q12 4 20 12" stroke="#eee8d5" stroke-width="2" fill="none" stroke-linecap="round" />
+                    <path d="M7.5 15 Q12 10.5 16.5 15" stroke="#eee8d5" stroke-width="2" fill="none"
+                        stroke-linecap="round" />
+                    <circle cx="12" cy="18.5" r="1.5" fill="#eee8d5" />
+                </svg>
+            </div>
+            <div class="status-icon" title="Volume" aria-label="Volume">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M4 9 L8 9 L13 5 L13 19 L8 15 L4 15 Z" fill="#eee8d5" />
+                    <path d="M16 9 Q18.5 12 16 15" stroke="#eee8d5" stroke-width="2" fill="none"
+                        stroke-linecap="round" />
+                    <path d="M18.5 7 Q22.5 12 18.5 17" stroke="#eee8d5" stroke-width="2" fill="none"
+                        stroke-linecap="round" />
+                </svg>
+            </div>
+            <div class="status-icon" title="Battery" aria-label="Battery">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <rect x="3" y="8" width="16" height="8" rx="2" fill="none" stroke="#eee8d5" stroke-width="1.8" />
+                    <rect x="20" y="10" width="2" height="4" rx="0.5" fill="#eee8d5" />
+                    <rect x="5" y="10" width="10" height="4" rx="1" fill="#859900" />
+                </svg>
+            </div>
+            <div class="status-icon" title="Power" aria-label="Power">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M12 3 L12 12" stroke="#eee8d5" stroke-width="2.4" stroke-linecap="round" />
+                    <path d="M6.5 7 A8 8 0 1 0 17.5 7" fill="none" stroke="#eee8d5" stroke-width="2.4"
+                        stroke-linecap="round" />
+                </svg>
+            </div>
+
+            <div class="status-icon" title="Bluetooth" aria-label="Bluetooth">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M12 3 L12 21 M12 3 L17.5 7.5 L12 12 L17.5 16.5 L12 21" stroke="#eee8d5" stroke-width="2"
+                        fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </div>
+            <div class="status-icon" title="Microphone" aria-label="Microphone">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <rect x="9" y="2" width="6" height="13" rx="3" fill="none" stroke="#eee8d5" stroke-width="1.8" />
+                    <path d="M6 11 Q6 17 12 17 Q18 17 18 11" fill="none" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" />
+                    <line x1="12" y1="17" x2="12" y2="21" stroke="#eee8d5" stroke-width="1.8" stroke-linecap="round" />
+                    <line x1="8.5" y1="21" x2="15.5" y2="21" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" />
+                </svg>
+            </div>
+            <div class="status-icon" title="Brightness" aria-label="Brightness">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <circle cx="12" cy="12" r="4" fill="none" stroke="#eee8d5" stroke-width="1.8" />
+                    <line x1="12" y1="2.5" x2="12" y2="5.5" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" />
+                    <line x1="12" y1="18.5" x2="12" y2="21.5" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" />
+                    <line x1="2.5" y1="12" x2="5.5" y2="12" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" />
+                    <line x1="18.5" y1="12" x2="21.5" y2="12" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" />
+                    <line x1="5.4" y1="5.4" x2="7.5" y2="7.5" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" />
+                    <line x1="16.5" y1="16.5" x2="18.6" y2="18.6" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" />
+                    <line x1="5.4" y1="18.6" x2="7.5" y2="16.5" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" />
+                    <line x1="16.5" y1="7.5" x2="18.6" y2="5.4" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" />
+                </svg>
+            </div>
+            <div class="status-icon" title="Night light" aria-label="Night light">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M19 14 A8 8 0 1 1 10 4 A6.5 6.5 0 0 0 19 14 Z" fill="none" stroke="#eee8d5"
+                        stroke-width="1.8" stroke-linejoin="round" />
+                </svg>
+            </div>
+            <div class="status-icon" title="VPN" aria-label="VPN">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="#eee8d5" stroke-width="1.8" />
+                    <path d="M8 11 V7.5 A4 4 0 0 1 16 7.5 V11" fill="none" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" />
+                    <circle cx="12" cy="16" r="1.6" fill="#eee8d5" />
+                </svg>
+            </div>
+            <div class="status-icon" title="Notifications" aria-label="Notifications">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M12 3 A5.5 5.5 0 0 0 6.5 8.5 V14 L4.5 17 H19.5 L17.5 14 V8.5 A5.5 5.5 0 0 0 12 3 Z"
+                        fill="none" stroke="#eee8d5" stroke-width="1.8" stroke-linejoin="round" />
+                    <path d="M9.5 19.5 A2.5 2.5 0 0 0 14.5 19.5" fill="none" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" />
+                </svg>
+            </div>
+            <div class="status-icon" title="Accessibility" aria-label="Accessibility">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <circle cx="12" cy="4.5" r="2" fill="none" stroke="#eee8d5" stroke-width="1.8" />
+                    <line x1="5" y1="9" x2="19" y2="9" stroke="#eee8d5" stroke-width="1.8" stroke-linecap="round" />
+                    <line x1="12" y1="7" x2="12" y2="15" stroke="#eee8d5" stroke-width="1.8" stroke-linecap="round" />
+                    <line x1="8" y1="21" x2="12" y2="15" stroke="#eee8d5" stroke-width="1.8" stroke-linecap="round" />
+                    <line x1="16" y1="21" x2="12" y2="15" stroke="#eee8d5" stroke-width="1.8" stroke-linecap="round" />
+                </svg>
+            </div>
+            <div class="status-icon" title="Cloud sync" aria-label="Cloud sync">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M6 17 A3 3 0 0 1 6 11 A4.5 4.5 0 0 1 14.5 10 A3 3 0 0 1 17 15 A2 2 0 0 1 17 17 Z"
+                        fill="none" stroke="#eee8d5" stroke-width="1.8" stroke-linejoin="round" />
+                    <path d="M12 11 L12 15 M10.5 13.5 L12 15 L13.5 13.5" fill="none" stroke="#eee8d5" stroke-width="1.8"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <main id="workspace">
+        <h1>Move a file to another window</h1>
+        <p>Drag the file. Move to the right edge to browse apps. Hover an app in the right panel to see its windows in a
+            second strip. When the bottom indicator overflows, windows from the same app are grouped within each
+            workspace
+            with a number badge. Click a grouped icon to open the full window selector for just that group; during a
+            drag,
+            hover the group to open the anchored flyout instead. Hover a window to preview it, then drop on a
+            highlighted
+            zone. Hold above or below either list to scroll: the farther out, the faster.</p>
+        <div id="source-file" draggable="true" aria-label="Drag report.pdf">
+            <div class="ic" aria-hidden="true">📄</div>
+            <div class="nm">report.pdf</div>
+        </div>
+        <div class="ctl" id="layout-ctl"><span>Band lists:</span>
+            <button data-l="windows">Windows</button><button data-l="apps" class="on">Apps (grouped)</button>
+        </div>
+        <div class="ctl" id="apps-ctl"><span>Apps:</span>
+            <button data-a="7" class="on">7</button><button data-a="16">16</button>
+        </div>
+        <div class="ctl" id="count-ctl"><span>Windows:</span>
+            <button data-n="4">4</button><button data-n="7">7</button><button data-n="12">12</button><button data-n="40"
+                class="on">40</button>
+        </div>
+        <div class="ctl" id="ws-ctl"><span>Workspaces:</span>
+            <button data-w="4">4</button><button data-w="6">6</button><button data-w="8" class="on">8</button><button
+                data-w="12">12</button>
+        </div>
+        <div id="count-note"></div>
+    </main>
+
+    <section id="hud" aria-hidden="true">
+        <div id="win">
+            <div id="win-bar"><i></i><i></i><i></i>
+                <div id="win-title"></div>
+            </div>
+            <div id="zones"></div>
+        </div>
+        <div id="mode-hint"></div>
+
+        <aside id="fan" aria-label="Windows of the selected app">
+            <div id="fan-head"></div>
+            <div class="ez up" id="fan-up"></div>
+            <div class="rail" id="fan-rail">
+                <div class="track"></div>
+                <div class="ticks"></div>
+                <div class="marker"></div>
+            </div>
+            <div class="rowsbox" id="fan-rows"></div>
+            <div class="ez down" id="fan-down"></div>
+        </aside>
+
+        <aside id="band" aria-label="Windows">
+            <div id="band-count" class="exp-only"></div>
+            <div class="ez up" id="band-up"></div>
+            <div class="rowsbox" id="band-rows"></div>
+            <div class="rail" id="band-rail">
+                <div class="track"></div>
+                <div class="ticks"></div>
+                <div class="marker"></div>
+            </div>
+            <div class="ez down" id="band-down"></div>
+            <div id="band-hint" class="exp-only">Hover to preview. Hold above or below a list to scroll: farther out is
+                faster.</div>
+        </aside>
+    </section>
+
+    <div id="toast" role="status" aria-live="polite"></div>
+
+    <!-- ==================== WINDOW SELECTOR OVERLAY ==================== -->
+    <div id="wsel-overlay" aria-hidden="true">
+        <div id="wsel-revealed">
+            <div class="wsel-bg-layer"></div>
+            <div class="wsel-bg-layer"></div>
+        </div>
+        <div id="wsel-tint"></div>
+        <div id="wsel-rows"></div>
+        <div id="wsel-band">
+            <div id="wsel-band-selected"></div>
+            <div id="wsel-search-wrap">
+                <input id="wsel-search-entry" type="text" placeholder="Type to search…" autocomplete="off"
+                    spellcheck="false">
+            </div>
+        </div>
+        <div id="wsel-rail">
+            <div class="wsel-track"></div>
+            <div id="wsel-ticks"></div>
+            <div id="wsel-marker"></div>
+            <div id="wsel-tip"></div>
+        </div>
+        <div id="wsel-hint"></div>
+    </div>
+
+    <script>
+        // ==================== DATA ====================
+        const APPS = [
+            { app: 'Code', color: '#268bd2', kind: 'editor', w: 8, pool: ['searchOverlays.js', 'workspaceIndicator.js', 'interactions.js', 'model.js', 'prefs.js', 'extension.js', 'utils.js', 'metadata.json'].map(f => `${f} — topnotch-workspaces`) },
+            { app: 'Firefox', color: '#cb4b16', kind: 'browser', w: 16, pool: ['GNOME Shell Extensions', 'docs.gtk.org/gtk4', 'Pull Request #1423: Refactor window selector overlay to support fisheye layout and fuzzy search — GitHub', 'MDN: HTML Drag and Drop API', 'Stack Overflow: dragover not firing', 'Can I use: dragover', 'GitHub: topnotch-workspaces', 'Hacker News'].map(t => `${t} — Mozilla Firefox`) },
+            { app: 'Terminal', color: '#859900', kind: 'terminal', w: 10, pool: ['user@workstation: ~/projects/ext', 'user@workstation: ~/projects/clients/acme-corp/frontend/node_modules/.cache/webpack/production', 'user@workstation: ~/topnotch-workspaces', 'user@workstation: ~/ (tmux)', 'user@workstation: /var/log'] },
+            { app: 'Slack', color: '#d33682', kind: 'chat', w: 6, pool: ['#general', '#dev', '#random', '#design', '#releases', '#support'].map(c => `${c} — TopNotch Workspaces`) },
+            { app: 'Thunderbird', color: '#b58900', kind: 'mail', w: 3, light: true, pool: ['Inbox', 'Drafts', 'Sent'].map(f => `${f} — user@example.com`) },
+            { app: 'LibreOffice', color: '#586e75', kind: 'docs', w: 3, light: true, pool: ['Design Document.odt — Writer', 'Budget.ods — Calc', 'Slides.odp — Impress'] },
+            { app: 'VLC', color: '#dc322f', kind: 'video', w: 2, pool: ['Big Buck Bunny.mp4', 'Sintel.mkv'] },
+            { app: 'eog', color: '#6c71c4', kind: 'image', w: 2, pool: ['screenshot-2024-01-15.png — Image Viewer', 'photo-0042.jpg — Image Viewer'] },
+            { app: 'Files', color: '#839496', kind: 'docs', w: 2, light: true, pool: ['Home — Files', 'Downloads — Files'] },
+            { app: 'GIMP', color: '#6c71c4', kind: 'image', w: 1, pool: ['Untitled-1 — GIMP'] },
+            { app: 'mpv', color: '#dc322f', kind: 'video', w: 1, pool: ['lofi-radio.m3u — mpv'] },
+            { app: 'Rhythmbox', color: '#2aa198', kind: 'music', w: 1, pool: ['Library — Rhythmbox'] },
+            { app: 'Geary', color: '#b58900', kind: 'mail', w: 1, light: true, pool: ['Inbox (3) — Geary'] },
+            { app: 'Spotify', color: '#2aa198', kind: 'music', w: 2, pool: ['Now Playing — Solarized Playlist', 'Search — Spotify'] },
+            { app: 'Settings', color: '#839496', kind: 'settings', w: 1, light: true, pool: ['Settings — Appearance'] },
+            { app: 'Calculator', color: '#586e75', kind: 'settings', w: 1, light: true, pool: ['Calculator'] }
+        ];
+        function makeWindow(a, k) {
+            const base = a.pool[k % a.pool.length], round = Math.floor(k / a.pool.length);
+            return { app: a.app, color: a.color, kind: a.kind, light: !!a.light, title: round ? `${base} (${round + 1})` : base };
+        }
+        function makeWindows(nApps, total) {
+            const apps = APPS.slice(0, nApps), out = [];
+            for (let k = 0; out.length < total; k++) {
+                let any = false;
+                for (const a of apps) {
+                    if (k < a.w) { any = true; out.push(makeWindow(a, k)); if (out.length >= total) break; }
+                }
+                if (!any) break;
+            }
+            return out;
+        }
+
+        const ZONES = {
+            editor: [['Explorer', 'Add to project files', 0, 0, 20, 100], ['Editor', 'Open in a new tab', 20, 0, 80, 68], ['Terminal panel', 'Insert file path', 20, 68, 80, 32]],
+            browser: [['Address bar', 'Open in a new tab', 0, 0, 100, 16], ['Page', 'Upload to this page', 0, 16, 100, 56], ['Downloads', 'Save to downloads', 0, 72, 100, 28]],
+            terminal: [['Prompt', 'Paste file path', 0, 0, 100, 60], ['Working directory', 'Copy to current folder', 0, 60, 100, 40]],
+            chat: [['Channels', 'Send as a direct message', 0, 0, 24, 100], ['Conversation', 'Share in this channel', 24, 0, 76, 68], ['Composer', 'Attach to draft message', 24, 68, 76, 32]],
+            mail: [['Folders', 'File into a folder', 0, 0, 24, 100], ['Message', 'Attach to reply', 24, 0, 76, 60], ['New message', 'Compose with attachment', 24, 60, 76, 40]],
+            music: [['Playlists', 'Add to a playlist', 0, 0, 30, 100], ['Now playing', 'Add to queue', 30, 0, 70, 100]],
+            video: [['Player', 'Play now', 0, 0, 100, 70], ['Playlist', 'Add to playlist', 0, 70, 100, 30]],
+            image: [['Canvas', 'Open in viewer', 0, 0, 68, 100], ['Albums', 'Add to an album', 68, 0, 32, 100]],
+            docs: [['Page', 'Insert into document', 0, 0, 66, 100], ['Sidebar', 'Attach as linked file', 66, 0, 34, 100]],
+            settings: [['Sidebar', 'Import profile', 0, 0, 30, 100], ['Panel', 'Use as appearance file', 30, 0, 70, 100]]
+        };
+
+        const FONT = `Cantarell, 'Segoe UI', system-ui, sans-serif`;
+        const mctx = document.createElement('canvas').getContext('2d');
+        function fitStart(text, weight, size, maxPx) {
+            mctx.font = `${weight} ${size}px ${FONT}`;
+            if (mctx.measureText(text).width <= maxPx) return text;
+            let lo = 0, hi = text.length;
+            while (lo < hi) {
+                const mid = (lo + hi + 1) >> 1;
+                if (mctx.measureText('…' + text.slice(text.length - mid)).width <= maxPx) lo = mid; else hi = mid - 1;
+            }
+            return '…' + text.slice(text.length - lo).replace(/^\s+/, '');
+        }
+        const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+        const G = {
+            editor: `<path d="M9 7 L4 12 L9 17 M15 7 L20 12 L15 17" stroke="C" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
+            browser: `<circle cx="12" cy="12" r="7.5" stroke="C" stroke-width="1.8" fill="none"/><ellipse cx="12" cy="12" rx="7.5" ry="3" stroke="C" stroke-width="1.4" fill="none"/><line x1="4.5" y1="12" x2="19.5" y2="12" stroke="C" stroke-width="1.4"/>`,
+            terminal: `<rect x="4" y="6" width="16" height="12" rx="2" stroke="C" stroke-width="1.8" fill="none"/><path d="M7 11 L10 13 L7 15" stroke="C" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
+            chat: `<path d="M5 6 h14 a2 2 0 0 1 2 2 v8 a2 2 0 0 1 -2 2 h-8 l-4 3 v-3 h-2 a2 2 0 0 1 -2 -2 v-8 a2 2 0 0 1 2 -2 z" fill="none" stroke="C" stroke-width="1.8" stroke-linejoin="round"/>`,
+            mail: `<rect x="4" y="6" width="16" height="12" rx="2" fill="none" stroke="C" stroke-width="1.8"/><path d="M4 8 L12 14 L20 8" fill="none" stroke="C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`,
+            music: `<circle cx="8" cy="17" r="3" fill="none" stroke="C" stroke-width="1.8"/><circle cx="18" cy="15" r="3" fill="none" stroke="C" stroke-width="1.8"/><path d="M11 17 L11 7 L21 5 L21 15" fill="none" stroke="C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`,
+            video: `<rect x="4" y="7" width="16" height="10" rx="2" fill="none" stroke="C" stroke-width="1.8"/><path d="M10 10 L15 12 L10 14 Z" fill="C"/>`,
+            image: `<rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="C" stroke-width="1.8"/><circle cx="9" cy="10" r="1.7" fill="C"/><path d="M4 17 L9 12 L13 16 L16 13 L20 17" fill="none" stroke="C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`,
+            docs: `<path d="M7 4 L14 4 L18 8 L18 20 L7 20 Z" fill="none" stroke="C" stroke-width="1.8" stroke-linejoin="round"/><line x1="9" y1="12" x2="16" y2="12" stroke="C" stroke-width="1.4"/><line x1="9" y1="15" x2="16" y2="15" stroke="C" stroke-width="1.4"/>`,
+            settings: `<circle cx="12" cy="12" r="3" fill="none" stroke="C" stroke-width="1.8"/><circle cx="12" cy="12" r="8" fill="none" stroke="C" stroke-width="1.5" stroke-dasharray="3 3"/>`
+        };
+        function iconSVG(kind, color, size) {
+            const glyph = (G[kind] || G.docs).replaceAll('C', color);
+            return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+    <rect x="1" y="1" width="22" height="22" rx="5" fill="#01212b"/>
+    <rect x="1" y="1" width="22" height="22" rx="5" fill="${color}" opacity="0.18"/>
+    <rect x="1" y="1" width="22" height="22" rx="5" fill="none" stroke="${color}" stroke-width="1.2" opacity="0.85"/>${glyph}</svg>`;
+        }
+
+        const SLOT = 52, SLOTS = 7, HALF = 3;
+        const COL = 96;
+        const DWELL_MS = 110;
+        const RAIL_PAD = 10;
+        const DEAD = 0.06;
+        const REDUCED_MOTION = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        const $ = id => document.getElementById(id);
+        const hud = $('hud'), workspace = $('workspace'), file = $('source-file'), band = $('band'), fanEl = $('fan');
+        const winEl = $('win'), zonesEl = $('zones'), toast = $('toast'), modeHint = $('mode-hint');
+
+        // ==================== REUSABLE STRIP ====================
+        function createStrip(cfg) {
+            const { host, rowsEl, upEl, downEl, railEl } = cfg;
+            const ticksEl = railEl.querySelector('.ticks'), markerEl = railEl.querySelector('.marker');
+            const rowEls = new Map(), zoneHtml = new Map();
+            let items = [], view = 0, edgeDir = 0, edgeDepth = 0, raf = 0, last = 0, railH = 0;
+
+            const n = () => items.length;
+            const isStrip = () => n() > SLOTS;
+            const minV = () => isStrip() ? HALF : (n() - 1) / 2;
+            const maxV = () => isStrip() ? n() - 1 - HALF : (n() - 1) / 2;
+            const clampV = v => clamp(v, minV(), maxV());
+            const speedWord = t => t < 0.25 ? 'SLOW' : t < 0.6 ? 'MEDIUM' : 'FAST';
+            const depthToT = d => Math.max(0, (d - DEAD) / (1 - DEAD));
+            const edgeSpeed = d => { const t = depthToT(d); return t <= 0 ? 0 : 0.8 + 30 * t * t; };
+
+            function railY(p) { return RAIL_PAD + (p / Math.max(1, n() - 1)) * Math.max(1, railH - RAIL_PAD * 2); }
+            function buildRail() {
+                railEl.style.display = isStrip() ? '' : 'none';
+                ticksEl.innerHTML = '';
+                if (!isStrip()) return;
+                railH = railEl.clientHeight;
+                items.forEach((it, r) => {
+                    const t = document.createElement('div');
+                    t.className = 'tick';
+                    t.style.top = railY(r) + 'px';
+                    t.style.background = it.color;
+                    ticksEl.appendChild(t);
+                });
+            }
+            function updateMarker() {
+                if (!isStrip()) return;
+                const s = cfg.selIndex();
+                markerEl.style.transform = `translateY(${railY(edgeDir || s < 0 ? view : s).toFixed(1)}px)`;
+            }
+            function positionEdges() {
+                const hr = host.getBoundingClientRect(), rr = rowsEl.getBoundingClientRect();
+                upEl.style.top = '0'; upEl.style.height = Math.max(0, rr.top - hr.top) + 'px';
+                downEl.style.top = (rr.bottom - hr.top) + 'px'; downEl.style.height = Math.max(0, hr.bottom - rr.bottom) + 'px';
+            }
+            function setZone(z, html) { if (zoneHtml.get(z) !== html) { zoneHtml.set(z, html); z.innerHTML = html; } }
+            function updateEdges() {
+                const r = Math.round(view), t = depthToT(edgeDepth);
+                const above = isStrip() ? Math.max(0, r - HALF) : 0;
+                const below = isStrip() ? Math.max(0, n() - 1 - HALF - r) : 0;
+                [[upEl, above, -1, '▲', 'above'], [downEl, below, 1, '▼', 'below']].forEach(([z, cnt, dir, ar, word]) => {
+                    const act = edgeDir === dir;
+                    z.style.display = cnt > 0 ? 'flex' : 'none';
+                    z.classList.toggle('active', act);
+                    z.style.setProperty('--d', act ? t.toFixed(3) : '0');
+                    setZone(z, `<span>${ar} ${cnt}<span class="exp-only"> more ${word}${act && t > 0 ? ' · ' + speedWord(t) : ''}</span></span>`);
+                });
+            }
+
+            function layout() {
+                const R = n(), vis = isStrip() ? SLOTS : R;
+                rowsEl.style.height = vis * SLOT + 'px';
+                const lo = isStrip() ? Math.max(0, Math.floor(view - HALF - 1)) : 0;
+                const hi = isStrip() ? Math.min(R - 1, Math.ceil(view + HALF + 1)) : R - 1;
+                for (const [r, el] of rowEls) if (r < lo || r > hi) { el.remove(); rowEls.delete(r); }
+                const s = cfg.selIndex();
+                for (let r = lo; r <= hi; r++) {
+                    let el = rowEls.get(r);
+                    if (!el) { el = cfg.makeRow(items[r], r); el.dataset.r = r; rowsEl.appendChild(el); rowEls.set(r, el); }
+                    const d = r - view, ad = Math.abs(d);
+                    el.style.transform = `translateY(${((d + (vis - 1) / 2) * SLOT).toFixed(1)}px)`;
+                    el.classList.toggle('sel', r === s);
+                    const op = isStrip() ? Math.max(0, 0.9 - 0.17 * ad) * clamp(HALF + 1 - ad, 0, 1) : 0.8;
+                    el.style.opacity = (r === s ? 1 : op).toFixed(3);
+                }
+                updateEdges(); updateMarker();
+            }
+
+            function setItems(list, selIdx) {
+                if (raf) { cancelAnimationFrame(raf); raf = 0; }
+                edgeDir = 0; edgeDepth = 0;
+                items = list;
+                rowEls.forEach(el => el.remove()); rowEls.clear();
+                view = clampV(Math.max(0, selIdx));
+                buildRail(); layout(); positionEdges();
+            }
+            function center(idx) { view = clampV(idx); layout(); }
+
+            function edgeAt(y) {
+                if (!isStrip()) return null;
+                const hr = host.getBoundingClientRect(), rr = rowsEl.getBoundingClientRect();
+                if (y < rr.top && view > minV() + 0.001) return { dir: -1, depth: clamp((rr.top - y) / Math.max(1, rr.top - hr.top), 0, 1) };
+                if (y > rr.bottom && view < maxV() - 0.001) return { dir: 1, depth: clamp((y - rr.bottom) / Math.max(1, hr.bottom - rr.bottom), 0, 1) };
+                return null;
+            }
+            function setEdge(dir, depth) {
+                edgeDepth = depth;
+                if (edgeDir !== dir) { edgeDir = dir; cfg.cancelDwell(); cfg.onEdgeStart && cfg.onEdgeStart(); }
+                if (!raf) { last = performance.now(); raf = requestAnimationFrame(step); }
+                updateEdges();
+            }
+            function stopEdge() {
+                if (raf) { cancelAnimationFrame(raf); raf = 0; }
+                if (!edgeDir) return;
+                edgeDir = 0; edgeDepth = 0;
+                updateEdges(); updateMarker();
+            }
+            function step(now) {
+                raf = 0;
+                if (!edgeDir) return;
+                if (!cfg.alive()) { stopEdge(); return; }
+                const dt = Math.min(now - last, 60) / 1000; last = now;
+                view = clampV(view + edgeDir * edgeSpeed(edgeDepth) * dt);
+                const r = Math.round(view);
+                if (cfg.selIndex() !== r) cfg.onCenter(r);
+                layout();
+                if (view <= minV() || view >= maxV()) { stopEdge(); return; }
+                raf = requestAnimationFrame(step);
+            }
+
+            function scrub(e) {
+                const rr = railEl.getBoundingClientRect();
+                const raw = clamp(((e.clientY - rr.top - RAIL_PAD) / Math.max(1, railH - RAIL_PAD * 2)) * (n() - 1), 0, n() - 1);
+                if (Math.abs(raw - cfg.selIndex()) > 0.65) cfg.onScrub(Math.round(raw));
+            }
+            function over(e) {
+                if (e.target.closest('.rail')) { stopEdge(); cfg.cancelDwell(); scrub(e); return; }
+                const edge = edgeAt(e.clientY);
+                if (edge) { setEdge(edge.dir, edge.depth); return; }
+                stopEdge();
+                const row = e.target.closest('.row');
+                if (row) cfg.onRow(Number(row.dataset.r)); else cfg.cancelDwell();
+            }
+
+            return { setItems, center, centerIndex: () => view, layout, over, stopEdge, positionEdges, scrolling: () => edgeDir !== 0, refresh: () => setItems(items, cfg.selIndex()) };
+        }
+
+        // ==================== STATE ====================
+        let nApps = 7, nWin = 40, layoutMode = 'apps';
+        let WINDOWS = [], ROWS = [], rowOf = [];
+        let sel = 0, lastSel = 0;
+        let dragActive = false, browse = false, toastTimer = null, BAND_W = 340, FAN_W = 320, lastOver = 0;
+        let dwellKey = null, dwellT = 0;
+        let fanRow = -1, fanShownRow = -1;
+        let fanWindowIndices = [];
+        let fanDisplayMode = 'closed'; // closed | right | workspace
+        let localFanMode = false;
+        let localFanContext = null;
+        let localFanCloseTimer = 0;
+        let fanCloseTimer = 0;
+        const fanHomeParent = fanEl.parentElement;
+        const fanHomeNext = fanEl.nextSibling;
+
+        let workspaces = [];
+        let activeWs = 0;
+        let NWORKSPACES = 8;
+        let collapsedAppGroups = new Set();
+        let workspaceRenderModels = [];
+
+        let focusedWsIcon = null;
+
+        function applyBandSize() {
+            BAND_W = Math.round(Math.max(Math.min(320, innerWidth * 0.7), Math.min(440, innerWidth * 0.3)));
+            FAN_W = Math.round(clamp(innerWidth - BAND_W - 100, 220, 340));
+            hud.style.setProperty('--band', BAND_W + 'px');
+            hud.style.setProperty('--col', COL + 'px');
+            hud.style.setProperty('--fan', FAN_W + 'px');
+        }
+
+        // ==================== WORKSPACE DISTRIBUTION ====================
+        // Demo data is assigned in small same-app groups, balanced across workspaces.
+        // Real integrations should supply each window's actual workspace membership.
+        function distributeWorkspaces() {
+            const bucketCount = Math.max(1, NWORKSPACES);
+            const buckets = Array.from({ length: bucketCount }, () => []);
+            const byApp = new Map();
+            WINDOWS.forEach((w, i) => {
+                w._globalIndex = i;
+                if (!byApp.has(w.app)) byApp.set(w.app, []);
+                byApp.get(w.app).push(i);
+            });
+
+            let tieCursor = 0;
+            for (const indices of byApp.values()) {
+                // Keep small clusters together so both the count badges and overflow ranking
+                // can be exercised in the supplied 8-workspace / 40-window demo.
+                for (let offset = 0; offset < indices.length; offset += 3) {
+                    const chunk = indices.slice(offset, offset + 3);
+                    const smallest = Math.min(...buckets.map(bucket => bucket.length));
+                    let chosen = -1;
+                    for (let step = 0; step < bucketCount; step++) {
+                        const candidate = (tieCursor + step) % bucketCount;
+                        if (buckets[candidate].length === smallest) {
+                            chosen = candidate;
+                            break;
+                        }
+                    }
+                    buckets[chosen].push(...chunk);
+                    tieCursor = (chosen + 1) % bucketCount;
+                }
+            }
+
+            workspaces = buckets.map((indices, index) => ({
+                index,
+                windowIndices: indices,
+                windows: indices.map(i => WINDOWS[i])
+            }));
+            if (activeWs >= NWORKSPACES) activeWs = 0;
+        }
+
+        // ==================== WORKSPACE INDICATOR ====================
+        // The indicator renders all window icons first, then progressively groups the
+        // largest workspace-local app groups until the available width is sufficient.
+        function wsIconSize() { return Math.max(32, Math.min(44, Math.floor(innerWidth / 40))); }
+        const wsGroupKey = (workspaceIndex, app) => `${workspaceIndex}::${app}`;
+
+        function groupWindowsInWorkspace(ws) {
+            const groups = new Map();
+            ws.windows.forEach(w => {
+                let group = groups.get(w.app);
+                if (!group) {
+                    group = { app: w.app, color: w.color, kind: w.kind, indices: [], workspaceIndex: ws.index };
+                    groups.set(w.app, group);
+                }
+                group.indices.push(w._globalIndex);
+            });
+            return [...groups.values()].map(group => ({
+                ...group,
+                key: wsGroupKey(ws.index, group.app),
+                count: group.indices.length
+            }));
+        }
+
+        function renderWorkspaceIndicator() {
+            $('ws-name').textContent = `Workspace ${activeWs + 1}`;
+            const thumbs = $('ws-thumbs');
+            thumbs.innerHTML = '';
+            let sz = wsIconSize();
+            workspaceRenderModels = workspaces.map(ws => ({
+                ws,
+                groups: groupWindowsInWorkspace(ws),
+                el: null,
+                contents: null
+            }));
+
+            const allGroups = workspaceRenderModels.flatMap(model => model.groups);
+            const validKeys = new Set(allGroups.filter(group => group.count > 1).map(group => group.key));
+            collapsedAppGroups = new Set([...collapsedAppGroups].filter(key => validKeys.has(key)));
+
+            workspaceRenderModels.forEach(model => {
+                const ws = model.ws;
+                const el = document.createElement('div');
+                el.className = 'ws-thumb' + (ws.index === activeWs ? ' active' : '');
+                el.title = `Workspace ${ws.index + 1} — ${ws.windows.length} window${ws.windows.length === 1 ? '' : 's'}`;
+                el.setAttribute('role', 'button');
+                el.setAttribute('aria-label', `Switch to workspace ${ws.index + 1}`);
+                el.tabIndex = 0;
+
+                const contents = document.createElement('div');
+                contents.className = 'ws-contents';
+                el.appendChild(contents);
+                model.el = el;
+                model.contents = contents;
+
+                el.addEventListener('click', () => {
+                    activeWs = ws.index;
+                    renderWorkspaceIndicator();
+                });
+                el.addEventListener('keydown', e => {
+                    if (e.target !== el) return;
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        activeWs = ws.index;
+                        renderWorkspaceIndicator();
+                    }
+                });
+                el.addEventListener('dragleave', e => {
+                    if (e.relatedTarget && el.contains(e.relatedTarget)) return;
+                    clearWsFocus();
+                });
+                thumbs.appendChild(el);
+            });
+
+            function makeWindowIcon(group, gidx) {
+                const w = WINDOWS[gidx];
+                const iconEl = document.createElement('div');
+                iconEl.className = 'ws-ico';
+                iconEl.dataset.gidx = gidx;
+                iconEl.title = `${w.app} — ${w.title}`;
+                iconEl.setAttribute('aria-label', `${w.app}: ${w.title}`);
+                iconEl.innerHTML = iconSVG(w.kind, w.color, sz);
+                iconEl.addEventListener('dragover', e => {
+                    if (!dragActive) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    lastOver = performance.now();
+                    setWsFocus(iconEl, gidx);
+                });
+                return iconEl;
+            }
+
+            function makeAppGroupIcon(group, ws) {
+                const iconEl = document.createElement('div');
+                iconEl.className = 'ws-ico ws-app-group';
+                iconEl.dataset.groupKey = group.key;
+                iconEl.setAttribute('role', 'button');
+                iconEl.setAttribute('tabindex', '0');
+                iconEl.setAttribute('aria-label', `${group.app}, ${group.count} windows in Workspace ${ws.index + 1}`);
+                iconEl.title = `${group.app} — ${group.count} windows in Workspace ${ws.index + 1}. Click to open the window selector for this group.`;
+                iconEl.innerHTML = iconSVG(group.kind, group.color, sz) + `<span class="ws-badge" aria-hidden="true">${group.count}</span>`;
+
+                // Click -> full window selector overlay, limited to this group.
+                iconEl.addEventListener('click', e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openWindowOverlayForGroup(group);
+                });
+                iconEl.addEventListener('keydown', e => {
+                    if (e.key !== 'Enter' && e.key !== ' ') return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openWindowOverlayForGroup(group);
+                });
+                // Drag -> keep the anchored flyout on the indicator.
+                iconEl.addEventListener('dragover', e => {
+                    if (!dragActive) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    lastOver = performance.now();
+                    if (localFanMode && localFanContext?.groupKey === group.key) {
+                        clearLocalFanTimer();
+                        return;
+                    }
+                    dwell(`workspace-group:${group.key}`, () => openWorkspaceGroupFlyout(group, ws.index, iconEl, true));
+                });
+                iconEl.addEventListener('dragleave', () => {
+                    if (dwellKey === `workspace-group:${group.key}`) cancelDwell();
+                });
+                return iconEl;
+            }
+
+            function renderContents() {
+                // App grouping is the only overflow mode: use slightly denser dock-sized
+                // icons in the same mode rather than introducing a separate compact level.
+                const groupedDensity = collapsedAppGroups.size > 0;
+                sz = groupedDensity ? Math.min(innerWidth < 1200 ? 28 : 30, wsIconSize()) : wsIconSize();
+                thumbs.classList.toggle('grouped-layout', groupedDensity);
+                workspaceRenderModels.forEach(model => {
+                    const { ws, groups, contents, el } = model;
+                    el.classList.toggle('grouped-layout', groupedDensity);
+                    contents.innerHTML = '';
+                    if (!ws.windows.length) {
+                        contents.innerHTML = '<span class="ws-empty">empty</span>';
+                        return;
+                    }
+                    groups.forEach(group => {
+                        if (collapsedAppGroups.has(group.key) && group.count > 1) {
+                            contents.appendChild(makeAppGroupIcon(group, ws));
+                        } else {
+                            group.indices.forEach(gidx => contents.appendChild(makeWindowIcon(group, gidx)));
+                        }
+                    });
+                });
+            }
+
+            const overflowing = () => thumbs.scrollWidth > thumbs.clientWidth + 1;
+            const candidates = allGroups
+                .filter(group => group.count > 1)
+                .sort((a, b) => b.count - a.count || Number(b.workspaceIndex === activeWs) - Number(a.workspaceIndex === activeWs) || a.workspaceIndex - b.workspaceIndex);
+
+            renderContents();
+            // Collapse largest groups first, remeasuring after each one.
+            if (overflowing()) {
+                for (const group of candidates) {
+                    if (collapsedAppGroups.has(group.key)) continue;
+                    collapsedAppGroups.add(group.key);
+                    renderContents();
+                    if (!overflowing()) break;
+                }
+            } else {
+                // Expand a little when there is spare room, keeping a buffer to prevent flicker.
+                for (const group of [...candidates].sort((a, b) => a.count - b.count || b.workspaceIndex - a.workspaceIndex)) {
+                    if (!collapsedAppGroups.has(group.key)) continue;
+                    collapsedAppGroups.delete(group.key);
+                    renderContents();
+                    if (thumbs.clientWidth - thumbs.scrollWidth < 32) {
+                        collapsedAppGroups.add(group.key);
+                        renderContents();
+                        break;
+                    }
+                }
+            }
+            thumbs.classList.toggle('has-overflow', overflowing());
+        }
+
+        function setWsFocus(iconEl, gidx) {
+            if (focusedWsIcon === iconEl) return;
+            if (focusedWsIcon) focusedWsIcon.classList.remove('focused');
+            focusedWsIcon = iconEl;
+            iconEl.classList.add('focused');
+            if (gidx !== sel) select(gidx);
+        }
+        function clearWsFocus() {
+            if (focusedWsIcon) { focusedWsIcon.classList.remove('focused'); focusedWsIcon = null; }
+        }
+
+        $('ws-tb-windows').addEventListener('click', () => {
+            if (!WINDOWS.length) return;
+            wsel.open(WINDOWS.slice(), Math.min(sel, WINDOWS.length - 1), activateGlobalWindow);
+        });
+        $('ws-tb-apps').addEventListener('click', () => showToast('Show All Apps would open here'));
+
+        // ==================== CLOCK ====================
+        function updateClock() {
+            const d = new Date();
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const h = d.getHours();
+            const m = String(d.getMinutes()).padStart(2, '0');
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            const h12 = ((h + 11) % 12) + 1;
+            $('status-clock').textContent = `${days[d.getDay()]} ${h12}:${m} ${ampm}`;
+        }
+        updateClock();
+        setInterval(updateClock, 30000);
+
+        // ==================== ROW MODEL ====================
+        function buildRows() {
+            rowOf = new Array(WINDOWS.length);
+            if (layoutMode === 'apps') {
+                const m = new Map();
+                WINDOWS.forEach((w, i) => {
+                    let g = m.get(w.app);
+                    if (!g) { g = { title: w.app, app: w.app, color: w.color, kind: w.kind, idxs: [] }; m.set(w.app, g); }
+                    g.idxs.push(i);
+                });
+                ROWS = [...m.values()];
+                ROWS.forEach(g => g.sub = g.idxs.length + (g.idxs.length > 1 ? ' windows' : ' window'));
+            } else {
+                ROWS = WINDOWS.map((w, i) => ({ title: w.title, sub: w.app, app: w.app, color: w.color, kind: w.kind, idxs: [i] }));
+            }
+            ROWS.forEach((g, r) => g.idxs.forEach(i => { rowOf[i] = r; }));
+        }
+        function rebuild(resetSel) {
+            WINDOWS = makeWindows(nApps, nWin);
+            buildRows();
+            distributeWorkspaces();
+            renderWorkspaceIndicator();
+            if (resetSel) sel = lastSel = 0;
+            sel = Math.min(sel, WINDOWS.length - 1);
+            fanRow = -1; fanShownRow = -1;
+            const biggest = layoutMode === 'apps' ? Math.max(...ROWS.map(g => g.idxs.length)) : 1;
+            const apps = new Set(WINDOWS.map(w => w.app)).size;
+            const distribution = workspaces.map(w => w.windows.length).join('/');
+            $('count-note').textContent = `${WINDOWS.length} windows in ${apps} apps. Band: ${ROWS.length} rows` +
+                (ROWS.length > SLOTS ? ' (strip + rail). ' : ' (all visible). ') +
+                `Workspace window counts: ${distribution}. Bottom indicator groups the largest app groups only when space is tight; if necessary, the workspace row remains horizontally scrollable.` +
+                (layoutMode === 'apps' ? ` Largest fan-out: ${biggest} windows.` : '');
+        }
+        function bindGroup(sel, attr, fn) {
+            document.querySelectorAll(sel + ' button').forEach(b => b.addEventListener('click', () => {
+                document.querySelectorAll(sel + ' button').forEach(x => x.classList.toggle('on', x === b));
+                fn(b.dataset[attr]);
+            }));
+        }
+        bindGroup('#layout-ctl', 'l', v => { layoutMode = v; rebuild(false); });
+        bindGroup('#apps-ctl', 'a', v => { nApps = Number(v); rebuild(true); });
+        bindGroup('#count-ctl', 'n', v => { nWin = Number(v); rebuild(true); });
+        bindGroup('#ws-ctl', 'w', v => { NWORKSPACES = Number(v); rebuild(false); });
+
+        function rowEl(it, textMax, badge) {
+            const el = document.createElement('div');
+            el.className = 'row';
+            el.innerHTML = `<span class="r-ic">${iconSVG(it.kind, it.color, 30)}</span>
+    <span class="r-tx"><span class="r-t">${esc(fitStart(it.title, 600, 14, textMax))}</span><span class="r-a">${esc(it.sub)}</span></span>` +
+                (badge ? `<span class="r-n exp-only">${badge}</span>` : '');
+            return el;
+        }
+
+        function cancelDwell() { clearTimeout(dwellT); dwellT = 0; dwellKey = null; }
+        function dwell(key, fn) {
+            if (key === dwellKey) return;
+            cancelDwell();
+            dwellKey = key;
+            dwellT = setTimeout(() => { dwellT = 0; dwellKey = null; fn(); }, DWELL_MS);
+        }
+        function setSel(i) { if (i === sel) return; sel = i; renderPreview(); updateCount(); }
+
+        const bandStrip = createStrip({
+            host: band, rowsEl: $('band-rows'), upEl: $('band-up'), downEl: $('band-down'), railEl: $('band-rail'),
+            selIndex: () => rowOf[sel],
+            makeRow: it => {
+                const grouped = layoutMode === 'apps' && it.idxs.length > 1;
+                const textMax = Math.max(80, BAND_W - 24 - 28 - 8 - 20 - 30 - 10 - 6 - (grouped ? 56 : 0));
+                return rowEl(it, textMax, grouped ? `×${it.idxs.length} ›` : '');
+            },
+            onScrub: r => { select(rowOf[sel] === r ? sel : ROWS[r].idxs[0]); bandStrip.center(r); },
+            onRow: r => {
+                const apps = layoutMode === 'apps';
+                if (rowOf[sel] === r && (!apps || fanRow === r || ROWS[r].idxs.length < 2)) { cancelDwell(); return; }
+                dwell('r' + r, () => { select(rowOf[sel] === r ? sel : ROWS[r].idxs[0]); if (apps) { fanRow = r; updateFan(); } });
+            },
+            onCenter: r => setSel(ROWS[r].idxs[0]),
+            onEdgeStart: () => { if (fanRow !== -1) { fanRow = -1; updateFan(); } },
+            cancelDwell, alive: () => dragActive && performance.now() - lastOver < 1000
+        });
+
+        const fanIdx = () => fanWindowIndices.indexOf(sel);
+        const fanStrip = createStrip({
+            host: fanEl, rowsEl: $('fan-rows'), upEl: $('fan-up'), downEl: $('fan-down'), railEl: $('fan-rail'),
+            selIndex: fanIdx,
+            makeRow: it => rowEl(it, Math.max(80, FAN_W - 22 - 28 - 8 - 20 - 30 - 10 - 6), ''),
+            onScrub: k => { select(fanWindowIndices[k]); fanStrip.center(k); },
+            onRow: k => {
+                const i = fanWindowIndices[k];
+                if (i === undefined) return;
+                if (i === sel) cancelDwell(); else dwell('f' + i, () => select(i));
+            },
+            onCenter: k => { if (fanWindowIndices[k] !== undefined) setSel(fanWindowIndices[k]); },
+            cancelDwell, alive: () => dragActive && performance.now() - lastOver < 1000
+        });
+
+        function clearLocalFanTimer() {
+            if (localFanCloseTimer) clearTimeout(localFanCloseTimer);
+            localFanCloseTimer = 0;
+        }
+
+        function attachFanToHome() {
+            if (fanEl.parentElement === fanHomeParent) return;
+            fanHomeParent.insertBefore(fanEl, fanHomeNext && fanHomeNext.parentNode === fanHomeParent ? fanHomeNext : null);
+        }
+
+        function resetFanInlinePosition() {
+            ['left', 'top', 'right', 'bottom', 'width', 'height', 'position', 'zIndex', 'transformOrigin'].forEach(prop => { fanEl.style[prop] = ''; });
+        }
+
+        // Hard reset: used at drag start / drag end where we don't want any
+        // lingering close animation or inline geometry.
+        function hardResetFan() {
+            clearTimeout(fanCloseTimer);
+            fanEl.classList.remove('open', 'closing', 'local-anchored');
+            resetFanInlinePosition();
+            attachFanToHome();
+            fanWindowIndices = [];
+            fanShownRow = -1;
+            fanDisplayMode = 'closed';
+            fanStrip.stopEdge();
+        }
+
+        // Deferred cleanup after the closing animation. Never runs if the flyout
+        // was reopened (openWorkspaceGroupFlyout / updateFan clear the timer first).
+        function finishFanClose() {
+            if (localFanMode || fanDisplayMode === 'right') return;
+            fanEl.classList.remove('closing', 'local-anchored');
+            resetFanInlinePosition();
+            attachFanToHome();
+        }
+
+        function closeWorkspaceGroupFlyout(instant) {
+            if (!localFanMode) return;
+            clearLocalFanTimer();
+            localFanMode = false;
+            localFanContext = null;
+            fanDisplayMode = 'closed';
+            fanWindowIndices = [];
+            fanShownRow = -1;
+            fanStrip.stopEdge();
+            fanEl.classList.remove('open');
+            clearTimeout(fanCloseTimer);
+            if (instant || REDUCED_MOTION()) { finishFanClose(); return; }
+            fanEl.classList.add('closing');
+            fanCloseTimer = setTimeout(finishFanClose, 200);
+        }
+
+        function positionWorkspaceGroupFlyout(anchorEl) {
+            if (!anchorEl || !anchorEl.isConnected) return;
+            const anchor = anchorEl.getBoundingClientRect();
+            const width = Math.min(Math.max(250, FAN_W), Math.max(220, innerWidth - 16));
+            const height = Math.min(440, Math.max(220, innerHeight - parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--panel-h')) - 24));
+            const left = clamp(anchor.left + anchor.width / 2 - width / 2, 8, innerWidth - width - 8);
+            let top = anchor.top - height - 10;
+            if (top < 8) top = Math.max(8, anchor.bottom + 8);
+            if (top + height > innerHeight - 8) top = Math.max(8, innerHeight - height - 8);
+            fanEl.style.left = `${left}px`;
+            fanEl.style.top = `${top}px`;
+            fanEl.style.width = `${width}px`;
+            fanEl.style.height = `${height}px`;
+            // Grow/scale from just above the dock icon so the up-animation reads
+            // as coming out of the group, mirroring the right-edge fanout.
+            const originX = clamp(anchor.left + anchor.width / 2 - left, 28, width - 28);
+            fanEl.style.transformOrigin = `${originX.toFixed(0)}px 100%`;
+        }
+
+        function openWorkspaceGroupFlyout(group, workspaceIndex, anchorEl, fromDrag) {
+            if (!group || group.count < 2 || !anchorEl) return;
+            clearLocalFanTimer();
+            clearTimeout(fanCloseTimer);
+            fanEl.classList.remove('closing');
+            if (fanDisplayMode === 'right') {
+                fanStrip.stopEdge();
+                fanEl.classList.remove('open');
+                fanShownRow = -1;
+            }
+            localFanMode = true;
+            fanDisplayMode = 'workspace';
+            localFanContext = { groupKey: group.key, app: group.app, workspaceIndex, anchorEl, fromDrag: !!fromDrag };
+            fanRow = -1;
+            fanWindowIndices = [...group.indices];
+            attachFanToBodyForLocalFlyout();
+            // 1) attach anchored styles while still display:none
+            fanEl.classList.add('local-anchored');
+            // 2) write geometry while hidden (no layout yet)
+            positionWorkspaceGroupFlyout(anchorEl);
+            // 3) reveal — the animation starts from a fully measured element,
+            //    so the first painted frame is already the final size.
+            fanEl.classList.add('open');
+            $('fan-head').textContent = `${group.app} · ${group.count} windows · Workspace ${workspaceIndex + 1}`;
+            fanStrip.setItems(fanWindowIndices.map((i, k) => ({
+                title: WINDOWS[i].title,
+                sub: `Window ${k + 1}`,
+                color: WINDOWS[i].color,
+                kind: WINDOWS[i].kind
+            })), fanWindowIndices.indexOf(sel));
+        }
+
+        function attachFanToBodyForLocalFlyout() {
+            if (fanEl.parentElement !== document.body) document.body.appendChild(fanEl);
+        }
+
+        function scheduleLocalFanDismiss() {
+            if (!localFanMode || !dragActive) return;
+            // Schedule once. dragover fires continuously while the pointer moves, so
+            // resetting the timer on every event kept the anchored flyout open forever
+            // and (because localFanMode blocks updateFan) kept the right fan closed.
+            if (localFanCloseTimer) return;
+            localFanCloseTimer = setTimeout(() => {
+                localFanCloseTimer = 0;
+                if (!localFanMode || !dragActive) return;
+                closeWorkspaceGroupFlyout();
+            }, 240);
+        }
+
+        function updateFan() {
+            if (localFanMode) {
+                fanStrip.layout();
+                return;
+            }
+            const g = ROWS[fanRow];
+            const show = dragActive && browse && layoutMode === 'apps' && g && g.idxs.length > 1;
+            if (!show) {
+                if (fanDisplayMode === 'right') {
+                    if (fanShownRow !== -1) fanStrip.stopEdge();
+                    fanEl.classList.remove('open');
+                    clearTimeout(fanCloseTimer);
+                    if (!REDUCED_MOTION()) {
+                        fanEl.classList.add('closing');
+                        fanCloseTimer = setTimeout(() => {
+                            if (localFanMode || fanDisplayMode === 'right') return;
+                            fanEl.classList.remove('closing');
+                        }, 180);
+                    }
+                    fanShownRow = -1;
+                    fanWindowIndices = [];
+                    fanDisplayMode = 'closed';
+                }
+                return;
+            }
+            if (fanDisplayMode !== 'right' || fanShownRow !== fanRow) {
+                clearTimeout(fanCloseTimer);
+                fanEl.classList.remove('closing');
+                attachFanToHome();
+                resetFanInlinePosition();
+                fanEl.classList.remove('local-anchored');
+                fanEl.classList.add('open');
+                fanDisplayMode = 'right';
+                fanShownRow = fanRow;
+                fanWindowIndices = [...g.idxs];
+                $('fan-head').textContent = `${g.app} · ${g.idxs.length} windows`;
+                fanStrip.setItems(fanWindowIndices.map((i, k) => ({ title: WINDOWS[i].title, sub: `Window ${k + 1}`, color: WINDOWS[i].color, kind: WINDOWS[i].kind })), fanWindowIndices.indexOf(sel));
+            } else fanStrip.layout();
+        }
+
+        // The anchored flyout uses the same strip and rows as the right-side flyout.
+        fanEl.addEventListener('click', e => {
+            if (!localFanMode || dragActive) return;
+            const row = e.target.closest('.row');
+            if (!row) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const index = fanWindowIndices[Number(row.dataset.r)];
+            if (index === undefined) return;
+            const context = localFanContext;
+            sel = index;
+            lastSel = index;
+            activeWs = context ? context.workspaceIndex : activeWs;
+            renderWorkspaceIndicator();
+            closeWorkspaceGroupFlyout();
+            showToast(`Focused ${WINDOWS[index].app} — ${WINDOWS[index].title} (Workspace ${activeWs + 1})`);
+        });
+
+        // Click-mode browsing can scroll long app groups even when no drag is active.
+        fanEl.addEventListener('wheel', e => {
+            if (!localFanMode || dragActive || fanWindowIndices.length <= SLOTS) return;
+            e.preventDefault();
+            const step = e.deltaY > 0 ? 1 : -1;
+            fanStrip.center(clamp(fanStrip.centerIndex() + step, 0, fanWindowIndices.length - 1));
+        }, { passive: false });
+
+        document.addEventListener('click', e => {
+            if (!localFanMode || fanEl.contains(e.target) || e.target.closest('.ws-app-group')) return;
+            closeWorkspaceGroupFlyout();
+        });
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && localFanMode) closeWorkspaceGroupFlyout();
+        });
+        document.addEventListener('dragover', e => {
+            if (!localFanMode || !dragActive) return;
+            const r = fanEl.getBoundingClientRect();
+            const overFlyout = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+            const targetGroup = e.target.closest && e.target.closest('.ws-app-group');
+            const overGroup = !!(targetGroup && targetGroup.dataset.groupKey === localFanContext?.groupKey);
+
+            if (overFlyout || overGroup) {
+                clearLocalFanTimer();
+                return;
+            }
+
+            // Heading into the right-hand window browser: close the anchored flyout
+            // immediately (not after the dismiss delay) so browse mode can engage and
+            // the right-hand band/fan becomes usable on the same event.
+            if (e.clientX >= innerWidth - COL) {
+                closeWorkspaceGroupFlyout();
+                return;
+            }
+
+            scheduleLocalFanDismiss();
+        }, true);
+
+        function setBrowse(b) {
+            browse = b;
+            band.classList.toggle('expanded', b);
+            hud.classList.toggle('browse', b);
+            if (b) zonesEl.querySelectorAll('.zone.over').forEach(z => z.classList.remove('over'));
+            else { cancelDwell(); bandStrip.stopEdge(); fanRow = -1; }
+            updateFan();
+            modeHint.textContent = b
+                ? 'Browsing windows. Move left into the window to drop.'
+                : 'Drop on a zone, or move to the right edge to browse windows.';
+        }
+        function updateMode(x) {
+            const leaveX = innerWidth - BAND_W - (fanEl.classList.contains('open') ? FAN_W : 0) - 12;
+            if (!browse) { if (x >= innerWidth - COL) setBrowse(true); }
+            else if (x < leaveX) setBrowse(false);
+        }
+        hud.addEventListener('dragover', e => {
+            if (!dragActive) return;
+            lastOver = performance.now();
+            if (localFanMode) return;
+            updateMode(e.clientX);
+            if (!e.target.closest('#band')) bandStrip.stopEdge();
+            if (!e.target.closest('#fan')) fanStrip.stopEdge();
+        }, true);
+
+        band.addEventListener('dragover', e => {
+            if (!dragActive) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'none';
+            bandStrip.over(e);
+        });
+        fanEl.addEventListener('dragover', e => {
+            if (!dragActive || fanWindowIndices.length === 0) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'none';
+            lastOver = performance.now();
+            clearLocalFanTimer();
+            fanStrip.over(e);
+        });
+
+        function renderPreview() {
+            const w = WINDOWS[sel];
+            winEl.style.setProperty('--c', w.color);
+            $('win-title').textContent = fitStart(`${w.app} — ${w.title}`, 700, 15, Math.max(160, innerWidth - COL - 160));
+            zonesEl.innerHTML = '';
+
+            (ZONES[w.kind] || ZONES.docs).forEach(([name, sub, x, y, ww, hh]) => {
+                const z = document.createElement('div');
+                z.className = 'zone';
+                z.style.cssText = `left:${x}%;top:${y}%;width:calc(${ww}% - 16px);height:calc(${hh}% - 16px)`;
+                z.innerHTML = `<div class="z-name">${esc(name)}</div><div class="z-sub">${esc(sub)}</div><div class="z-go">Release to drop</div>`;
+                z.addEventListener('dragover', e => {
+                    if (!dragActive || browse) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'copy';
+                    z.classList.add('over');
+                });
+                z.addEventListener('dragleave', e => {
+                    if (e.relatedTarget && z.contains(e.relatedTarget)) return;
+                    z.classList.remove('over');
+                });
+                z.addEventListener('drop', e => {
+                    if (browse) return;
+                    e.preventDefault();
+                    const f = e.dataTransfer.getData('text/plain') || 'report.pdf';
+                    lastSel = sel;
+                    showToast(`Dropped ${f} → ${w.app} › ${name} (${sub})`);
+                    hideHUD();
+                });
+                zonesEl.appendChild(z);
+            });
+
+            if (!bandStrip.scrolling() && !fanStrip.scrolling()) { winEl.classList.remove('swap'); void winEl.offsetWidth; winEl.classList.add('swap'); }
+        }
+
+        function select(i) {
+            i = clamp(i, 0, WINDOWS.length - 1);
+            if (i === sel) return;
+            sel = i;
+            if (!localFanMode && fanRow !== -1 && rowOf[sel] !== fanRow) fanRow = -1;
+            renderPreview(); updateCount();
+            updateFan();
+            bandStrip.layout();
+        }
+        function updateCount() {
+            $('band-count').textContent = `Window ${sel + 1} of ${WINDOWS.length}` + (layoutMode === 'apps' ? ` · ${WINDOWS[sel].app}` : '');
+        }
+
+        function hideHUD() {
+            dragActive = false;
+            cancelDwell(); bandStrip.stopEdge(); fanStrip.stopEdge();
+            closeWorkspaceGroupFlyout(true);
+            clearWsFocus();
+            fanRow = -1; updateFan();
+            hud.classList.remove('active');
+            hud.setAttribute('aria-hidden', 'true');
+            workspace.style.filter = 'none';
+            workspace.style.transform = 'none';
+        }
+        function showToast(msg) {
+            toast.textContent = msg;
+            toast.classList.add('visible');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => toast.classList.remove('visible'), 3200);
+        }
+
+        file.addEventListener('dragstart', e => {
+            dragActive = true;
+            lastOver = performance.now();
+            e.dataTransfer.effectAllowed = 'copyMove';
+            e.dataTransfer.setData('text/plain', 'report.pdf');
+            sel = Math.min(lastSel, WINDOWS.length - 1);
+            hardResetFan();
+            browse = true; setBrowse(false);
+            setTimeout(() => {
+                if (!dragActive) return;
+                hud.classList.add('active');
+                hud.setAttribute('aria-hidden', 'false');
+                workspace.style.filter = 'blur(4px)';
+                workspace.style.transform = 'scale(0.985)';
+                applyBandSize();
+                bandStrip.setItems(ROWS, rowOf[sel]);
+                renderPreview(); updateCount();
+            }, 10);
+        });
+        file.addEventListener('dragend', hideHUD);
+
+        window.addEventListener('resize', () => {
+            if (localFanMode) closeWorkspaceGroupFlyout(true);
+            renderWorkspaceIndicator();
+            if (!dragActive) return;
+            applyBandSize();
+            bandStrip.refresh();
+            if (fanShownRow !== -1) { const r = fanShownRow; fanShownRow = -1; fanRow = r; updateFan(); }
+            renderPreview();
+        });
+
+        // ==================== WINDOW SELECTOR OVERLAY ====================
+        // Merged from the focus-strip prototype. It is opened with an arbitrary
+        // window list: a single workspace-local app group (click on a grouped icon)
+        // or every window (toolbar "All windows" button).
+        const wsel = (() => {
+            const overlayEl = $('wsel-overlay');
+            const revealedEl = $('wsel-revealed');
+            const bgLayers = [...revealedEl.querySelectorAll('.wsel-bg-layer')];
+            const rowsEl = $('wsel-rows');
+            const bandEl = $('wsel-band');
+            const bandSelectedEl = $('wsel-band-selected');
+            const searchEntry = $('wsel-search-entry');
+            const hintEl = $('wsel-hint');
+            const railEl = $('wsel-rail');
+            const ticksEl = $('wsel-ticks');
+            const markerEl = $('wsel-marker');
+            const tipEl = $('wsel-tip');
+
+            let allItems = [], items = [];
+            let layout = null, rowEls = [];
+            let selectedIndex = 0, scrollPos = 0, scrollTarget = 0;
+            let tweenId = 0, lastFrame = 0, wheelAcc = 0;
+            let bgFront = 0, labelSize = 26, selectedLabelSize = 58, railH = 0;
+            let isOpen = false, onActivateCb = null, railDragging = false;
+            const RAIL_PAD = 10;
+
+            const cl = (v, a, b) => Math.max(a, Math.min(b, v));
+            const ease = t => { t = cl(t, 0, 1); return t * t * (3 - 2 * t); };
+
+            // ---------- fake revealed window (full-screen SVG) ----------
+            function revealedSVG(win, W, H) {
+                const c = win.color;
+                const light = !!win.light;
+                const ww = Math.round(W * 0.92);
+                const wh = Math.round(H * 0.88);
+                const wx = Math.round((W - ww) / 2);
+                const wy = Math.round((H - wh) / 2);
+                const tbh = 46;
+                const cx = wx + 28;
+                const cy = wy + tbh + 28;
+                const cw = ww - 56;
+                const ch = wh - tbh - 56;
+
+                let content = '';
+                const hex = a => Math.round(Math.max(0, Math.min(1, a)) * 255).toString(16).padStart(2, '0');
+
+                switch (win.kind) {
+                    case 'editor': {
+                        content += `<rect x="${cx}" y="${cy}" width="220" height="${ch}" rx="8" fill="rgba(255,255,255,0.04)"/>`;
+                        for (let i = 0; i < 12; i++) {
+                            const w = 80 + ((i * 37) % 120);
+                            content += `<rect x="${cx + 20}" y="${cy + 30 + i * 26}" width="${w}" height="10" rx="3" fill="rgba(147,161,161,0.35)"/>`;
+                        }
+                        for (let i = 0; i < 24; i++) {
+                            const w = 200 + ((i * 53) % 500);
+                            const indent = (i % 5) * 24;
+                            content += `<rect x="${cx + 260 + indent}" y="${cy + 30 + i * 26}" width="${Math.min(w, cw - 280 - indent)}" height="10" rx="3" fill="rgba(147,161,161,0.28)"/>`;
+                        }
+                        break;
+                    }
+                    case 'browser': {
+                        content += `<rect x="${cx}" y="${cy}" width="${cw}" height="50" rx="25" fill="rgba(255,255,255,0.06)"/>`;
+                        content += `<rect x="${cx}" y="${cy + 90}" width="${cw}" height="${ch * 0.35}" rx="12" fill="${c}22"/>`;
+                        content += `<rect x="${cx}" y="${cy + 110 + ch * 0.35}" width="${cw * 0.6}" height="26" rx="6" fill="rgba(255,255,255,0.16)"/>`;
+                        for (let i = 0; i < 3; i++) {
+                            content += `<rect x="${cx + i * (cw / 3 + 10)}" y="${cy + 170 + ch * 0.35}" width="${cw / 3 - 20}" height="${ch * 0.35}" rx="12" fill="rgba(255,255,255,0.05)"/>`;
+                        }
+                        break;
+                    }
+                    case 'terminal': {
+                        content += `<rect x="${cx}" y="${cy}" width="${cw}" height="${ch}" rx="8" fill="rgba(0,0,0,0.35)"/>`;
+                        for (let i = 0; i < 20; i++) {
+                            const w = 100 + ((i * 71) % 400);
+                            content += `<rect x="${cx + 20}" y="${cy + 24 + i * 24}" width="${Math.min(w, cw - 40)}" height="8" rx="2" fill="${i % 3 === 0 ? c : 'rgba(147,161,161,0.4)'}"/>`;
+                        }
+                        break;
+                    }
+                    case 'chat': {
+                        content += `<rect x="${cx}" y="${cy}" width="280" height="${ch}" rx="8" fill="rgba(255,255,255,0.04)"/>`;
+                        for (let i = 0; i < 8; i++) {
+                            const y = cy + 24 + i * 56;
+                            content += `<circle cx="${cx + 30}" cy="${y + 14}" r="14" fill="${c}55"/>`;
+                            content += `<rect x="${cx + 56}" y="${y + 6}" width="${150 + ((i * 23) % 60)}" height="10" rx="3" fill="rgba(255,255,255,0.18)"/>`;
+                            content += `<rect x="${cx + 56}" y="${y + 22}" width="${80 + ((i * 17) % 40)}" height="8" rx="3" fill="rgba(255,255,255,0.10)"/>`;
+                        }
+                        for (let i = 0; i < 6; i++) {
+                            const y = cy + 40 + i * 84;
+                            const right = i % 2 === 0;
+                            const bw = 300 + ((i * 71) % 200);
+                            const bx = right ? cx + 320 + cw - 340 - bw : cx + 320;
+                            content += `<rect x="${bx}" y="${y}" width="${bw}" height="56" rx="14" fill="${right ? c + '44' : 'rgba(255,255,255,0.08)'}"/>`;
+                        }
+                        break;
+                    }
+                    case 'mail': {
+                        content += `<rect x="${cx}" y="${cy}" width="${cw * 0.42}" height="${ch}" rx="8" fill="rgba(255,255,255,0.04)"/>`;
+                        for (let i = 0; i < 10; i++) {
+                            const y = cy + 24 + i * 60;
+                            content += `<circle cx="${cx + 26}" cy="${y + 16}" r="12" fill="${c}55"/>`;
+                            content += `<rect x="${cx + 50}" y="${y + 6}" width="${150 + ((i * 31) % 80)}" height="10" rx="3" fill="rgba(255,255,255,0.20)"/>`;
+                            content += `<rect x="${cx + 50}" y="${y + 24}" width="${100 + ((i * 13) % 100)}" height="8" rx="3" fill="rgba(255,255,255,0.10)"/>`;
+                        }
+                        for (let i = 0; i < 16; i++) {
+                            const w = 200 + ((i * 71) % 400);
+                            content += `<rect x="${cx + cw * 0.45 + 20}" y="${cy + 60 + i * 34}" width="${Math.min(w, cw * 0.5 - 40)}" height="10" rx="3" fill="rgba(255,255,255,0.14)"/>`;
+                        }
+                        break;
+                    }
+                    case 'music': {
+                        const artSize = Math.min(ch * 0.7, cw * 0.4);
+                        content += `<rect x="${cx}" y="${cy}" width="${artSize}" height="${artSize}" rx="16" fill="${c}44"/>`;
+                        content += `<circle cx="${cx + artSize / 2}" cy="${cy + artSize / 2}" r="${artSize * 0.25}" fill="${c}88"/>`;
+                        for (let i = 0; i < 10; i++) {
+                            const active = i === 3;
+                            content += `<rect x="${cx + artSize + 30}" y="${cy + 20 + i * 36}" width="${active ? 320 : 240}" height="12" rx="4" fill="${active ? c + 'aa' : 'rgba(255,255,255,0.12)'}"/>`;
+                            content += `<rect x="${cx + artSize + 30}" y="${cy + 36 + i * 36}" width="140" height="8" rx="3" fill="rgba(255,255,255,0.08)"/>`;
+                        }
+                        break;
+                    }
+                    case 'video': {
+                        content += `<rect x="${cx}" y="${cy}" width="${cw}" height="${ch * 0.72}" rx="10" fill="rgba(0,0,0,0.5)"/>`;
+                        content += `<circle cx="${cx + cw / 2}" cy="${cy + ch * 0.36}" r="70" fill="${c}66"/>`;
+                        content += `<path d="M ${cx + cw / 2 - 24} ${cy + ch * 0.36 - 36} L ${cx + cw / 2 + 36} ${cy + ch * 0.36} L ${cx + cw / 2 - 24} ${cy + ch * 0.36 + 36} Z" fill="#fdf6e3"/>`;
+                        content += `<rect x="${cx}" y="${cy + ch * 0.72 + 20}" width="${cw}" height="8" rx="4" fill="rgba(255,255,255,0.15)"/>`;
+                        content += `<rect x="${cx}" y="${cy + ch * 0.72 + 20}" width="${cw * 0.4}" height="8" rx="4" fill="${c}"/>`;
+                        break;
+                    }
+                    case 'image': {
+                        const cols = 4, rows = 3, gap = 16;
+                        const cw2 = (cw - gap * (cols - 1)) / cols;
+                        const ch2 = (ch - gap * (rows - 1)) / rows;
+                        for (let r = 0; r < rows; r++) {
+                            for (let col = 0; col < cols; col++) {
+                                const a = 0.15 + ((r * cols + col) * 0.07) % 0.5;
+                                content += `<rect x="${cx + col * (cw2 + gap)}" y="${cy + r * (ch2 + gap)}" width="${cw2}" height="${ch2}" rx="10" fill="${c}${hex(a)}"/>`;
+                            }
+                        }
+                        break;
+                    }
+                    case 'docs': {
+                        const pageW = Math.min(cw * 0.7, 820);
+                        const pageX = cx + (cw - pageW) / 2;
+                        content += `<rect x="${pageX}" y="${cy}" width="${pageW}" height="${ch}" rx="8" fill="rgba(255,255,255,0.04)"/>`;
+                        for (let i = 0; i < 22; i++) {
+                            const y = cy + 40 + i * 32;
+                            const w = i === 0 ? pageW * 0.4 : (pageW * 0.5) + ((i * 47) % (pageW * 0.4));
+                            content += `<rect x="${pageX + 40}" y="${y}" width="${Math.min(w, pageW - 80)}" height="${i === 0 ? 18 : 10}" rx="3" fill="${i === 0 ? c + 'aa' : 'rgba(255,255,255,0.16)'}"/>`;
+                        }
+                        break;
+                    }
+                    case 'settings': {
+                        content += `<rect x="${cx}" y="${cy}" width="240" height="${ch}" rx="8" fill="rgba(255,255,255,0.04)"/>`;
+                        for (let i = 0; i < 8; i++) {
+                            content += `<rect x="${cx + 20}" y="${cy + 30 + i * 56}" width="${100 + ((i * 13) % 60)}" height="12" rx="4" fill="${i === 2 ? c : 'rgba(255,255,255,0.16)'}"/>`;
+                        }
+                        for (let i = 0; i < 7; i++) {
+                            const y = cy + 30 + i * 60;
+                            content += `<rect x="${cx + 270}" y="${y}" width="${Math.min(cw * 0.35, cw - 380)}" height="14" rx="4" fill="rgba(255,255,255,0.20)"/>`;
+                            const on = i % 2 === 0;
+                            const tx = cx + cw - 100;
+                            content += `<rect x="${tx}" y="${y - 4}" width="70" height="28" rx="14" fill="${on ? c : 'rgba(255,255,255,0.12)'}"/>`;
+                            content += `<circle cx="${on ? tx + 52 : tx + 18}" cy="${y + 10}" r="10" fill="#fdf6e3"/>`;
+                        }
+                        break;
+                    }
+                    default: {
+                        for (let i = 0; i < 16; i++) {
+                            const w = 200 + ((i * 71) % 500);
+                            content += `<rect x="${cx}" y="${cy + 40 + i * 32}" width="${Math.min(w, cw)}" height="10" rx="3" fill="rgba(147,161,161,0.3)"/>`;
+                        }
+                    }
+                }
+
+                if (light) {
+                    content = content
+                        .replace(/rgba\(255,255,255,([\d.]+)\)/g, (m, a) => `rgba(0,0,0,${Math.min(1, a * 1.1).toFixed(3)})`)
+                        .replace(/rgba\(147,161,161,([\d.]+)\)/g, (m, a) => `rgba(88,110,117,${a})`);
+                }
+
+                const bgOuter = light ? '#ffffff' : '#001a22';
+                const winTop = light ? '#ffffff' : '#0d3a48';
+                const winBot = light ? '#f6f6f3' : '#04212a';
+                const winLine = light ? 'rgba(0,0,0,0.14)' : 'rgba(147,161,161,0.25)';
+
+                const title = fitStart(`${win.app} — ${win.title}`, 600, 16, ww - 200);
+                return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+    <defs>
+      <linearGradient id="wsel-winbg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${winTop}"/>
+        <stop offset="100%" stop-color="${winBot}"/>
+      </linearGradient>
+    </defs>
+    <rect width="${W}" height="${H}" fill="${bgOuter}"/>
+    <rect x="${wx}" y="${wy}" width="${ww}" height="${wh}" rx="14" fill="url(#wsel-winbg)" stroke="${winLine}" stroke-width="1"/>
+    <rect x="${wx}" y="${wy}" width="${ww}" height="${tbh}" rx="14" fill="${c}" opacity="0.85"/>
+    <rect x="${wx}" y="${wy + tbh - 14}" width="${ww}" height="14" fill="${c}" opacity="0.85"/>
+    <circle cx="${wx + 22}" cy="${wy + tbh / 2}" r="7" fill="rgba(0,0,0,0.35)"/>
+    <circle cx="${wx + 42}" cy="${wy + tbh / 2}" r="7" fill="rgba(0,0,0,0.35)"/>
+    <circle cx="${wx + 62}" cy="${wy + tbh / 2}" r="7" fill="rgba(0,0,0,0.35)"/>
+    <text x="${wx + ww / 2}" y="${wy + tbh / 2 + 6}" text-anchor="middle" font-family="Cantarell, sans-serif" font-size="16" font-weight="600" fill="#fdf6e3" opacity="0.95">${esc(title)}</text>
+    ${content}
+  </svg>`;
+            }
+
+            // Opacity of a neighbor row at distance x (in rows) from the selection.
+            function neighborOpacity(x) {
+                if (x <= 2) return 0.92 - 0.40 * (x - 1);
+                return Math.max(0, 0.52 * (1 - (x - 2) / 0.8));
+            }
+
+            // ---------- layout ----------
+            function computeLayout() {
+                const W = window.innerWidth, H = window.innerHeight;
+                const slotH = Math.max(44, Math.min(66, Math.round(H * 0.062)));
+                const selLabel = Math.max(34, Math.min(76, Math.round(H * 0.066)));
+                const selectedHeight = Math.round(selLabel * 1.95);
+                const searchHeight = 52;
+                const bandHeight = selectedHeight + searchHeight + 30;
+                return {
+                    W, H, slotH, selLabel, selectedHeight, searchHeight, bandHeight,
+                    bandTop: Math.round((H - bandHeight) / 2),
+                    iconSize: Math.round(slotH * 0.44),
+                    selectedIconSize: Math.round(selLabel * 1.55),
+                };
+            }
+
+            function applyLayout() {
+                layout = computeLayout();
+                labelSize = Math.max(18, Math.round(layout.slotH * 0.42));
+                selectedLabelSize = layout.selLabel;
+
+                layout.rowTextMax = (layout.W * 0.60 - layout.iconSize - labelSize * 0.5) * 0.96;
+                layout.selTextMax = (layout.W * 0.80 - layout.selectedIconSize - selectedLabelSize * 0.4) * 0.96;
+
+                bandEl.style.top = layout.bandTop + 'px';
+                bandEl.style.height = layout.bandHeight + 'px';
+                bandSelectedEl.style.height = layout.selectedHeight + 'px';
+                searchEntry.style.width = Math.min(layout.W - 96, 420) + 'px';
+                searchEntry.style.fontSize = '24px';
+            }
+
+            // ---------- neighbor rows ----------
+            function buildRows() {
+                rowsEl.innerHTML = '';
+                rowEls = [];
+                items.forEach((win, i) => {
+                    const row = document.createElement('div');
+                    row.className = 'wsel-row';
+                    row.style.height = layout.slotH + 'px';
+                    row.style.fontSize = labelSize + 'px';
+                    const label = fitStart(win.title, 600, labelSize, layout.rowTextMax);
+                    row.innerHTML = `
+      <div class="wsel-row-inner">
+        <div class="wsel-row-icon">${iconSVG(win.kind, win.color, layout.iconSize)}</div>
+        <div class="wsel-row-label">${esc(label)}</div>
+      </div>`;
+                    row.addEventListener('click', () => selectIndex(i));
+                    rowsEl.appendChild(row);
+                    rowEls.push(row);
+                });
+            }
+
+            // Only ~2 rows each side are visible; the rest are fully hidden (not shrunk).
+            function layoutRows() {
+                const L = layout;
+                const pos = scrollPos;
+                const a = L.bandTop - L.slotH / 2;
+                const b = L.bandTop + L.bandHeight + L.slotH / 2;
+                const mid = (a + b) / 2;
+                const half = (b - a) / 2;
+
+                rowEls.forEach((row, i) => {
+                    const d = i - pos;
+                    const x = Math.abs(d);
+                    let c, op;
+                    if (x >= 2.8) { row.style.display = 'none'; return; }
+
+                    if (x < 1) {
+                        // sliding into the middle: drifts toward the big title and fades out as it arrives
+                        c = mid + d * half;
+                        op = neighborOpacity(1) * ease((x - 0.2) / 0.8);
+                    } else {
+                        c = d > 0 ? b + (x - 1) * L.slotH : a - (x - 1) * L.slotH;
+                        op = neighborOpacity(x);
+                    }
+                    if (op < 0.01) { row.style.display = 'none'; return; }
+
+                    row.style.display = '';
+                    row.style.transform = `translate3d(0, ${(c - L.slotH / 2).toFixed(1)}px, 0)`;
+                    row.style.opacity = op.toFixed(3);
+                    row.style.pointerEvents = x < 0.6 ? 'none' : 'auto';
+                });
+
+                bandSelectedEl.style.opacity = ease(1 - Math.abs(selectedIndex - pos)).toFixed(3);
+                updateMarker();
+            }
+
+            // ---------- side scrubber ----------
+            function railY(i) {
+                const n = items.length;
+                const span = Math.max(1, railH - RAIL_PAD * 2);
+                if (n <= 1) return railH / 2;
+                return RAIL_PAD + (i / (n - 1)) * span;
+            }
+            function railIndexFromY(py) {
+                const n = items.length;
+                if (n <= 1) return 0;
+                const span = Math.max(1, railH - RAIL_PAD * 2);
+                return Math.max(0, Math.min(n - 1, Math.round(((py - RAIL_PAD) / span) * (n - 1))));
+            }
+
+            function buildRail() {
+                railH = railEl.clientHeight;
+                ticksEl.innerHTML = '';
+                items.forEach((w, i) => {
+                    const t = document.createElement('div');
+                    t.className = 'wsel-tick';
+                    t.style.top = railY(i).toFixed(1) + 'px';
+                    t.style.background = w.color;
+                    ticksEl.appendChild(t);
+                });
+                railEl.style.display = items.length ? '' : 'none';
+            }
+
+            function updateMarker() {
+                if (!items.length) return;
+                const p = Math.max(0, Math.min(items.length - 1, scrollPos));
+                const lo = Math.floor(p), hi = Math.min(items.length - 1, lo + 1);
+                const y = railY(lo) + (railY(hi) - railY(lo)) * (p - lo);
+                markerEl.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0)`;
+            }
+
+            function railPointer(e, jump) {
+                const r = railEl.getBoundingClientRect();
+                const py = e.clientY - r.top;
+                const idx = railIndexFromY(py);
+                const it = items[idx];
+                if (it) {
+                    tipEl.textContent = fitStart(`${it.app} — ${it.title}`, 700, 16, 340);
+                    tipEl.style.transform = `translateY(${(railY(idx) - 12).toFixed(1)}px)`;
+                    tipEl.classList.add('show');
+                }
+                if (jump) selectIndex(idx);
+            }
+            railEl.addEventListener('pointerdown', (e) => {
+                railDragging = true;
+                railEl.setPointerCapture(e.pointerId);
+                railPointer(e, true);
+            });
+            railEl.addEventListener('pointermove', (e) => railPointer(e, railDragging));
+            railEl.addEventListener('pointerup', () => { railDragging = false; tipEl.classList.remove('show'); });
+            railEl.addEventListener('pointercancel', () => { railDragging = false; tipEl.classList.remove('show'); });
+            railEl.addEventListener('pointerleave', () => { if (!railDragging) tipEl.classList.remove('show'); });
+
+            // ---------- band + background ----------
+            function updateBand() {
+                const win = items[selectedIndex];
+                if (!win) {
+                    bandSelectedEl.innerHTML = `<div class="wsel-sel-empty" style="font-size:${Math.round(selectedLabelSize * 0.7)}px">No matching windows</div>`;
+                    return;
+                }
+                const title = fitStart(win.title, 700, selectedLabelSize, layout.selTextMax);
+                bandSelectedEl.innerHTML = `
+    <div class="wsel-sel" style="font-size:${selectedLabelSize}px">
+      <div class="wsel-row-icon">${iconSVG(win.kind, win.color, layout.selectedIconSize)}</div>
+      <div class="wsel-sel-text">
+        <div class="wsel-sel-title">${esc(title)}</div>
+        <div class="wsel-sel-app" style="font-size:${Math.max(12, Math.round(selectedLabelSize * 0.3))}px">${esc(win.app)}</div>
+      </div>
+    </div>`;
+                bandSelectedEl.querySelector('.wsel-sel').addEventListener('click', activate);
+            }
+
+            function updateBackground() {
+                const win = items[selectedIndex];
+                const next = 1 - bgFront;
+                const nextEl = bgLayers[next], frontEl = bgLayers[bgFront];
+                nextEl.style.transition = 'none';
+                nextEl.style.opacity = '0';
+                nextEl.style.zIndex = '2';
+                frontEl.style.zIndex = '1';
+                nextEl.innerHTML = win ? revealedSVG(win, layout.W, layout.H) : '';
+                void nextEl.offsetWidth;
+                nextEl.style.transition = 'opacity 150ms ease-out';
+                nextEl.style.opacity = '1';
+                bgFront = next;
+            }
+
+            function updateHint() {
+                const n = items.length;
+                const pos = n ? `${selectedIndex + 1} / ${n}` : '0 / 0';
+                hintEl.textContent = `${pos}   •   ↑↓ Navigate   •   Drag the right rail to jump   •   Enter / Click to Activate   •   Esc to Close`;
+            }
+
+            // ---------- selection / tween ----------
+            function selectIndex(index, { instant = false } = {}) {
+                if (!items.length) return;
+                index = Math.max(0, Math.min(items.length - 1, index));
+                if (index === selectedIndex && !instant) return;
+                selectedIndex = index;
+                scrollTarget = index;
+
+                if (instant) {
+                    scrollPos = index;
+                    if (tweenId) { cancelAnimationFrame(tweenId); tweenId = 0; }
+                    layoutRows();
+                } else {
+                    startTween();
+                }
+
+                updateBand();
+                updateBackground();
+                updateHint();
+            }
+
+            function startTween() {
+                if (tweenId) return;
+                lastFrame = performance.now();
+                const step = (now) => {
+                    const dt = Math.min(now - lastFrame, 50);
+                    lastFrame = now;
+                    const diff = scrollTarget - scrollPos;
+                    if (Math.abs(diff) < 0.002) {
+                        scrollPos = scrollTarget;
+                        layoutRows();
+                        tweenId = 0;
+                        return;
+                    }
+                    scrollPos += diff * (1 - Math.exp(-dt / 70));
+                    layoutRows();
+                    tweenId = requestAnimationFrame(step);
+                };
+                tweenId = requestAnimationFrame(step);
+            }
+
+            // ---------- search / filter (within the opened list) ----------
+            function applyFilter() {
+                const tokens = searchEntry.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+                const prev = items[selectedIndex];
+                items = tokens.length
+                    ? allItems.filter(w => {
+                        const hay = (w.app + ' ' + w.title).toLowerCase();
+                        return tokens.every(t => hay.includes(t));
+                    })
+                    : allItems.slice();
+
+                let idx = prev ? items.indexOf(prev) : -1;
+                if (idx < 0) idx = 0;
+                selectedIndex = idx;
+                scrollPos = scrollTarget = idx;
+                if (tweenId) { cancelAnimationFrame(tweenId); tweenId = 0; }
+
+                buildRows();
+                buildRail();
+                layoutRows();
+                updateBand();
+                updateBackground();
+                updateHint();
+            }
+            searchEntry.addEventListener('input', applyFilter);
+
+            // ---------- activate / cancel ----------
+            function activate() {
+                if (!isOpen || !items.length) return;
+                overlayEl.classList.add('activating');
+                const win = items[selectedIndex];
+                setTimeout(() => {
+                    overlayEl.classList.remove('activating');
+                    close();
+                    if (onActivateCb && win) onActivateCb(win);
+                }, 220);
+            }
+            function cancel() {
+                if (!isOpen) return;
+                overlayEl.classList.add('cancelling');
+                setTimeout(() => {
+                    overlayEl.classList.remove('cancelling');
+                    close();
+                }, 160);
+            }
+            revealedEl.addEventListener('click', activate);
+
+            // ---------- events ----------
+            document.addEventListener('keydown', (e) => {
+                if (!isOpen) return;
+                const inEntry = e.target === searchEntry;
+
+                if (!inEntry && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key.length === 1 || e.key === 'Backspace')) {
+                    searchEntry.focus();
+                    return;
+                }
+
+                switch (e.key) {
+                    case 'ArrowDown': e.preventDefault(); selectIndex(selectedIndex + 1); break;
+                    case 'ArrowUp': e.preventDefault(); selectIndex(selectedIndex - 1); break;
+                    case 'PageDown': e.preventDefault(); selectIndex(selectedIndex + 5); break;
+                    case 'PageUp': e.preventDefault(); selectIndex(selectedIndex - 5); break;
+                    case 'Enter': e.preventDefault(); activate(); break;
+                    case 'Escape':
+                        e.preventDefault();
+                        if (searchEntry.value) { searchEntry.value = ''; applyFilter(); }
+                        else cancel();
+                        break;
+                    case 'Home': if (!inEntry) { e.preventDefault(); selectIndex(0); } break;
+                    case 'End': if (!inEntry) { e.preventDefault(); selectIndex(items.length - 1); } break;
+                }
+            });
+
+            document.addEventListener('wheel', (e) => {
+                if (!isOpen) return;
+                e.preventDefault();
+                wheelAcc += e.deltaY;
+                const STEP = 60;
+                while (Math.abs(wheelAcc) >= STEP) {
+                    const s = Math.sign(wheelAcc);
+                    selectIndex(selectedIndex + s);
+                    wheelAcc -= s * STEP;
+                }
+            }, { passive: false });
+
+            window.addEventListener('resize', () => {
+                if (!isOpen) return;
+                applyLayout();
+                buildRows();
+                buildRail();
+                layoutRows();
+                updateBand();
+                updateBackground();
+            });
+
+            // ---------- public ----------
+            function open(list, startIndex, onActivate) {
+                if (!list || !list.length) return;
+                allItems = list.slice();
+                onActivateCb = onActivate || null;
+                items = allItems.slice();
+                searchEntry.value = '';
+                wheelAcc = 0;
+
+                overlayEl.classList.add('open');
+                overlayEl.setAttribute('aria-hidden', 'false');
+
+                applyLayout();
+                selectedIndex = Math.max(0, Math.min(items.length - 1, startIndex || 0));
+                scrollPos = scrollTarget = selectedIndex;
+                if (tweenId) { cancelAnimationFrame(tweenId); tweenId = 0; }
+                buildRows();
+                buildRail();
+                layoutRows();
+                updateBand();
+                updateBackground();
+                updateHint();
+
+                isOpen = true;
+                requestAnimationFrame(() => { if (isOpen) searchEntry.focus(); });
+            }
+
+            function close() {
+                if (!isOpen) return;
+                isOpen = false;
+                overlayEl.classList.remove('open', 'activating', 'cancelling');
+                overlayEl.setAttribute('aria-hidden', 'true');
+                if (tweenId) { cancelAnimationFrame(tweenId); tweenId = 0; }
+                railDragging = false;
+                tipEl.classList.remove('show');
+                allItems = [];
+                items = [];
+                rowEls = [];
+                rowsEl.innerHTML = '';
+                ticksEl.innerHTML = '';
+            }
+
+            return { open, close, isOpen: () => isOpen };
+        })();
+
+        // ---------- overlay bridges ----------
+        function openWindowOverlayForGroup(group) {
+            if (!group || !group.indices || !group.indices.length) return;
+            if (dragActive) return;
+            closeWorkspaceGroupFlyout(true);
+            const list = group.indices.map(i => WINDOWS[i]).filter(Boolean);
+            if (!list.length) return;
+            const start = Math.max(0, group.indices.indexOf(sel));
+            wsel.open(list, start, activateGlobalWindow);
+        }
+
+        function activateGlobalWindow(win) {
+            if (!win) return;
+            let gi = win._globalIndex;
+            if (gi == null) gi = WINDOWS.indexOf(win);
+            if (gi < 0) return;
+            sel = lastSel = gi;
+            const ws = workspaces.find(w => w.windowIndices.includes(gi));
+            if (ws) activeWs = ws.index;
+            renderWorkspaceIndicator();
+            showToast(`Focused ${win.app} — ${win.title} (Workspace ${activeWs + 1})`);
+        }
+
+        // ==================== INIT ====================
+        applyBandSize();
+        rebuild(true);
+    </script>
+</body>
+
+</html>
