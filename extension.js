@@ -1,22 +1,23 @@
+// ===== FILE: ./extension.js =====
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import * as ExtensionModule from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import * as WorkspaceIndicatorModule from './lib/workspaceIndicator.js';
+import { WorkspaceIndicator } from './lib/workspaceIndicator.js';
+import { TitleBarMoveMonitor } from './lib/titleBarMoveMonitor.js';
 import * as OverlayService from './lib/overlayService.js';
 import * as DBusService from './lib/dbusService.js';
 import * as Interactions from './lib/interactions.js';
 import * as Model from './lib/model.js';
 import * as WorkspaceActions from './lib/workspaceActions.js';
 
-import { initExternalDrag, destroyExternalDrag } from './lib/externalDrag.js'
+import { initExternalDrag, destroyExternalDrag } from './lib/externalDrag.js';
 
 import { initLogging, createLogger } from './logger.js';
 
 const journal = createLogger(import.meta.url);
 
-// Minimum time between two accepted scroll steps.
 const SCROLL_THROTTLE_MS = 150;
 
 export default class TopNotchWorkspaces extends ExtensionModule.Extension {
@@ -39,11 +40,7 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
         OverlayService.initOverlayService(settings);
         DBusService.initDBusService();
 
-        // Commands the indicator can invoke. `showGroupWindows` is the
-        // click path on a badged app group: the full selector, scoped to
-        // that workspace-local group. The drag path never reaches here —
-        // it goes to GroupFlyout instead.
-        this._indicator = new WorkspaceIndicatorModule.WorkspaceIndicator(settings, {
+        this._indicator = new WorkspaceIndicator(settings, {
             showAllApps: OverlayService.showAllApps,
             showAllWindows: OverlayService.showAllWindows,
             showWorkspaceWindows: OverlayService.showWorkspaceWindows,
@@ -51,7 +48,7 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
         });
         Main.panel.addToStatusArea('workspace-indicator', this._indicator, 0, 'left');
 
-        this._titleBarMoveMonitor = new WorkspaceIndicatorModule.TitleBarMoveMonitor();
+        this._titleBarMoveMonitor = new TitleBarMoveMonitor();
 
         this._lastScrollTime = 0;
         Main.panel.connectObject('scroll-event',
@@ -78,10 +75,6 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
         Interactions.destroyTooltip();
     }
 
-    // Top-bar scroll: step focus through the model's flat window order —
-    // every window across every non-overflow workspace, deduped for sticky
-    // windows. Workspaces with >5 windows (`direct === false`) are excluded
-    // entirely, so their windows are not in the cycle.
     _handleScroll(event) {
         if (event.type() !== Clutter.EventType.SCROLL)
             return Clutter.EVENT_PROPAGATE;
