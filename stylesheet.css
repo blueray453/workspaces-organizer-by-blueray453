@@ -458,14 +458,6 @@
     font-weight: 500;
 }
 
-.selector-hint {
-    color: #e8efed;
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 1px;
-    text-align: center;
-}
-
 /* Underline-only search field, scoped to the selector. */
 .window-selector-overlay .overlay-search-entry {
     background-color: transparent;
