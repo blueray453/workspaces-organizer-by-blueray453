@@ -2,8 +2,8 @@
    Solarized Dark palette reference:
    base03 #002b36  base02 #073642  base01 #586e75  base00 #657b83
    base0  #839496  base1  #93a1a1  base2  #eee8d5  base3  #fdf6e3
-   yellow #b58900  orange #cb4b16  red #dc322f  magenta #d33682
-   violet #6c71c4  blue   #268bd2  cyan #2aa198  green     #859900
+   yellow #b58900  orange #cb4b16  red    #dc322f  magenta #d33682
+   violet #6c71c4  blue   #268bd2  cyan   #2aa198  green   #859900
    ============================================================ */
 
 /* ===================== INDICATOR ===================== */
@@ -117,45 +117,49 @@
    All font sizes are >= the tooltip's 22px (see .dmenu-tooltip). */
 
 .ws-flyout {
-    background-color: rgba(0, 20, 28, 0.98);
-    border: 1px solid rgba(147, 161, 161, 0.42);
+    background-color: rgba(0, 26, 34, 0.34);
+    border: 1px solid rgba(147, 161, 161, 0.25);
     border-radius: 20px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.60);
+    box-shadow: 0 0 40px 16px rgba(0, 26, 34, 0.34);
 }
 
+/* Same look as .selector-band-app-label */
 .ws-flyout-head {
     color: #4fd1c5;
     font-size: 24px;
-    font-weight: 800;
-    letter-spacing: 2px;
+    font-weight: 700;
+    letter-spacing: 3px;
 }
 
 /* ---------- rows ---------- */
 
+/* Same backing as .selector-row-inner */
 .ws-flyout-row {
     padding: 0 20px;
     border: 1px solid transparent;
     border-radius: 16px;
-    background-color: rgba(0, 20, 28, 0.45);
+    background-color: rgba(0, 18, 26, 0.58);
     transition-duration: 120ms;
 }
 
 .ws-flyout-row.sel {
-    background-color: rgba(10, 70, 72, 0.92);
+    background-color: rgba(10, 70, 72, 0.60);
     border-color: #2aa198;
 }
 
+/* Same look as .selector-band-title-label */
 .ws-flyout-row-title {
-    color: #eee8d5;
-    font-weight: 600;
+    color: #fffaf0;
+    font-weight: 700;
 }
 
+/* Same look as .selector-band-app-label */
 .ws-flyout-row-app {
     color: #4fd1c5;
     font-size: 22px;
     font-weight: 700;
-    letter-spacing: 2px;
-    margin-top: 4px;
+    letter-spacing: 3px;
+    margin-top: 2px;
 }
 
 .ws-flyout-row-badge {
@@ -165,6 +169,26 @@
     padding: 4px 14px;
     font-size: 22px;
     font-weight: 700;
+}
+
+/* ---------- cancel zone (drag only) ---------- */
+
+.ws-flyout-cancel {
+    background-color: rgba(220, 50, 47, 0.14);
+    border: 2px dashed rgba(220, 50, 47, 0.7);
+    border-radius: 14px;
+}
+
+.ws-flyout-cancel.active {
+    background-color: rgba(220, 50, 47, 0.45);
+    border-style: solid;
+}
+
+.ws-flyout-cancel-label {
+    color: #fffaf0;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 3px;
 }
 
 /* ---------- edge hold zones ---------- */
