@@ -153,9 +153,10 @@
     font-weight: 700;
 }
 
-/* Same look as .selector-band-app-label */
+/* Uniform with the title: row text is a single colour. The size and
+   weight difference still separates title from app name. */
 .ws-flyout-row-app {
-    color: #4fd1c5;
+    color: #fffaf0;
     font-size: 22px;
     font-weight: 700;
     letter-spacing: 3px;
