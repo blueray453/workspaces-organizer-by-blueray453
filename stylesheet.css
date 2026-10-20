@@ -111,21 +111,20 @@
 }
 
 /* ===================== ANCHORED FLYOUT (the #fan) =====================
-   Absolute layout: every child is positioned from JS, exactly like the
-   prototype's #fan.local-anchored block. Panel geometry is set from JS;
-   this block only styles colours and font sizes.
-   All font sizes are >= the tooltip's 22px (see .dmenu-tooltip). */
+   Solarized Dark styling: base03 body, base02 rows, base1 body text,
+   cyan accents for header/badge, blue accent for the selected row.
+   Absolute layout: every child is positioned from JS; this block only
+   styles colours, borders, fonts. */
 
 .ws-flyout {
-    background-color: rgba(0, 26, 34, 0.34);
-    border: 1px solid rgba(147, 161, 161, 0.25);
+    background-color: rgba(0, 43, 54, 0.42);           /* base03 */
+    border: 1px solid rgba(88, 110, 117, 0.30);        /* base01 */
     border-radius: 20px;
-    box-shadow: 0 0 40px 16px rgba(0, 26, 34, 0.34);
+    box-shadow: 0 0 40px 16px rgba(0, 43, 54, 0.42);
 }
 
-/* Same look as .selector-band-app-label */
 .ws-flyout-head {
-    color: #4fd1c5;
+    color: #2aa198;                                    /* cyan */
     font-size: 24px;
     font-weight: 700;
     letter-spacing: 3px;
@@ -133,30 +132,28 @@
 
 /* ---------- rows ---------- */
 
-/* Same backing as .selector-row-inner */
 .ws-flyout-row {
     padding: 0 20px;
     border: 1px solid transparent;
     border-radius: 16px;
-    background-color: rgba(0, 18, 26, 0.58);
+    background-color: rgba(7, 54, 66, 0.58);           /* base02 */
     transition-duration: 120ms;
 }
 
 .ws-flyout-row.sel {
-    background-color: rgba(10, 70, 72, 0.60);
-    border-color: #2aa198;
+    background-color: rgba(38, 139, 210, 0.26);        /* blue tint */
+    border-color: #268bd2;                             /* blue */
 }
 
-/* Same look as .selector-band-title-label */
+/* Body text: base1 is Solarized's emphasized-content colour. */
 .ws-flyout-row-title {
-    color: #fffaf0;
+    color: #93a1a1;                                    /* base1 */
     font-weight: 700;
 }
 
-/* Uniform with the title: row text is a single colour. The size and
-   weight difference still separates title from app name. */
+/* Uniform with the title, per prior request. */
 .ws-flyout-row-app {
-    color: #fffaf0;
+    color: #93a1a1;                                    /* base1 */
     font-size: 22px;
     font-weight: 700;
     letter-spacing: 3px;
@@ -164,8 +161,8 @@
 }
 
 .ws-flyout-row-badge {
-    color: #4fd1c5;
-    background-color: rgba(79, 209, 197, 0.16);
+    color: #2aa198;                                    /* cyan */
+    background-color: rgba(42, 161, 152, 0.16);
     border-radius: 14px;
     padding: 4px 14px;
     font-size: 22px;
@@ -175,18 +172,18 @@
 /* ---------- cancel zone (drag only) ---------- */
 
 .ws-flyout-cancel {
-    background-color: rgba(220, 50, 47, 0.14);
-    border: 2px dashed rgba(220, 50, 47, 0.7);
+    background-color: rgba(203, 75, 22, 0.16);         /* orange */
+    border: 2px dashed rgba(203, 75, 22, 0.75);
     border-radius: 14px;
 }
 
 .ws-flyout-cancel.active {
-    background-color: rgba(220, 50, 47, 0.45);
+    background-color: rgba(220, 50, 47, 0.45);         /* red */
     border-style: solid;
 }
 
 .ws-flyout-cancel-label {
-    color: #fffaf0;
+    color: #eee8d5;                                    /* base2 — readable on red */
     font-size: 22px;
     font-weight: 700;
     letter-spacing: 3px;
@@ -195,33 +192,35 @@
 /* ---------- edge hold zones ---------- */
 
 .ws-flyout-edge-label {
-    color: #93a1a1;
+    color: #586e75;                                    /* base01 — dim until active */
     font-size: 22px;
     font-weight: 700;
     letter-spacing: 2px;
 }
 
 .ws-flyout-edge.active .ws-flyout-edge-label {
-    color: #fffaf0;
+    color: #eee8d5;                                    /* base2 */
 }
 
 /* ---------- rail ---------- */
 
 .ws-flyout-rail-track {
-    background-color: rgba(238, 232, 213, 0.6);
+    background-color: rgba(238, 232, 213, 0.55);       /* base2 */
     border-radius: 3px;
     box-shadow: 0 0 0 2px rgba(0, 22, 30, 0.6);
 }
 
 .ws-flyout-rail-tick {
+    /* Colour is set inline from JS, using UI.colorForApp() which already
+       returns Solarized accent values. Nothing to override here. */
     border-radius: 3px;
     box-shadow: 0 0 0 2px rgba(0, 22, 30, 0.8);
 }
 
 .ws-flyout-rail-marker {
-    background-color: #fffaf0;
+    background-color: #fdf6e3;                         /* base3 */
     border-radius: 6px;
-    box-shadow: 0 0 0 3px #001a22;
+    box-shadow: 0 0 0 3px rgba(0, 22, 30, 0.8);
 }
 
 /* ===================== CLONE PREVIEWS ===================== */
