@@ -551,7 +551,7 @@
 
 .tagged-border {
     background: none;
-    border: 4px solid rgba(181, 137, 0, 1);    /* yellow */
+    border: 4px solid rgba(133, 153, 0, 1);    /* yellow */
     border-radius: 12px;
     pointer-events: none;
 }
