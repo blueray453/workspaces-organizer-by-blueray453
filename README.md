@@ -269,6 +269,7 @@ If you find this extension useful and want to support development:
 ### Previous Versions
 - Built on Workspace Indicator foundation
 - Enhancements for modern GNOME Shell versions
+- Complete rewrite of ux took place after 09c41b52cb9e7587f1314085ff382491a65acce3
 
 ## See Also
 
