@@ -541,20 +541,17 @@
 /* ===================== FOCUSED WINDOW BORDER ===================== */
 
 .focused-border {
-    border: 4px solid rgba(42, 161, 152, 1);
-    border-radius: 12px;
     background: none;
+    border: 4px solid rgba(42, 161, 152, 1);   /* cyan */
+    border-radius: 12px;
     pointer-events: none;
 }
 
 /* ===================== TAGGED WINDOW BORDER ===================== */
 
-.tag-border {
+.tagged-border {
     background: none;
+    border: 4px solid rgba(181, 137, 0, 1);    /* yellow */
     border-radius: 12px;
     pointer-events: none;
-}
-
-.marked-border {
-    border: 4px solid rgba(181, 137, 0, 1);
 }
