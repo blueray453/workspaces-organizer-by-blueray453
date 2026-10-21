@@ -6,6 +6,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import { WorkspaceIndicator } from './lib/workspaceIndicator.js';
 import { TitleBarMoveMonitor } from './lib/titleBarMoveMonitor.js';
+import { PinnedEdgeFlyout } from './lib/pinnedEdgeFlyout.js';
 import * as OverlayService from './lib/overlayService.js';
 import * as DBusService from './lib/dbusService.js';
 import * as Interactions from './lib/interactions.js';
@@ -27,6 +28,7 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
         super(metadata);
         this._indicator = null;
         this._titleBarMoveMonitor = null;
+        this._pinnedEdgeFlyout = null;
         this._lastScrollTime = 0;
     }
 
@@ -54,6 +56,9 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
         Main.panel.addToStatusArea('workspace-indicator', this._indicator, 0, 'left');
 
         this._titleBarMoveMonitor = new TitleBarMoveMonitor();
+        this._pinnedEdgeFlyout = new PinnedEdgeFlyout(settings, {
+            onShowApps: OverlayService.showAllApps,
+        });
 
         this._lastScrollTime = 0;
         Main.panel.connectObject('scroll-event',
@@ -67,6 +72,10 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
         DBusService.destroyDBusService();
         OverlayService.destroyOverlayService();
 
+        if (this._pinnedEdgeFlyout) {
+            this._pinnedEdgeFlyout.destroy();
+            this._pinnedEdgeFlyout = null;
+        }
         if (this._titleBarMoveMonitor) {
             this._titleBarMoveMonitor.destroy();
             this._titleBarMoveMonitor = null;

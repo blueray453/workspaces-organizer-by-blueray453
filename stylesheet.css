@@ -16,8 +16,6 @@
     spacing: 8px;
 }
 
-/* One workspace capsule. Content-sized (never x_expand) so the
-   overflow / grouping math in the indicator has a real natural width. */
 .workspace-thumbnail {
     padding: 10px 8px 8px 8px;
     background-color: rgba(7, 54, 66, 0.65);
@@ -40,7 +38,6 @@
     spacing: 6px;
 }
 
-/* Same mode, denser metrics: mirrors .ws-thumbs.grouped-layout. */
 .workspace-indicator-class.grouped-layout .workspace-thumbnail {
     padding: 8px 6px 6px 6px;
 }
@@ -55,8 +52,6 @@
     font-weight: 600;
     padding: 0 6px;
 }
-
-/* ---------- window / app icons ---------- */
 
 .window-preview-icon {
     border-radius: 8px;
@@ -80,7 +75,6 @@
     box-shadow: 0 0 0 2px #4fd1c5;
 }
 
-/* Dock style numeric badge (position + size set from JS). */
 .ws-badge {
     background-color: #101820;
     border: 1px solid #fdf6e3;
@@ -110,50 +104,42 @@
     background-color: rgba(38, 139, 210, 0.18);
 }
 
-/* ===================== ANCHORED FLYOUT (the #fan) =====================
-   Solarized Dark styling: base03 body, base02 rows, base1 body text,
-   cyan accents for header/badge, blue accent for the selected row.
-   Absolute layout: every child is positioned from JS; this block only
-   styles colours, borders, fonts. */
+/* ===================== ANCHORED FLYOUT (the #fan) ===================== */
 
 .ws-flyout {
-    background-color: rgba(0, 43, 54, 0.42);           /* base03 */
-    border: 1px solid rgba(88, 110, 117, 0.30);        /* base01 */
+    background-color: rgba(0, 43, 54, 0.42);
+    border: 1px solid rgba(88, 110, 117, 0.30);
     border-radius: 20px;
     box-shadow: 0 0 40px 16px rgba(0, 43, 54, 0.42);
 }
 
 .ws-flyout-head {
-    color: #2aa198;                                    /* cyan */
+    color: #2aa198;
     font-size: 24px;
     font-weight: 700;
     letter-spacing: 3px;
 }
 
-/* ---------- rows ---------- */
-
 .ws-flyout-row {
     padding: 0 20px;
     border: 1px solid transparent;
     border-radius: 16px;
-    background-color: rgba(7, 54, 66, 0.58);           /* base02 */
+    background-color: rgba(7, 54, 66, 0.58);
     transition-duration: 120ms;
 }
 
 .ws-flyout-row.sel {
-    background-color: rgba(38, 139, 210, 0.26);        /* blue tint */
-    border-color: #268bd2;                             /* blue */
+    background-color: rgba(38, 139, 210, 0.26);
+    border-color: #268bd2;
 }
 
-/* Body text: base1 is Solarized's emphasized-content colour. */
 .ws-flyout-row-title {
-    color: #93a1a1;                                    /* base1 */
+    color: #93a1a1;
     font-weight: 700;
 }
 
-/* Uniform with the title, per prior request. */
 .ws-flyout-row-app {
-    color: #93a1a1;                                    /* base1 */
+    color: #93a1a1;
     font-size: 22px;
     font-weight: 700;
     letter-spacing: 3px;
@@ -161,7 +147,7 @@
 }
 
 .ws-flyout-row-badge {
-    color: #2aa198;                                    /* cyan */
+    color: #2aa198;
     background-color: rgba(42, 161, 152, 0.16);
     border-radius: 14px;
     padding: 4px 14px;
@@ -169,56 +155,48 @@
     font-weight: 700;
 }
 
-/* ---------- cancel zone (drag only) ---------- */
-
 .ws-flyout-cancel {
-    background-color: rgba(203, 75, 22, 0.16);         /* orange */
+    background-color: rgba(203, 75, 22, 0.16);
     border: 2px dashed rgba(203, 75, 22, 0.75);
     border-radius: 14px;
 }
 
 .ws-flyout-cancel.active {
-    background-color: rgba(220, 50, 47, 0.45);         /* red */
+    background-color: rgba(220, 50, 47, 0.45);
     border-style: solid;
 }
 
 .ws-flyout-cancel-label {
-    color: #eee8d5;                                    /* base2 — readable on red */
+    color: #eee8d5;
     font-size: 22px;
     font-weight: 700;
     letter-spacing: 3px;
 }
 
-/* ---------- edge hold zones ---------- */
-
 .ws-flyout-edge-label {
-    color: #586e75;                                    /* base01 — dim until active */
+    color: #586e75;
     font-size: 22px;
     font-weight: 700;
     letter-spacing: 2px;
 }
 
 .ws-flyout-edge.active .ws-flyout-edge-label {
-    color: #eee8d5;                                    /* base2 */
+    color: #eee8d5;
 }
 
-/* ---------- rail ---------- */
-
 .ws-flyout-rail-track {
-    background-color: rgba(238, 232, 213, 0.55);       /* base2 */
+    background-color: rgba(238, 232, 213, 0.55);
     border-radius: 3px;
     box-shadow: 0 0 0 2px rgba(0, 22, 30, 0.6);
 }
 
 .ws-flyout-rail-tick {
-    /* Colour is set inline from JS, using UI.colorForApp() which already
-       returns Solarized accent values. Nothing to override here. */
     border-radius: 3px;
     box-shadow: 0 0 0 2px rgba(0, 22, 30, 0.8);
 }
 
 .ws-flyout-rail-marker {
-    background-color: #fdf6e3;                         /* base3 */
+    background-color: #fdf6e3;
     border-radius: 6px;
     box-shadow: 0 0 0 3px rgba(0, 22, 30, 0.8);
 }
@@ -432,9 +410,6 @@
     background-color: rgba(220, 50, 47, 0.22);
 }
 
-/* The band is the prototype's gradient scrim: St cannot do a three stop
-   vertical gradient, so a flat low alpha + a very wide soft shadow is
-   used to reproduce the "nothing, then a slab, then nothing" read. */
 .selector-band {
     background-color: rgba(0, 26, 34, 0.34);
     box-shadow: 0 0 90px 48px rgba(0, 26, 34, 0.34);
@@ -461,8 +436,6 @@
     margin-top: 2px;
 }
 
-/* Neighbor rows: uniform size, capsule backing instead of a CSS halo
-   (St has no text-shadow), same opacity ramp as neighborOpacity(). */
 .selector-row {
     padding: 0;
 }
@@ -482,7 +455,6 @@
     font-weight: 500;
 }
 
-/* Underline-only search field, scoped to the selector. */
 .window-selector-overlay .overlay-search-entry {
     background-color: transparent;
     border: none;
@@ -504,8 +476,6 @@
     color: #93a1a1;
     icon-size: 0px;
 }
-
-/* ---------- side scrubber ---------- */
 
 .selector-rail {
     background-color: rgba(0, 18, 26, 0.58);
@@ -542,7 +512,7 @@
 
 .focused-border {
     background: none;
-    border: 4px solid rgba(42, 161, 152, 1);   /* cyan */
+    border: 4px solid rgba(42, 161, 152, 1);
     border-radius: 12px;
     pointer-events: none;
 }
@@ -551,18 +521,12 @@
 
 .selected-border {
     background: none;
-    border: 4px solid rgba(133, 153, 0, 1);    /* yellow */
+    border: 4px solid rgba(133, 153, 0, 1);
     border-radius: 12px;
     pointer-events: none;
 }
 
-/* ===================== DMENU / GENERIC PICKER =====================
-   Compact centred panel over a lightly tinted backdrop; click outside
-   to cancel. Reuses .launcher-scroll and .overlay-search-entry. With
-   more than 5 items the list is the flyout PagedStrip, which also
-   reuses .ws-flyout-edge / .ws-flyout-rail-* above.
-   Panel padding / spacing must match PANEL_PADDING / SPACING in
-   genericOverlay.js. */
+/* ===================== DMENU / GENERIC PICKER ===================== */
 
 .dmenu-overlay {
     background-color: rgba(0, 26, 34, 0.10);
@@ -592,12 +556,10 @@
     padding-top: 4px;
 }
 
-/* strip edge labels ("▼ 3 more below") */
 .dmenu-panel .ws-flyout-edge-label {
     font-size: 30px;
 }
 
-/* --- rows --- */
 .dmenu-results-box {
     spacing: 6px;
     padding: 4px 8px;
@@ -615,7 +577,6 @@
     background-color: rgba(7, 54, 66, 0.82);
 }
 
-/* keyboard / pointer cursor */
 .dmenu-result-row.sel {
     background-color: rgba(38, 139, 210, 0.26);
     border-color: #268bd2;
@@ -631,7 +592,6 @@
     color: #fdf6e3;
 }
 
-/* ---- multi-select: prototype .menu-item.selected + .enter-key ---- */
 .dmenu-result-row.selected {
     background-color: #0d4651;
     border-color: #17606b;
@@ -641,7 +601,6 @@
     color: #fdf6e3;
 }
 
-/* cursor sitting on a checked row */
 .dmenu-result-row.selected.sel {
     border-color: #2aa198;
 }
@@ -662,7 +621,6 @@
     padding: 16px;
 }
 
-/* ---- options section ---- */
 .dmenu-controls {
     spacing: 6px;
 }
@@ -718,7 +676,6 @@
     border-color: #267681;
 }
 
-/* ---- footer (multi) ---- */
 .dmenu-footer {
     spacing: 16px;
 }
@@ -740,4 +697,47 @@
 
 .dmenu-confirm:hover {
     background-color: #21877e;
+}
+
+/* ===================== LEFT-EDGE PINNED-APPS FLYOUT =====================
+   The flyout is a Dash.Dash subclass forced vertical. Its internal
+   .dash-background is suppressed; the OUTER .pinned-edge-dash actor
+   carries the visual so we don't fight upstream's sizerBox BindConstraints. */
+
+.pinned-edge-dash {
+    background-color: rgba(0, 43, 54, 0.97);
+    border: 1px solid rgba(88, 110, 117, 0.35);
+    border-left-width: 0;
+    border-radius: 0 20px 20px 0;
+    padding: 12px 8px;
+    box-shadow: 4px 0 32px 8px rgba(0, 22, 30, 0.55);
+}
+
+.pinned-edge-dash .dash-item-container .overview-tile .app-grid-running-dot {
+    width: 24px;
+    height: 3px;
+}
+
+.pinned-edge-dash .dash-background {
+    background: none;
+    border: none;
+    box-shadow: none;
+}
+
+.pinned-edge-dash .dash-item-container .overview-tile,
+.pinned-edge-dash .dash-item-container .app-well-app,
+.pinned-edge-dash .dash-item-container .show-apps {
+    padding: 6px;
+}
+
+/* Tooltips repositioned at runtime; visual styling here. */
+.pinned-edge-dash .dash-label {
+    background-color: rgba(0, 22, 30, 0.92);
+    color: #fdf6e3;
+    border: 1px solid rgba(42, 161, 152, 0.55);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 22px;
+    font-weight: 600;
+    text-align: left;
 }
