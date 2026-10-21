@@ -9,11 +9,10 @@ try { GioUnix = imports.gi.GioUnix; } catch (e) { GioUnix = null; }
 
 const BUS_NAME = 'io.github.blueray453.TopNotchWorkspaces';
 const BUS_PATH = '/io/github/blueray453/TopNotchWorkspaces/Overlay';
-const IFACE = 'io.github.blueray453.TopNotchWorkspaces.Overlay';
 
 const IFACE_XML = `
 <node>
-   <interface name="${IFACE}">
+   <interface name="io.github.blueray453.TopNotchWorkspaces.Overlay">
       <method name="Show">
          <arg type="as" direction="in" name="items"/>
          <arg type="b"  direction="in" name="multi"/>
@@ -25,11 +24,34 @@ const IFACE_XML = `
    </interface>
 </node>`;
 
-function usage() {
-    printerr(`Usage: gdmenu [--multi] [--hint TEXT] [--fullscreen] [--help]
-Reads items from stdin (one per line) and prints the picked item(s).
-Exit: 0 selected  •  1 cancelled  •  2 extension not enabled / error`);
-    System.exit(1);
+const HELP_TEXT = `Usage: gdmenu [OPTIONS]
+
+Reads items from stdin (one per line), opens the TopNotch picker overlay,
+and prints the user's choice to stdout (one picked label per line).
+
+Options:
+  --multi          Enable multi-select. Tab, Ctrl+Space, or Shift+Enter
+                   toggle the row under the cursor; Enter confirms and
+                   prints every checked row (or the cursor row if none
+                   are checked).
+  --hint TEXT      Custom hint text shown in the search entry.
+  --fullscreen     Use the full-monitor launcher layout. Without this
+                   flag, gdmenu opens a compact centred panel and a
+                   click outside it cancels.
+  -h, --help       Show this help and exit.
+
+Exit codes:
+  0   selected      — stdout contains the picked label(s)
+  1   cancelled     — Esc, click outside the panel, or empty stdin
+  2   D-Bus error   — extension not enabled, or the call failed
+
+Requires the TopNotchWorkspaces GNOME Shell extension. The extension
+installs this script as a symlink at ~/.local/bin/gdmenu on enable().`;
+
+function usage({ exitCode = 1, toStderr = true } = {}) {
+    if (toStderr) printerr(HELP_TEXT);
+    else print(HELP_TEXT);
+    System.exit(exitCode);
 }
 
 function readStdinLines() {
@@ -47,20 +69,35 @@ function readStdinLines() {
 }
 
 function main() {
-    let multi = false, hint = '', fullscreen = false;
+    let multi = false;
+    let hint = '';
+    let fullscreen = false;
+
     for (let i = 0; i < ARGV.length; i++) {
         const a = ARGV[i];
-        if (a === '-h' || a === '--help') usage();
-        else if (a === '--multi') multi = true;
-        else if (a === '--fullscreen') fullscreen = true;
-        else if (a === '--hint') {
+        if (a === '-h' || a === '--help') {
+            usage({ exitCode: 0, toStderr: false });
+        } else if (a === '--multi') {
+            multi = true;
+        } else if (a === '--fullscreen') {
+            fullscreen = true;
+        } else if (a === '--hint') {
             if (i + 1 < ARGV.length) hint = ARGV[++i];
-            else { printerr('gdmenu: --hint requires an argument'); System.exit(1); }
-        } else { printerr(`Unknown option: ${a}`); usage(); }
+            else {
+                printerr('gdmenu: --hint requires an argument');
+                usage();                       // exit 1, stderr
+            }
+        } else {
+            printerr(`gdmenu: unknown option: ${a}`);
+            usage();                           // exit 1, stderr
+        }
     }
 
     const lines = readStdinLines();
-    if (lines.length === 0) { printerr('gdmenu: no input provided'); System.exit(1); }
+    if (lines.length === 0) {
+        printerr('gdmenu: no input provided on stdin');
+        System.exit(1);
+    }
 
     let proxy;
     try {
