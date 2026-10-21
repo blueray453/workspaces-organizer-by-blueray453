@@ -11,6 +11,9 @@ const NUMERIC_KEYS = [
     { key: 'hover-preview-height', label: 'Hover preview height', min: 200, max: 1200, step: 10 },
     { key: 'close-button-size', label: 'Close button size', min: 16, max: 64, step: 2 },
     { key: 'tooltip-font-size', label: 'Tooltip text', min: 6, max: 32, step: 1 },
+    { key: 'direct-mode-max-windows', label: 'Auto-group above N windows', min: 1, max: 20, step: 1 },
+    { key: 'flyout-dwell-ms', label: 'Flyout dwell', min: 50, max: 1500, step: 10 },
+    { key: 'ext-ws-dwell-ms', label: 'External-drag workspace dwell', min: 100, max: 2000, step: 50 },
 ];
 
 const BOOLEAN_KEYS = [
@@ -32,7 +35,7 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
 
         const byKey = key => NUMERIC_KEYS.find(k => k.key === key);
 
-        // Group: Icon Sizes
+        // Icon Sizes
         const iconGroup = new Adw.PreferencesGroup({
             title: 'Icon Sizes',
             description: 'Size of window icons in workspace thumbnails',
@@ -40,7 +43,7 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
         page.add(iconGroup);
         this._addSpinRow(iconGroup, byKey('icon-size'), settings);
 
-        // Group: Font Sizes
+        // Font Sizes
         const fontGroup = new Adw.PreferencesGroup({
             title: 'Font Sizes',
             description: 'Text size in various UI elements',
@@ -50,7 +53,7 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
             this._addSpinRow(fontGroup, byKey(key), settings);
         });
 
-        // Group: Layout
+        // Layout
         const layoutGroup = new Adw.PreferencesGroup({
             title: 'Layout',
             description: 'Sizes and dimensions',
@@ -60,22 +63,19 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
             this._addSpinRow(layoutGroup, byKey(key), settings);
         });
 
-        // Group: Panel contents
+        // Panel
         const visibilityGroup = new Adw.PreferencesGroup({
             title: 'Panel',
             description: 'Toggle panel elements — changes apply immediately, no restart needed',
         });
         page.add(visibilityGroup);
-
         for (const [key, title] of BOOLEAN_KEYS) {
             const row = new Adw.ActionRow({ title });
-
             if (key === 'group-apps-always') {
                 row.set_subtitle(
                     'Off: group only when the panel runs out of room. ' +
                     'On: every app with 2+ windows collapses into one badged icon.');
             }
-
             const toggle = new Gtk.Switch({ valign: Gtk.Align.CENTER });
             settings.bind(key, toggle, 'active', Gio.SettingsBindFlags.DEFAULT);
             row.add_suffix(toggle);
@@ -83,7 +83,41 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
             visibilityGroup.add(row);
         }
 
-        // Group: Reset and notes
+        // Grouping
+        const groupingGroup = new Adw.PreferencesGroup({
+            title: 'Grouping',
+            description: 'When multiple windows of the same app collapse into one badged icon',
+        });
+        page.add(groupingGroup);
+        this._addSpinRow(groupingGroup, byKey('direct-mode-max-windows'), settings);
+
+        // Timing
+        const timingGroup = new Adw.PreferencesGroup({
+            title: 'Timing',
+            description: 'Interaction delays (milliseconds)',
+        });
+        page.add(timingGroup);
+        ['flyout-dwell-ms', 'ext-ws-dwell-ms'].forEach(key => {
+            this._addSpinRow(timingGroup, byKey(key), settings);
+        });
+
+        // Accessibility
+        const accessGroup = new Adw.PreferencesGroup({
+            title: 'Accessibility',
+        });
+        page.add(accessGroup);
+
+        const reduceRow = new Adw.ActionRow({
+            title: 'Reduce motion',
+            subtitle: 'Disable fade, settle and flyout animations. Layout changes snap instantly.',
+        });
+        const reduceToggle = new Gtk.Switch({ valign: Gtk.Align.CENTER });
+        settings.bind('reduce-motion', reduceToggle, 'active', Gio.SettingsBindFlags.DEFAULT);
+        reduceRow.add_suffix(reduceToggle);
+        reduceRow.set_activatable_widget(reduceToggle);
+        accessGroup.add(reduceRow);
+
+        // Misc — reset / notes
         const miscGroup = new Adw.PreferencesGroup();
         page.add(miscGroup);
 
@@ -93,8 +127,10 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
             css_classes: ['destructive-action'],
         });
         resetBtn.connect('clicked', () => {
-            for (const { key } of NUMERIC_KEYS) settings.reset(key);
-            for (const [key] of BOOLEAN_KEYS) settings.reset(key);
+            for (const key of settings.list_keys()) {
+                try { settings.reset(key); }
+                catch (e) { /* non-resettable key, skip */ }
+            }
         });
         resetRow.add_suffix(resetBtn);
         resetRow.set_activatable_widget(resetBtn);

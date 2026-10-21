@@ -27,6 +27,29 @@
       <summary>Always group windows by app in the panel</summary>
       <description>When enabled, every app with more than one window on a workspace collapses into a single badged icon. When disabled, grouping only engages when the panel runs out of horizontal room (the prototype's progressive collapse), or for workspaces above the direct-mode window threshold.</description>
     </key>
+    <key name="direct-mode-max-windows" type="i">
+      <range min="1" max="20"/>
+      <default>5</default>
+      <summary>Windows before a workspace auto-collapses to group icons</summary>
+      <description>Workspaces with more than this many windows collapse each app into a single badged group icon. Lower groups sooner. Ignored when group-apps-always is on.</description>
+    </key>
+    <key name="flyout-dwell-ms" type="i">
+      <range min="50" max="1500"/>
+      <default>150</default>
+      <summary>Dwell time before a flyout opens</summary>
+      <description>How long the pointer must rest on a badged group icon during a drag before its window flyout opens, and how long a hovered flyout row takes to preview its window (milliseconds).</description>
+    </key>
+    <key name="ext-ws-dwell-ms" type="i">
+      <range min="100" max="2000"/>
+      <default>500</default>
+      <summary>Dwell time before an external drag activates a workspace</summary>
+      <description>While dragging a file or text from another app onto a workspace thumbnail, how long to hover before the workspace activates (milliseconds).</description>
+    </key>
+    <key name="reduce-motion" type="b">
+      <default>false</default>
+      <summary>Reduce motion</summary>
+      <description>Disable fade, settle and flyout animations. Layout changes snap instantly.</description>
+    </key>
     <key name="toolbar-icon-size" type="i">
       <default>56</default>
       <summary>Icon size for panel toolbar buttons</summary>
