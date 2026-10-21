@@ -46,7 +46,6 @@ Options:
                              'Label|arg' (split on the first '|'). The
                              first option is the default; an empty arg
                              prints nothing. Needs at least 2 options.
-  --output records           Line-oriented output (the only format).
   -h, --help                 Show this help and exit.
 
 Controls appear in command-line order. The line 'args::' is reserved and
@@ -120,9 +119,6 @@ function main() {
                 opts.push(parseOption(ARGV[++i]));
             if (opts.length < 2) fail('--choice needs at least 2 options');
             controls.push(['choice', label, opts]);
-        } else if (a === '--output') {
-            if (i + 1 >= ARGV.length) fail('--output requires an argument');
-            if (ARGV[++i] !== 'records') fail('--output: only "records" is supported');
         } else {
             fail(`unknown option: ${a}`);
         }
