@@ -1,0 +1,101 @@
+#!/usr/bin/env gjs
+
+imports.gi.versions.Gio = '2.0';
+const { Gio, GLib } = imports.gi;
+const System = imports.system;
+
+let GioUnix;
+try { GioUnix = imports.gi.GioUnix; } catch (e) { GioUnix = null; }
+
+const BUS_NAME = 'io.github.blueray453.TopNotchWorkspaces';
+const BUS_PATH = '/io/github/blueray453/TopNotchWorkspaces/Overlay';
+const IFACE = 'io.github.blueray453.TopNotchWorkspaces.Overlay';
+
+const IFACE_XML = `
+<node>
+   <interface name="${IFACE}">
+      <method name="Show">
+         <arg type="as" direction="in" name="items"/>
+         <arg type="b"  direction="in" name="multi"/>
+         <arg type="s"  direction="in" name="hint"/>
+         <arg type="b"  direction="in" name="fullscreen"/>
+      </method>
+      <signal name="Selected"><arg type="as" name="items"/></signal>
+      <signal name="Cancelled"/>
+   </interface>
+</node>`;
+
+function usage() {
+    printerr(`Usage: gdmenu [--multi] [--hint TEXT] [--fullscreen] [--help]
+Reads items from stdin (one per line) and prints the picked item(s).
+Exit: 0 selected  •  1 cancelled  •  2 extension not enabled / error`);
+    System.exit(1);
+}
+
+function readStdinLines() {
+    const unixStream = GioUnix
+        ? new GioUnix.InputStream({ fd: 0, close_fd: false })
+        : new Gio.UnixInputStream({ fd: 0, close_fd: false });
+    const dataStream = new Gio.DataInputStream({ base_stream: unixStream });
+    const lines = [];
+    while (true) {
+        const [line] = dataStream.read_line_utf8(null);
+        if (line === null) break;
+        if (line.length > 0) lines.push(line);
+    }
+    return lines;
+}
+
+function main() {
+    let multi = false, hint = '', fullscreen = false;
+    for (let i = 0; i < ARGV.length; i++) {
+        const a = ARGV[i];
+        if (a === '-h' || a === '--help') usage();
+        else if (a === '--multi') multi = true;
+        else if (a === '--fullscreen') fullscreen = true;
+        else if (a === '--hint') {
+            if (i + 1 < ARGV.length) hint = ARGV[++i];
+            else { printerr('gdmenu: --hint requires an argument'); System.exit(1); }
+        } else { printerr(`Unknown option: ${a}`); usage(); }
+    }
+
+    const lines = readStdinLines();
+    if (lines.length === 0) { printerr('gdmenu: no input provided'); System.exit(1); }
+
+    let proxy;
+    try {
+        const ProxyClass = Gio.DBusProxy.makeProxyWrapper(IFACE_XML);
+        proxy = new ProxyClass(Gio.DBus.session, BUS_NAME, BUS_PATH);
+    } catch (e) {
+        printerr(`gdmenu: cannot reach TopNotch: ${e.message}`);
+        System.exit(2);
+    }
+
+    const loop = GLib.MainLoop.new(null, false);
+    let result = null;
+
+    const selId = proxy.connectSignal('Selected',
+        (_p, _s, args) => { result = args[0]; loop.quit(); });
+    const canId = proxy.connectSignal('Cancelled',
+        () => { result = null; loop.quit(); });
+
+    try {
+        proxy.ShowSync(lines, multi, hint, fullscreen);
+    } catch (e) {
+        if (e instanceof Gio.DBusError) Gio.DBusError.strip_remote_error(e);
+        printerr(`gdmenu: D-Bus call failed: ${e.message}`);
+        System.exit(2);
+    }
+
+    loop.run();
+    proxy.disconnectSignal(selId);
+    proxy.disconnectSignal(canId);
+
+    if (result && result.length > 0) {
+        for (const item of result) print(item);
+        System.exit(0);
+    }
+    System.exit(1);
+}
+
+main();

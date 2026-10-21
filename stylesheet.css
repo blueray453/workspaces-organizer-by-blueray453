@@ -555,3 +555,48 @@
     border-radius: 12px;
     pointer-events: none;
 }
+
+/* ===================== DMENU / GENERIC PICKER =====================
+   Reuses .launcher-overlay, .launcher-scroll, .overlay-search-entry
+   untouched — the search field and full-screen tint come from the same
+   rules the launcher uses. Only the row visual is new, and its colours
+   mirror .ws-flyout-row so the picker reads as the same design system. */
+
+.dmenu-results-box {
+    spacing: 6px;
+    padding: 4px 8px;
+}
+
+.dmenu-result-row {
+    padding: 0 20px;
+    border: 1px solid transparent;
+    border-radius: 16px;
+    background-color: rgba(7, 54, 66, 0.58);
+    transition-duration: 120ms;
+}
+
+.dmenu-result-row:hover {
+    background-color: rgba(7, 54, 66, 0.82);
+}
+
+.dmenu-result-row.sel {
+    background-color: rgba(38, 139, 210, 0.26);
+    border-color: #268bd2;
+}
+
+.dmenu-result-label {
+    color: #93a1a1;
+    font-size: 32px;
+    font-weight: 700;
+}
+
+.dmenu-result-row.sel .dmenu-result-label {
+    color: #fdf6e3;
+}
+
+.dmenu-marker {
+    color: #2aa198;
+    font-size: 26px;
+    font-weight: 700;
+    padding-right: 10px;
+}

@@ -43,6 +43,7 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
 
         OverlayService.initOverlayService(settings);
         DBusService.initDBusService();
+        DBusService.installCli(this.path);
 
         this._indicator = new WorkspaceIndicator(settings, {
             showAllApps: OverlayService.showAllApps,
@@ -62,6 +63,7 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
     disable() {
         Main.panel.disconnectObject(this);
 
+        DBusService.removeCli(this.path);
         DBusService.destroyDBusService();
         OverlayService.destroyOverlayService();
 
