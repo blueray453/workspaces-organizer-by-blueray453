@@ -729,3 +729,24 @@
 .pinned-edge-dash .dash-item-container .show-apps {
     padding: 6px;
 }
+
+/* ===================== PINNED-EDGE TOOLTIP =====================
+   Used only by pinnedEdgeFlyout.js. Deliberately large, Solarized-tinted:
+   base02 background, cyan border, base2 text. The compound selector
+   (.topnotch-tooltip.pinned-edge-tooltip) has specificity 0,2,0, which
+   guarantees these values win over the generic .topnotch-tooltip rule
+   no matter the declaration order.
+   No ellipsize / wrap here — that is enforced in JS so a CSS change
+   can never reintroduce "…". */
+
+.topnotch-tooltip.pinned-edge-tooltip {
+    background-color: rgba(7, 54, 66, 0.98);          /* base02 */
+    color: #eee8d5;                                   /* base2   */
+    border: 3px solid #2aa198;                        /* cyan    */
+    border-radius: 16px;
+    padding: 22px 40px;
+    font-size: 40px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    box-shadow: 0 12px 36px 10px rgba(0, 22, 30, 0.78);
+}
