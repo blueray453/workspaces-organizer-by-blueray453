@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gdmenu — argument controls prototype</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --base03: #002b36;
+    --base02: #073642;
+    --base01: #586e75;
+    --base00: #657b83;
+    --base0: #839496;
+    --base1: #93a1a1;
+    --base2: #eee8d5;
+    --base3: #fdf6e3;
+    --yellow: #b58900;
+    --orange: #cb4b16;
+    --red: #dc322f;
+    --magenta: #d33682;
+    --violet: #6c71c4;
+    --blue: #268bd2;
+    --cyan: #2aa198;
+    --green: #859900;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--base03); }
+  body {
+    margin: 0;
+    background: var(--base03);
+    color: var(--base0);
+    font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    min-height: 100vh;
+  }
+  button, input, select, textarea { font: inherit; }
+  button { cursor: pointer; }
+  .shell { max-width: 1240px; margin: 0 auto; padding: 28px 24px 44px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 26px; }
+  .brand { display: flex; align-items: center; gap: 13px; }
+  .logo { width: 38px; height: 38px; border: 1px solid #155360; background: var(--base02); color: var(--cyan); display: grid; place-items: center; border-radius: 10px; font-size: 21px; font-weight: 700; }
+  h1 { margin: 0; font-size: 19px; font-weight: 650; color: var(--base2); letter-spacing: -.025em; }
+  .subtitle { margin-top: 2px; color: var(--base01); font-size: 12px; }
+  .prototype-tag { font-size: 10px; color: var(--yellow); border: 1px solid #65551a; border-radius: 999px; padding: 5px 9px; letter-spacing: .12em; font-weight: 700; white-space: nowrap; }
+  .layout { display: grid; grid-template-columns: minmax(320px, 1.05fr) minmax(380px, .95fr); gap: 20px; align-items: start; }
+  .panel { background: var(--base02); border: 1px solid #12414c; border-radius: 14px; overflow: hidden; box-shadow: 0 12px 34px #001a2080; }
+  .panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 19px 20px 16px; border-bottom: 1px solid #12414c; }
+  .panel-head h2 { margin: 0; color: var(--base2); font-size: 14px; font-weight: 650; }
+  .panel-head p { margin: 3px 0 0; color: var(--base01); font-size: 12px; }
+  .panel-body { padding: 18px 20px 20px; }
+  .section-label { color: var(--base01); text-transform: uppercase; font-size: 10px; font-weight: 750; letter-spacing: .14em; margin: 0 0 10px; }
+  .mock-window { padding: 20px; background: var(--base03); border: 1px solid #164650; border-radius: 12px; }
+  .mock-title { color: var(--base3); font-size: 18px; font-weight: 650; margin: 0 0 15px; letter-spacing: -.02em; }
+  .search-wrap { position: relative; margin-bottom: 12px; }
+  .search-icon { position: absolute; left: 12px; top: 9px; color: var(--base01); font-size: 16px; }
+  .search { width: 100%; height: 38px; padding: 0 12px 0 36px; color: var(--base2); border: 1px solid #1c5662; background: #01232c; border-radius: 7px; outline: none; }
+  .search:focus { border-color: var(--cyan); box-shadow: 0 0 0 2px #2aa19825; }
+  .picker-mode { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 9px; padding: 8px 10px; border: 1px solid #164650; background: #032e38; border-radius: 7px; }
+  .mode-label { display: flex; align-items: center; gap: 8px; color: var(--base1); font-size: 11px; cursor: pointer; }
+  .mode-label input { accent-color: var(--cyan); }
+  .mode-flag { color: var(--cyan); font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .selection-summary { color: var(--base01); font-size: 10px; white-space: nowrap; }
+  .items { display: grid; gap: 4px; margin-bottom: 17px; }
+  .menu-item { width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px 11px; border: 1px solid transparent; border-radius: 7px; color: var(--base1); background: transparent; text-align: left; }
+  .menu-item:hover { background: #0b414c; }
+  .menu-item.selected { background: #0d4651; border-color: #17606b; color: var(--base3); }
+  .menu-item.active:not(.selected) { border-color: #38616a; color: var(--base2); }
+  .item-icon { width: 20px; height: 20px; display: grid; place-items: center; color: var(--cyan); font-size: 16px; flex: 0 0 auto; }
+  .item-copy { display: flex; flex-direction: column; min-width: 0; }
+  .item-title { font-size: 13px; font-weight: 560; }
+  .item-description { color: var(--base01); font-size: 11px; margin-top: 1px; }
+  .enter-key { margin-left: auto; border: 1px solid #2d6871; border-radius: 4px; padding: 1px 5px; font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; color: #9dc8c7; }
+  .controls-head { display: flex; align-items: center; justify-content: space-between; margin: 17px 0 9px; }
+  .controls-head .section-label { margin: 0; }
+  .count { color: var(--base01); font-size: 11px; }
+  .control-list { display: grid; gap: 7px; }
+  .control-row { display: flex; align-items: center; gap: 12px; background: #07323c; border: 1px solid #12434d; padding: 10px 11px; min-height: 54px; border-radius: 8px; }
+  .control-copy { min-width: 0; flex: 1; }
+  .control-name { color: var(--base2); font-size: 12px; font-weight: 560; }
+  .control-detail { color: var(--base01); font: 10px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; margin-top: 2px; word-break: break-word; }
+  .switch { appearance: none; border: 1px solid #476168; width: 38px; height: 22px; border-radius: 999px; background: #183f48; position: relative; transition: .15s; flex: 0 0 auto; }
+  .switch::after { content: ''; position: absolute; height: 14px; width: 14px; border-radius: 50%; background: var(--base0); top: 3px; left: 3px; transition: .15s; }
+  .switch:checked { background: #176c66; border-color: var(--cyan); }
+  .switch:checked::after { left: 19px; background: #d8f3e8; }
+  .segmented { display: flex; gap: 3px; background: #01252e; padding: 3px; border-radius: 7px; flex-shrink: 0; max-width: 58%; }
+  .segment { border: 1px solid transparent; color: var(--base0); background: transparent; border-radius: 5px; padding: 5px 9px; font-size: 11px; }
+  .segment:hover { color: var(--base2); }
+  .segment.active { color: var(--base3); background: #15515a; border-color: #267681; }
+  .mock-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-top: 1px solid #123c46; padding-top: 13px; margin-top: 15px; }
+  .keys { display: flex; flex-wrap: wrap; gap: 8px; color: var(--base01); font-size: 10px; }
+  kbd { display: inline-block; min-width: 18px; padding: 1px 4px; margin-right: 3px; border: 1px solid #2b545c; border-radius: 4px; color: var(--base1); font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; text-align: center; }
+  .primary { color: #fdf6e3; border: 1px solid #2f9990; background: #176f68; border-radius: 7px; padding: 8px 12px; font-weight: 650; font-size: 12px; }
+  .primary:hover { background: #21877e; }
+  .secondary { color: var(--base1); background: transparent; border: 1px solid #28515b; border-radius: 7px; padding: 7px 10px; font-size: 11px; }
+  .secondary:hover { color: var(--base2); border-color: var(--base0); }
+  .right-stack { display: grid; gap: 20px; }
+  .definition-list { display: grid; gap: 8px; }
+  .definition { display: grid; grid-template-columns: 78px minmax(0,1fr) 28px; gap: 10px; align-items: start; background: #032e38; border: 1px solid #14444e; border-radius: 8px; padding: 10px; }
+  .type-pill { display: inline-flex; justify-content: center; border-radius: 5px; padding: 4px 6px; color: var(--cyan); background: #0c484d; font-size: 10px; font-weight: 750; text-transform: uppercase; letter-spacing: .06em; }
+  .definition-title { color: var(--base2); font-size: 12px; font-weight: 600; margin-bottom: 5px; }
+  .definition-code { color: #d5b45e; font: 10px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+  .remove { border: 0; background: transparent; color: var(--base01); font-size: 17px; line-height: 1; padding: 1px; }
+  .remove:hover { color: var(--red); }
+  .add-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .builder-form { margin-top: 12px; padding: 12px; border: 1px solid #23535b; border-radius: 9px; background: #01252e; display: none; }
+  .builder-form.open { display: block; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .field { display: grid; gap: 5px; min-width: 0; }
+  .field.full { grid-column: 1 / -1; }
+  label { color: var(--base1); font-size: 11px; }
+  .field input, .field textarea, .field select { width: 100%; border: 1px solid #24545e; background: #002b36; color: var(--base2); border-radius: 6px; padding: 8px 9px; outline: none; font-size: 12px; }
+  .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--cyan); }
+  .field textarea { resize: vertical; min-height: 62px; font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .form-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 11px; }
+  .cli-preview { background: #01252e; border: 1px solid #184a55; border-radius: 8px; padding: 12px; color: #d7c98a; font: 11px/1.8 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .output-panel { margin-top: 20px; }
+  .output-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .output-top h3 { color: var(--base2); font-size: 13px; margin: 0; }
+  .output-top span { color: var(--base01); font-size: 11px; }
+  .output { min-height: 90px; background: #001f27; border: 1px solid #174751; border-radius: 8px; padding: 13px; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; color: #a9d3bd; font: 12px/1.8 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .output.empty { color: var(--base01); }
+  .output-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 9px; }
+  .status { color: var(--base01); font-size: 11px; min-height: 16px; }
+  .note { color: var(--base01); font-size: 11px; line-height: 1.65; margin: 11px 0 0; }
+  .note code { color: var(--base1); background: #032b34; padding: 2px 4px; border-radius: 4px; font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .kbd-focus { outline: 2px solid var(--yellow); outline-offset: 2px; }
+  @media (max-width: 880px) { .layout { grid-template-columns: 1fr; } .shell { padding: 18px 14px 30px; } }
+  @media (max-width: 500px) { .panel-head, .panel-body { padding-left: 14px; padding-right: 14px; } .mock-window { padding: 14px; } .control-row { align-items: flex-start; } .segmented { max-width: 60%; flex-wrap: wrap; justify-content: flex-end; } .definition { grid-template-columns: 70px minmax(0,1fr) 22px; gap: 7px; } .form-grid { grid-template-columns: 1fr; } .field.full { grid-column: auto; } .topbar { align-items: flex-start; } }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">g</div>
+      <div><h1>gdmenu</h1><div class="subtitle">Argument controls · interactive concept</div></div>
+    </div>
+    <div class="prototype-tag">SIMULATION ONLY</div>
+  </header>
+
+  <main class="layout">
+    <section class="panel">
+      <div class="panel-head">
+        <div><h2>Picker preview</h2><p>Controls below are generated from the definitions on the right.</p></div>
+        <span class="type-pill">Live demo</span>
+      </div>
+      <div class="panel-body">
+        <div class="mock-window">
+          <div class="section-label">Screenshot · command picker</div>
+          <h2 class="mock-title" id="mockHint">Choose screenshot type</h2>
+          <div class="search-wrap"><span class="search-icon">⌕</span><input class="search" id="search" type="text" placeholder="Type to filter…" autocomplete="off" aria-label="Filter menu items"></div>
+          <div class="picker-mode">
+            <label class="mode-label"><input id="multiSelect" type="checkbox" checked><span>Allow multiple selections</span><span class="mode-flag">--multi</span></label>
+            <span class="selection-summary" id="selectionSummary">2 selected</span>
+          </div>
+          <div class="items" id="items" role="listbox" aria-label="Screenshot types"></div>
+          <div class="controls-head"><div class="section-label">Options</div><div class="count" id="controlCount"></div></div>
+          <div class="control-list" id="controls"></div>
+          <div class="mock-footer">
+            <div class="keys"><span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> Select</span><span><kbd>Esc</kbd> Cancel</span></div>
+            <button class="primary" id="confirm">Confirm selection ↵</button>
+          </div>
+        </div>
+        <p class="note">This is a browser simulation. It does not call <code>gdmenu</code>, execute a command, or take a screenshot.</p>
+      </div>
+    </section>
+
+    <div class="right-stack">
+      <section class="panel">
+        <div class="panel-head">
+          <div><h2>Argument definitions</h2><p>Think of these as CLI arguments that create controls.</p></div>
+        </div>
+        <div class="panel-body">
+          <div class="definition-list" id="definitions"></div>
+          <div class="add-row">
+            <button class="secondary" id="addToggle">＋ Add toggle</button>
+            <button class="secondary" id="addChoice">＋ Add choice selector</button>
+          </div>
+          <div class="builder-form" id="builderForm">
+            <div class="section-label" id="formTitle">New control</div>
+            <div class="form-grid">
+              <div class="field full"><label for="newLabel">Visible label</label><input id="newLabel" placeholder="e.g. Wait 5 seconds before capture"></div>
+              <div class="field full" id="argField"><label for="newArg">Argument when enabled</label><input id="newArg" placeholder="--delay=5"></div>
+              <div class="field full" id="optionsField" style="display:none"><label for="newOptions">Choices (one per line: Label | argument)</label><textarea id="newOptions" placeholder="Default |&#10;PNG | --format=png&#10;JPG | --format=jpg"></textarea></div>
+            </div>
+            <div class="form-actions"><button class="secondary" id="cancelBuilder">Cancel</button><button class="primary" id="saveBuilder">Add control</button></div>
+          </div>
+          <div style="margin-top:18px"><div class="section-label">Simulated CLI</div><div class="cli-preview" id="cliPreview"></div></div>
+        </div>
+      </section>
+
+      <section class="panel output-panel">
+        <div class="panel-head"><div><h2>Line-oriented result</h2><p>One record per line · no JSON</p></div><span class="type-pill">stdout</span></div>
+        <div class="panel-body">
+          <div class="output-top"><h3>Output preview</h3><span>Tab-separated records</span></div>
+          <pre class="output empty" id="output">Choose an item and press Confirm selection.</pre>
+          <div class="output-actions"><span class="status" id="status">Waiting for selection</span><button class="secondary" id="copyOutput">Copy output</button></div>
+          <p class="note">Each selected item emits its own <code>selection[TAB]value</code> record. After all selection records, each enabled toggle or non-default choice emits one <code>arg[TAB]value</code> record. A choice with an empty argument emits nothing. Lines are tab-separated and intended for Bash line-by-line parsing.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+<script>
+(() => {
+  const menuItems = [
+    { value: 'whole', title: 'Whole screen', description: 'Capture the entire screen', icon: '▣' },
+    { value: 'area', title: 'Select area', description: 'Drag to choose a region', icon: '⌗' },
+    { value: 'window', title: 'Active window', description: 'Capture a single window', icon: '▱' }
+  ];
+  let activeValue = 'whole';
+  let selectedValues = ['whole', 'area'];
+  let multiSelect = true;
+  let builderType = 'toggle';
+  let nextId = 4;
+  let definitions = [
+    { id: 1, type: 'toggle', label: 'Wait 5 seconds before capture', arg: '--delay=5', enabled: false },
+    { id: 2, type: 'choice', label: 'Image format', options: [
+      { label: 'Default', arg: '' }, { label: 'PNG', arg: '--format=png' }, { label: 'JPG', arg: '--format=jpg' }
+    ], selected: 0 }
+  ];
+  const $ = id => document.getElementById(id);
+  const escapeHtml = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  function renderItems() {
+    const query = $('search').value.trim().toLowerCase();
+    const visible = menuItems.filter(item => `${item.title} ${item.value} ${item.description}`.toLowerCase().includes(query));
+    $('items').innerHTML = '';
+    visible.forEach(item => {
+      const picked = selectedValues.includes(item.value);
+      const active = item.value === activeValue;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'menu-item' + (picked ? ' selected' : '') + (active ? ' active' : '');
+      button.setAttribute('role', 'option');
+      button.setAttribute('aria-selected', String(picked));
+      button.innerHTML = `<span class="item-icon">${item.icon}</span><span class="item-copy"><span class="item-title">${escapeHtml(item.title)}</span><span class="item-description">${escapeHtml(item.description)}</span></span>${picked ? '<span class="enter-key">✓</span>' : (active ? '<span class="enter-key">↵</span>' : '')}`;
+      button.addEventListener('click', () => {
+        activeValue = item.value;
+        if (multiSelect) {
+          selectedValues = picked ? selectedValues.filter(value => value !== item.value) : [...selectedValues, item.value];
+        } else {
+          selectedValues = [item.value];
+        }
+        renderItems(); renderSelectionSummary();
+      });
+      $('items').appendChild(button);
+    });
+    if (!visible.length) $('items').innerHTML = '<div style="padding:12px;color:var(--base01);font-size:12px">No matching items</div>';
+  }
+
+  function renderSelectionSummary() {
+    $('selectionSummary').textContent = `${selectedValues.length} selected`;
+  }
+
+  function renderControls() {
+    $('controls').innerHTML = '';
+    if (!definitions.length) {
+      $('controls').innerHTML = '<div style="padding:12px;border:1px dashed #28515b;border-radius:8px;color:var(--base01);font-size:12px">No extra controls. Add a toggle or choice selector.</div>';
+    }
+    definitions.forEach(def => {
+      const row = document.createElement('div');
+      row.className = 'control-row';
+      const copy = document.createElement('div');
+      copy.className = 'control-copy';
+      copy.innerHTML = `<div class="control-name">${escapeHtml(def.label)}</div><div class="control-detail">${def.type === 'toggle' ? escapeHtml(def.arg || '(no argument)') : 'Selected choice adds its configured argument'}</div>`;
+      row.appendChild(copy);
+      if (def.type === 'toggle') {
+        const input = document.createElement('input');
+        input.type = 'checkbox'; input.className = 'switch'; input.checked = !!def.enabled;
+        input.setAttribute('aria-label', def.label);
+        input.addEventListener('change', () => { def.enabled = input.checked; renderDefinitions(); renderControls(); renderCli(); });
+        row.appendChild(input);
+      } else {
+        const segment = document.createElement('div'); segment.className = 'segmented'; segment.setAttribute('role','group'); segment.setAttribute('aria-label',def.label);
+        def.options.forEach((option, index) => {
+          const b = document.createElement('button'); b.className = 'segment' + (def.selected === index ? ' active' : ''); b.type = 'button'; b.textContent = option.label;
+          b.title = option.arg || 'No argument';
+          b.addEventListener('click', () => { def.selected = index; renderControls(); renderDefinitions(); renderCli(); });
+          segment.appendChild(b);
+        });
+        row.appendChild(segment);
+      }
+      $('controls').appendChild(row);
+    });
+    $('controlCount').textContent = `${definitions.length} control${definitions.length === 1 ? '' : 's'}`;
+  }
+
+  function renderDefinitions() {
+    $('definitions').innerHTML = '';
+    definitions.forEach(def => {
+      const card = document.createElement('div'); card.className = 'definition';
+      const pill = document.createElement('div'); pill.className = 'type-pill'; pill.textContent = def.type;
+      const main = document.createElement('div');
+      const parts = def.type === 'toggle' ? [def.arg || '(no argument)'] : def.options.map(opt => `${opt.label}: ${opt.arg || '(no argument)'}`);
+      main.innerHTML = `<div class="definition-title">${escapeHtml(def.label)}</div><div class="definition-code">${parts.map(escapeHtml).join('<br>')}</div>`;
+      const remove = document.createElement('button'); remove.className = 'remove'; remove.type = 'button'; remove.title = 'Remove control'; remove.setAttribute('aria-label', `Remove ${def.label}`); remove.textContent = '×';
+      remove.addEventListener('click', () => { definitions = definitions.filter(d => d.id !== def.id); renderAll(); });
+      card.append(pill, main, remove); $('definitions').appendChild(card);
+    });
+  }
+
+  function quoteArg(text) {
+    // Shell-style display only; this preview is never executed.
+    return "'" + String(text).replace(/'/g, "'\\''") + "'";
+  }
+  function renderCli() {
+    let line = "printf 'whole\\narea\\nwindow\\n' | gdmenu";
+    if (multiSelect) line += ' --multi';
+    line += ' --hint ' + quoteArg("Choose screenshot type");
+    definitions.forEach(def => {
+      if (def.type === 'toggle') line += ' --toggle ' + quoteArg(def.label) + ' ' + quoteArg(def.arg || '');
+      else {
+        const encoded = def.options.map(opt => quoteArg(`${opt.label}|${opt.arg}`)).join(' ');
+        line += ' --choice ' + quoteArg(def.label) + ' ' + encoded;
+      }
+    });
+    line += ' --output records';
+    $('cliPreview').textContent = line;
+  }
+
+  function renderAll() { renderItems(); renderControls(); renderDefinitions(); renderCli(); }
+
+  function makeOutput() {
+    const selections = multiSelect
+      ? (selectedValues.length ? selectedValues : [activeValue])
+      : [selectedValues[0] || activeValue];
+    const selectionRecords = selections.map(value => `selection\t${value}`);
+    const argRecords = [];
+    definitions.forEach(def => {
+      if (def.type === 'toggle' && def.enabled && def.arg.trim()) argRecords.push(`arg\t${def.arg.trim()}`);
+      if (def.type === 'choice' && def.options[def.selected] && def.options[def.selected].arg.trim()) argRecords.push(`arg\t${def.options[def.selected].arg.trim()}`);
+    });
+    return [...selectionRecords, ...argRecords].join('\n');
+  }
+  function confirmSelection() {
+    if (!menuItems.length) { $('status').textContent = 'No items to select'; return; }
+    if (!multiSelect && !selectedValues.length) selectedValues = [activeValue];
+    $('output').textContent = makeOutput(); $('output').classList.remove('empty');
+    const count = multiSelect ? (selectedValues.length || 1) : 1;
+    $('status').textContent = `Generated ${count} selection record${count === 1 ? '' : 's'} plus enabled argument records`;
+  }
+  $('search').addEventListener('input', renderItems);
+  $('multiSelect').addEventListener('change', () => {
+    multiSelect = $('multiSelect').checked;
+    if (!multiSelect) {
+      const keep = selectedValues.includes(activeValue) ? activeValue : (selectedValues[0] || activeValue);
+      selectedValues = [keep]; activeValue = keep;
+    }
+    renderItems(); renderSelectionSummary(); renderCli();
+  });
+  $('confirm').addEventListener('click', confirmSelection);
+  $('copyOutput').addEventListener('click', async () => {
+    const value = $('output').classList.contains('empty') ? '' : $('output').textContent;
+    if (!value) { $('status').textContent = 'Confirm a selection first'; return; }
+    try { await navigator.clipboard.writeText(value); $('status').textContent = 'Output copied'; }
+    catch { $('status').textContent = 'Clipboard unavailable; select and copy the output manually'; }
+  });
+
+  function openBuilder(type) {
+    builderType = type;
+    $('builderForm').classList.add('open');
+    $('formTitle').textContent = type === 'toggle' ? 'Add a toggle' : 'Add a choice selector';
+    $('argField').style.display = type === 'toggle' ? '' : 'none';
+    $('optionsField').style.display = type === 'choice' ? '' : 'none';
+    $('newLabel').value = type === 'toggle' ? 'Enable feature' : 'Output format';
+    $('newArg').value = type === 'toggle' ? '--example' : '';
+    $('newOptions').value = 'Default |\nPNG | --format=png\nJPG | --format=jpg';
+    $('newLabel').focus();
+  }
+  function closeBuilder() { $('builderForm').classList.remove('open'); }
+  $('addToggle').addEventListener('click', () => openBuilder('toggle'));
+  $('addChoice').addEventListener('click', () => openBuilder('choice'));
+  $('cancelBuilder').addEventListener('click', closeBuilder);
+  $('saveBuilder').addEventListener('click', () => {
+    const label = $('newLabel').value.trim();
+    if (!label) { $('newLabel').focus(); return; }
+    if (builderType === 'toggle') {
+      const arg = $('newArg').value.trim();
+      if (!arg) { $('newArg').focus(); return; }
+      definitions.push({ id: nextId++, type: 'toggle', label, arg, enabled: false });
+    } else {
+      const options = $('newOptions').value.split('\n').map(line => {
+        const divider = line.indexOf('|');
+        return divider < 0 ? { label: line.trim(), arg: '' } : { label: line.slice(0, divider).trim(), arg: line.slice(divider + 1).trim() };
+      }).filter(option => option.label);
+      if (options.length < 2) { $('newOptions').focus(); return; }
+      definitions.push({ id: nextId++, type: 'choice', label, options, selected: 0 });
+    }
+    closeBuilder(); renderAll();
+  });
+
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      if ($('builderForm').classList.contains('open')) { closeBuilder(); return; }
+      $('search').value = ''; renderItems(); $('status').textContent = 'Search cleared (simulated cancel)'; return;
+    }
+    if (event.key === 'Enter' && document.activeElement === $('search')) { event.preventDefault(); confirmSelection(); }
+    if (document.activeElement === $('search') && ['ArrowDown','ArrowUp'].includes(event.key)) {
+      event.preventDefault();
+      const visible = menuItems.filter(item => `${item.title} ${item.value} ${item.description}`.toLowerCase().includes($('search').value.trim().toLowerCase()));
+      if (!visible.length) return;
+      let index = visible.findIndex(item => item.value === activeValue);
+      index = event.key === 'ArrowDown' ? (index + 1) % visible.length : (index <= 0 ? visible.length - 1 : index - 1);
+      activeValue = visible[index].value;
+      if (!multiSelect) selectedValues = [activeValue];
+      renderItems(); renderSelectionSummary();
+    }
+  });
+
+  $('multiSelect').checked = multiSelect;
+  renderAll();
+  renderSelectionSummary();
+})();
+</script>
+</body>
+</html>
