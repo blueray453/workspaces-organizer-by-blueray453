@@ -562,6 +562,44 @@
    rules the launcher uses. Only the row visual is new, and its colours
    mirror .ws-flyout-row so the picker reads as the same design system. */
 
+/* ===================== DMENU / GENERIC PICKER =====================
+   Two layouts share the row styling below:
+   • Compact (--fullscreen off): small panel, tinted backdrop, click
+     outside to cancel.
+   • Fullscreen (--fullscreen on): launcher-style strip, no panel box. */
+
+/* --- full-monitor backdrop (compact mode) --- */
+.dmenu-overlay {
+    background-color: rgba(0, 26, 34, 0.10);
+}
+
+/* --- compact panel --- */
+.dmenu-panel {
+    background-color: rgba(0, 43, 54, 0.97);
+    border: 1px solid #073642;
+    border-radius: 20px;
+    padding: 24px;
+    spacing: 12px;
+    box-shadow: 0 0 40px 16px rgba(0, 22, 30, 0.55);
+}
+
+/* Search field: smaller than the launcher default in compact mode. */
+.dmenu-panel .overlay-search-entry {
+    font-size: 28px;
+    padding: 12px 18px;
+    border-radius: 12px;
+}
+
+.dmenu-panel .overlay-search-icon {
+    icon-size: 24px;
+}
+
+.dmenu-panel .overlay-search-hint {
+    font-size: 24px;
+    padding-top: 4px;
+}
+
+/* --- rows (both modes) --- */
 .dmenu-results-box {
     spacing: 6px;
     padding: 4px 8px;
