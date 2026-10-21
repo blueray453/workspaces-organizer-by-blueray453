@@ -9,15 +9,17 @@ try { GioUnix = imports.gi.GioUnix; } catch (e) { GioUnix = null; }
 
 const BUS_NAME = 'io.github.blueray453.TopNotchWorkspaces';
 const BUS_PATH = '/io/github/blueray453/TopNotchWorkspaces/Overlay';
+const ARGS_MARKER = 'args::';
 
 const IFACE_XML = `
 <node>
    <interface name="io.github.blueray453.TopNotchWorkspaces.Overlay">
-      <method name="Show">
-         <arg type="as" direction="in" name="items"/>
-         <arg type="b"  direction="in" name="multi"/>
-         <arg type="s"  direction="in" name="hint"/>
-         <arg type="b"  direction="in" name="fullscreen"/>
+      <method name="ShowWithOptions">
+         <arg type="as"         direction="in" name="items"/>
+         <arg type="b"          direction="in" name="multi"/>
+         <arg type="s"          direction="in" name="hint"/>
+         <arg type="b"          direction="in" name="fullscreen"/>
+         <arg type="a(ssa(ss))" direction="in" name="controls"/>
       </method>
       <signal name="Selected"><arg type="as" name="items"/></signal>
       <signal name="Cancelled"/>
@@ -27,22 +29,34 @@ const IFACE_XML = `
 const HELP_TEXT = `Usage: gdmenu [OPTIONS]
 
 Reads items from stdin (one per line), opens the TopNotch picker overlay,
-and prints the user's choice to stdout (one picked label per line).
+and prints the result as plain lines:
+
+  <selected value>...     in original input order
+  args::                  reserved marker, always printed
+  <argument line>...      one per enabled control argument
 
 Options:
-  --multi          Enable multi-select. Tab, Ctrl+Space, or Shift+Enter
-                   toggle the row under the cursor; Enter confirms and
-                   prints every checked row (or the cursor row if none
-                   are checked).
-  --hint TEXT      Custom hint text shown in the search entry.
-  --fullscreen     Use the full-monitor launcher layout. Without this
-                   flag, gdmenu opens a compact centred panel and a
-                   click outside it cancels.
-  -h, --help       Show this help and exit.
+  --multi                    Multi-select. Click, Tab, Ctrl+Space or
+                             Shift+Enter toggle a row; Enter (or the
+                             Confirm button) prints every checked row, or
+                             the cursor row if none are checked.
+  --hint TEXT                Custom hint text shown in the search entry.
+  --fullscreen               Use the full-monitor launcher layout.
+  --toggle LABEL ARG         Add an on/off switch (default off). When on,
+                             ARG is printed after args::.
+  --choice LABEL OPT OPT...  Add a segmented selector. Each OPT is
+                             'Label|arg' (split on the first '|'). The
+                             first option is the default; an empty arg
+                             prints nothing. Needs at least 2 options.
+  --output records           Line-oriented output (the only format).
+  -h, --help                 Show this help and exit.
+
+Controls appear in command-line order. The line 'args::' is reserved and
+cannot be an input item.
 
 Exit codes:
-  0   selected      — stdout contains the picked label(s)
-  1   cancelled     — Esc, click outside the panel, or empty stdin
+  0   selected      — stdout contains the records
+  1   cancelled     — Esc, click outside the panel, empty stdin, bad usage
   2   D-Bus error   — extension not enabled, or the call failed
 
 Requires the TopNotchWorkspaces GNOME Shell extension. The extension
@@ -52,6 +66,11 @@ function usage({ exitCode = 1, toStderr = true } = {}) {
     if (toStderr) printerr(HELP_TEXT);
     else print(HELP_TEXT);
     System.exit(exitCode);
+}
+
+function fail(msg) {
+    printerr(`gdmenu: ${msg}`);
+    usage();
 }
 
 function readStdinLines() {
@@ -68,10 +87,18 @@ function readStdinLines() {
     return lines;
 }
 
+function parseOption(raw) {
+    const d = raw.indexOf('|');
+    return d < 0
+        ? [raw.trim(), '']
+        : [raw.slice(0, d).trim(), raw.slice(d + 1).trim()];
+}
+
 function main() {
     let multi = false;
     let hint = '';
     let fullscreen = false;
+    const controls = [];   // [kind, label, [[optLabel, optArg], ...]]
 
     for (let i = 0; i < ARGV.length; i++) {
         const a = ARGV[i];
@@ -83,19 +110,36 @@ function main() {
             fullscreen = true;
         } else if (a === '--hint') {
             if (i + 1 < ARGV.length) hint = ARGV[++i];
-            else {
-                printerr('gdmenu: --hint requires an argument');
-                usage();                       // exit 1, stderr
-            }
+            else fail('--hint requires an argument');
+        } else if (a === '--toggle') {
+            if (i + 2 >= ARGV.length) fail('--toggle requires LABEL and ARG');
+            const label = ARGV[++i];
+            const arg = ARGV[++i].trim();
+            if (!arg) fail('--toggle ARG must not be empty');
+            controls.push(['toggle', label, [['', arg]]]);
+        } else if (a === '--choice') {
+            if (i + 1 >= ARGV.length) fail('--choice requires LABEL and options');
+            const label = ARGV[++i];
+            const opts = [];
+            while (i + 1 < ARGV.length && !ARGV[i + 1].startsWith('--'))
+                opts.push(parseOption(ARGV[++i]));
+            if (opts.length < 2) fail('--choice needs at least 2 options');
+            controls.push(['choice', label, opts]);
+        } else if (a === '--output') {
+            if (i + 1 >= ARGV.length) fail('--output requires an argument');
+            if (ARGV[++i] !== 'records') fail('--output: only "records" is supported');
         } else {
-            printerr(`gdmenu: unknown option: ${a}`);
-            usage();                           // exit 1, stderr
+            fail(`unknown option: ${a}`);
         }
     }
 
     const lines = readStdinLines();
     if (lines.length === 0) {
         printerr('gdmenu: no input provided on stdin');
+        System.exit(1);
+    }
+    if (lines.includes(ARGS_MARKER)) {
+        printerr(`gdmenu: "${ARGS_MARKER}" is reserved and cannot be an item`);
         System.exit(1);
     }
 
@@ -117,7 +161,7 @@ function main() {
         () => { result = null; loop.quit(); });
 
     try {
-        proxy.ShowSync(lines, multi, hint, fullscreen);
+        proxy.ShowWithOptionsSync(lines, multi, hint, fullscreen, controls);
     } catch (e) {
         if (e instanceof Gio.DBusError) Gio.DBusError.strip_remote_error(e);
         printerr(`gdmenu: D-Bus call failed: ${e.message}`);

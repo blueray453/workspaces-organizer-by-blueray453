@@ -559,10 +559,10 @@
 /* ===================== DMENU / GENERIC PICKER =====================
    Reuses .launcher-overlay, .launcher-scroll, .overlay-search-entry
    untouched — the search field and full-screen tint come from the same
-   rules the launcher uses. Only the row visual is new, and its colours
-   mirror .ws-flyout-row so the picker reads as the same design system. */
+   rules the launcher uses. The list uses either a plain scroll box
+   (<= 5 items) or the flyout PagedStrip (> 5 items), which also reuses
+   .ws-flyout-edge / .ws-flyout-rail-* above.
 
-/* ===================== DMENU / GENERIC PICKER =====================
    Two layouts share the row styling below:
    • Compact (--fullscreen off): small panel, tinted backdrop, click
      outside to cancel.
@@ -617,6 +617,7 @@
     background-color: rgba(7, 54, 66, 0.82);
 }
 
+/* keyboard / pointer cursor */
 .dmenu-result-row.sel {
     background-color: rgba(38, 139, 210, 0.26);
     border-color: #268bd2;
@@ -632,9 +633,113 @@
     color: #fdf6e3;
 }
 
-.dmenu-marker {
-    color: #2aa198;
-    font-size: 26px;
+/* ---- multi-select: prototype .menu-item.selected + .enter-key ---- */
+.dmenu-result-row.selected {
+    background-color: #0d4651;
+    border-color: #17606b;
+}
+
+.dmenu-result-row.selected .dmenu-result-label {
+    color: #fdf6e3;
+}
+
+/* cursor sitting on a checked row */
+.dmenu-result-row.selected.sel {
+    border-color: #2aa198;
+}
+
+.dmenu-badge {
+    color: #9dc8c7;
+    font-size: 22px;
     font-weight: 700;
-    padding-right: 10px;
+    border: 1px solid #2d6871;
+    border-radius: 6px;
+    padding: 2px 12px;
+    margin-left: 12px;
+}
+
+.dmenu-empty {
+    color: #586e75;
+    font-size: 26px;
+    padding: 12px;
+}
+
+/* ---- options section ---- */
+.dmenu-controls {
+    spacing: 6px;
+}
+
+.dmenu-section-label {
+    color: #586e75;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 3px;
+}
+
+.dmenu-section-count {
+    color: #586e75;
+    font-size: 20px;
+}
+
+.dmenu-control-row {
+    background-color: #07323c;
+    border: 1px solid #12434d;
+    border-radius: 10px;
+    padding: 0 16px;
+    spacing: 16px;
+}
+
+.dmenu-control-name {
+    color: #eee8d5;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.dmenu-segmented {
+    background-color: #01252e;
+    border-radius: 9px;
+    padding: 3px;
+    spacing: 3px;
+}
+
+.dmenu-segment {
+    color: #839496;
+    font-size: 22px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    padding: 6px 16px;
+}
+
+.dmenu-segment:hover {
+    color: #eee8d5;
+}
+
+.dmenu-segment.active {
+    color: #fdf6e3;
+    background-color: #15515a;
+    border-color: #267681;
+}
+
+/* ---- footer (multi) ---- */
+.dmenu-footer {
+    spacing: 12px;
+}
+
+.dmenu-summary {
+    color: #586e75;
+    font-size: 22px;
+}
+
+.dmenu-confirm {
+    color: #fdf6e3;
+    font-size: 22px;
+    font-weight: 700;
+    background-color: #176f68;
+    border: 1px solid #2f9990;
+    border-radius: 9px;
+    padding: 8px 20px;
+}
+
+.dmenu-confirm:hover {
+    background-color: #21877e;
 }
