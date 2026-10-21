@@ -7,6 +7,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { WorkspaceIndicator } from './lib/workspaceIndicator.js';
 import { TitleBarMoveMonitor } from './lib/titleBarMoveMonitor.js';
 import { PinnedEdgeFlyout } from './lib/pinnedEdgeFlyout.js';
+import { EdgeHud } from './lib/edgeHud.js';
 import * as OverlayService from './lib/overlayService.js';
 import * as DBusService from './lib/dbusService.js';
 import * as Interactions from './lib/interactions.js';
@@ -29,6 +30,7 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
         this._indicator = null;
         this._titleBarMoveMonitor = null;
         this._pinnedEdgeFlyout = null;
+        this._edgeHud = null;
         this._lastScrollTime = 0;
     }
 
@@ -59,6 +61,7 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
         this._pinnedEdgeFlyout = new PinnedEdgeFlyout(settings, {
             onShowApps: OverlayService.showAllApps,
         });
+        this._edgeHud = new EdgeHud(settings);
 
         this._lastScrollTime = 0;
         Main.panel.connectObject('scroll-event',
@@ -83,6 +86,10 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
         if (this._indicator) {
             this._indicator.destroy();
             this._indicator = null;
+        }
+        if (this._edgeHud) {
+            this._edgeHud.destroy();
+            this._edgeHud = null;
         }
 
         destroySelectedWindows();
