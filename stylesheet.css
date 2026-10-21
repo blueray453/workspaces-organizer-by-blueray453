@@ -557,58 +557,56 @@
 }
 
 /* ===================== DMENU / GENERIC PICKER =====================
-   Reuses .launcher-overlay, .launcher-scroll, .overlay-search-entry
-   untouched — the search field and full-screen tint come from the same
-   rules the launcher uses. The list uses either a plain scroll box
-   (<= 5 items) or the flyout PagedStrip (> 5 items), which also reuses
-   .ws-flyout-edge / .ws-flyout-rail-* above.
+   Compact centred panel over a lightly tinted backdrop; click outside
+   to cancel. Reuses .launcher-scroll and .overlay-search-entry. With
+   more than 5 items the list is the flyout PagedStrip, which also
+   reuses .ws-flyout-edge / .ws-flyout-rail-* above.
+   Panel padding / spacing must match PANEL_PADDING / SPACING in
+   genericOverlay.js. */
 
-   Two layouts share the row styling below:
-   • Compact (--fullscreen off): small panel, tinted backdrop, click
-     outside to cancel.
-   • Fullscreen (--fullscreen on): launcher-style strip, no panel box. */
-
-/* --- full-monitor backdrop (compact mode) --- */
 .dmenu-overlay {
     background-color: rgba(0, 26, 34, 0.10);
 }
 
-/* --- compact panel --- */
 .dmenu-panel {
     background-color: rgba(0, 43, 54, 0.97);
     border: 1px solid #073642;
-    border-radius: 20px;
-    padding: 24px;
-    spacing: 12px;
-    box-shadow: 0 0 40px 16px rgba(0, 22, 30, 0.55);
+    border-radius: 24px;
+    padding: 32px;
+    spacing: 16px;
+    box-shadow: 0 0 48px 20px rgba(0, 22, 30, 0.55);
 }
 
-/* Search field: smaller than the launcher default in compact mode. */
 .dmenu-panel .overlay-search-entry {
-    font-size: 28px;
-    padding: 12px 18px;
-    border-radius: 12px;
+    font-size: 44px;
+    padding: 18px 28px;
+    border-radius: 16px;
 }
 
 .dmenu-panel .overlay-search-icon {
-    icon-size: 24px;
+    icon-size: 36px;
 }
 
 .dmenu-panel .overlay-search-hint {
-    font-size: 24px;
+    font-size: 36px;
     padding-top: 4px;
 }
 
-/* --- rows (both modes) --- */
+/* strip edge labels ("▼ 3 more below") */
+.dmenu-panel .ws-flyout-edge-label {
+    font-size: 30px;
+}
+
+/* --- rows --- */
 .dmenu-results-box {
     spacing: 6px;
     padding: 4px 8px;
 }
 
 .dmenu-result-row {
-    padding: 0 20px;
+    padding: 0 28px;
     border: 1px solid transparent;
-    border-radius: 16px;
+    border-radius: 20px;
     background-color: rgba(7, 54, 66, 0.58);
     transition-duration: 120ms;
 }
@@ -625,7 +623,7 @@
 
 .dmenu-result-label {
     color: #93a1a1;
-    font-size: 32px;
+    font-size: 48px;
     font-weight: 700;
 }
 
@@ -650,18 +648,18 @@
 
 .dmenu-badge {
     color: #9dc8c7;
-    font-size: 22px;
+    font-size: 34px;
     font-weight: 700;
     border: 1px solid #2d6871;
-    border-radius: 6px;
-    padding: 2px 12px;
-    margin-left: 12px;
+    border-radius: 8px;
+    padding: 2px 16px;
+    margin-left: 16px;
 }
 
 .dmenu-empty {
     color: #586e75;
-    font-size: 26px;
-    padding: 12px;
+    font-size: 40px;
+    padding: 16px;
 }
 
 /* ---- options section ---- */
@@ -671,43 +669,43 @@
 
 .dmenu-section-label {
     color: #586e75;
-    font-size: 20px;
+    font-size: 30px;
     font-weight: 700;
-    letter-spacing: 3px;
+    letter-spacing: 4px;
 }
 
 .dmenu-section-count {
     color: #586e75;
-    font-size: 20px;
+    font-size: 30px;
 }
 
 .dmenu-control-row {
     background-color: #07323c;
     border: 1px solid #12434d;
-    border-radius: 10px;
-    padding: 0 16px;
-    spacing: 16px;
+    border-radius: 14px;
+    padding: 0 22px;
+    spacing: 20px;
 }
 
 .dmenu-control-name {
     color: #eee8d5;
-    font-size: 24px;
+    font-size: 36px;
     font-weight: 600;
 }
 
 .dmenu-segmented {
     background-color: #01252e;
-    border-radius: 9px;
-    padding: 3px;
-    spacing: 3px;
+    border-radius: 12px;
+    padding: 4px;
+    spacing: 4px;
 }
 
 .dmenu-segment {
     color: #839496;
-    font-size: 22px;
+    font-size: 32px;
     border: 1px solid transparent;
-    border-radius: 7px;
-    padding: 6px 16px;
+    border-radius: 9px;
+    padding: 8px 24px;
 }
 
 .dmenu-segment:hover {
@@ -722,22 +720,22 @@
 
 /* ---- footer (multi) ---- */
 .dmenu-footer {
-    spacing: 12px;
+    spacing: 16px;
 }
 
 .dmenu-summary {
     color: #586e75;
-    font-size: 22px;
+    font-size: 32px;
 }
 
 .dmenu-confirm {
     color: #fdf6e3;
-    font-size: 22px;
+    font-size: 32px;
     font-weight: 700;
     background-color: #176f68;
     border: 1px solid #2f9990;
-    border-radius: 9px;
-    padding: 8px 20px;
+    border-radius: 12px;
+    padding: 12px 28px;
 }
 
 .dmenu-confirm:hover {

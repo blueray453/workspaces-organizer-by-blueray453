@@ -18,7 +18,6 @@ const IFACE_XML = `
          <arg type="as"         direction="in" name="items"/>
          <arg type="b"          direction="in" name="multi"/>
          <arg type="s"          direction="in" name="hint"/>
-         <arg type="b"          direction="in" name="fullscreen"/>
          <arg type="a(ssa(ss))" direction="in" name="controls"/>
       </method>
       <signal name="Selected"><arg type="as" name="items"/></signal>
@@ -41,7 +40,6 @@ Options:
                              Confirm button) prints every checked row, or
                              the cursor row if none are checked.
   --hint TEXT                Custom hint text shown in the search entry.
-  --fullscreen               Use the full-monitor launcher layout.
   --toggle LABEL ARG         Add an on/off switch (default off). When on,
                              ARG is printed after args::.
   --choice LABEL OPT OPT...  Add a segmented selector. Each OPT is
@@ -97,7 +95,6 @@ function parseOption(raw) {
 function main() {
     let multi = false;
     let hint = '';
-    let fullscreen = false;
     const controls = [];   // [kind, label, [[optLabel, optArg], ...]]
 
     for (let i = 0; i < ARGV.length; i++) {
@@ -106,8 +103,6 @@ function main() {
             usage({ exitCode: 0, toStderr: false });
         } else if (a === '--multi') {
             multi = true;
-        } else if (a === '--fullscreen') {
-            fullscreen = true;
         } else if (a === '--hint') {
             if (i + 1 < ARGV.length) hint = ARGV[++i];
             else fail('--hint requires an argument');
@@ -161,7 +156,7 @@ function main() {
         () => { result = null; loop.quit(); });
 
     try {
-        proxy.ShowWithOptionsSync(lines, multi, hint, fullscreen, controls);
+        proxy.ShowWithOptionsSync(lines, multi, hint, controls);
     } catch (e) {
         if (e instanceof Gio.DBusError) Gio.DBusError.strip_remote_error(e);
         printerr(`gdmenu: D-Bus call failed: ${e.message}`);
