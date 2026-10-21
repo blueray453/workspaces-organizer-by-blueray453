@@ -245,16 +245,22 @@
     background-color: rgba(38, 139, 210, 0.12);
 }
 
-/* ===================== TOOLTIP ===================== */
+/* ===================== TOOLTIP =====================
+   Shared tooltip for the whole extension (Interactions.getTooltip()).
+   Large, Solarized, non-truncating. Callers that need a different font
+   size pass it explicitly via set_style, which wins over this rule; the
+   pinned-edge dash passes null so this large default applies. */
 
 .topnotch-tooltip {
-    background-color: rgba(0, 0, 0, 0.85);
-    color: #eee8d5;
-    border: 1px solid rgba(38, 139, 210, 0.5);
-    border-radius: 8px;
-    padding: 8px 16px;
-    font-size: 22px;
-    font-weight: bold;
+    background-color: rgba(7, 54, 66, 0.98);          /* base02 */
+    color: #eee8d5;                                   /* base2   */
+    border: 3px solid #2aa198;                        /* cyan    */
+    border-radius: 16px;
+    padding: 22px 40px;
+    font-size: 40px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    box-shadow: 0 12px 36px 10px rgba(0, 22, 30, 0.78);
 }
 
 /* ===================== SEARCH FIELD ===================== */
@@ -728,25 +734,4 @@
 .pinned-edge-dash .dash-item-container .app-well-app,
 .pinned-edge-dash .dash-item-container .show-apps {
     padding: 6px;
-}
-
-/* ===================== PINNED-EDGE TOOLTIP =====================
-   Used only by pinnedEdgeFlyout.js. Deliberately large, Solarized-tinted:
-   base02 background, cyan border, base2 text. The compound selector
-   (.topnotch-tooltip.pinned-edge-tooltip) has specificity 0,2,0, which
-   guarantees these values win over the generic .topnotch-tooltip rule
-   no matter the declaration order.
-   No ellipsize / wrap here — that is enforced in JS so a CSS change
-   can never reintroduce "…". */
-
-.topnotch-tooltip.pinned-edge-tooltip {
-    background-color: rgba(7, 54, 66, 0.98);          /* base02 */
-    color: #eee8d5;                                   /* base2   */
-    border: 3px solid #2aa198;                        /* cyan    */
-    border-radius: 16px;
-    padding: 22px 40px;
-    font-size: 40px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    box-shadow: 0 12px 36px 10px rgba(0, 22, 30, 0.78);
 }
