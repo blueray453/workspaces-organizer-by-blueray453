@@ -547,9 +547,9 @@
     pointer-events: none;
 }
 
-/* ===================== TAGGED WINDOW BORDER ===================== */
+/* ===================== SELECTED WINDOW BORDER ===================== */
 
-.tagged-border {
+.selected-border {
     background: none;
     border: 4px solid rgba(133, 153, 0, 1);    /* yellow */
     border-radius: 12px;

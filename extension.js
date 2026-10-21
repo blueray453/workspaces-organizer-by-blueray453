@@ -14,7 +14,7 @@ import * as WorkspaceActions from './lib/workspaceActions.js';
 
 import { initExternalDrag, destroyExternalDrag } from './lib/externalDrag.js';
 import { initFocusedWindowBorder, destroyFocusedWindowBorder } from './lib/focusedWindowBorder.js';
-import { initTaggedWindows, destroyTaggedWindows } from './lib/taggedWindows.js';
+import { initSelectedWindows, destroySelectedWindows } from './lib/selectedWindows.js';
 
 import { initLogging, createLogger } from './logger.js';
 
@@ -39,7 +39,7 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
         Model.connectModelSignals(settings);
         initExternalDrag();
         initFocusedWindowBorder();
-        initTaggedWindows();
+        initSelectedWindows();
 
         OverlayService.initOverlayService(settings);
         DBusService.initDBusService();
@@ -76,7 +76,7 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
             this._indicator = null;
         }
 
-        destroyTaggedWindows();
+        destroySelectedWindows();
         destroyFocusedWindowBorder();
         destroyExternalDrag();
         Model.disconnectModelSignals();

@@ -36,8 +36,8 @@ const IFACE_XML = `
       <method name="CloseFlyout">
          <arg type="b" direction="out" name="was_open"/>
       </method>
-      <method name="ToggleMarksFocusedWindow"/>
-      <method name="CloseOtherNotMarkedWindowsCurrentWorkspaceOfFocusedWindowWMClass"/>
+      <method name="ToggleSelectedWindow"/>
+      <method name="CloseNotSelectedWindows"/>
    </interface>
 </node>`;
 
@@ -56,8 +56,8 @@ function usage() {
     printerr('  CycleWindowsOnWorkspace <workspace_num>');
     printerr('  ToggleGroupFlyout <workspace_num> <wm_class>');
     printerr('  CloseFlyout');
-    printerr('  ToggleMarksFocusedWindow');
-    printerr('  CloseOtherNotMarkedWindowsCurrentWorkspaceOfFocusedWindowWMClass');
+    printerr('  ToggleSelectedWindow');
+    printerr('  CloseNotSelectedWindows');
     printerr('');
     printerr('  -h, --help             Show this');
     System.exit(1);
