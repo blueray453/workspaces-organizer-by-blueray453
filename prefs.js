@@ -17,7 +17,6 @@ const NUMERIC_KEYS = [
 ];
 
 const BOOLEAN_KEYS = [
-    ['show-drun-button', 'Show "apps" button'],
     ['show-window-button', 'Show "all windows" button'],
     ['show-workspace-names', 'Show workspace names'],
     ['group-apps-always', 'Always group windows by app'],

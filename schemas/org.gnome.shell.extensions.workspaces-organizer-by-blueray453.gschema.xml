@@ -2,11 +2,6 @@
 <schemalist>
   <schema id="org.gnome.shell.extensions.workspaces-organizer-by-blueray453"
           path="/org/gnome/shell/extensions/workspaces-organizer-by-blueray453/">
-    <key name="show-drun-button" type="b">
-      <default>true</default>
-      <summary>Show the "show apps" panel button</summary>
-      <description>Whether to show the panel button that opens the app launcher overlay (AppSearchOverlay).</description>
-    </key>
     <key name="tooltip-font-size" type="i">
       <default>14</default>
       <summary>Font size of floating tooltips</summary>
