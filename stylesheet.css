@@ -729,15 +729,3 @@
 .pinned-edge-dash .dash-item-container .show-apps {
     padding: 6px;
 }
-
-/* Tooltips repositioned at runtime; visual styling here. */
-.pinned-edge-dash .dash-label {
-    background-color: rgba(0, 22, 30, 0.92);
-    color: #fdf6e3;
-    border: 1px solid rgba(42, 161, 152, 0.55);
-    border-radius: 8px;
-    padding: 8px 16px;
-    font-size: 22px;
-    font-weight: 600;
-    text-align: left;
-}
