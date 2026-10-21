@@ -104,26 +104,29 @@
     background-color: rgba(38, 139, 210, 0.18);
 }
 
-/* ===================== ANCHORED FLYOUT (the #fan) ===================== */
+/* ===================== ANCHORED FLYOUT (the #fan) =====================
+   Sizes are enlarged to match the extension's .topnotch-tooltip (40 px)
+   and the pinned-edge dash (128 px icons). ROW_SLOT in strip.js is 144,
+   so the 96 px row icons and 52 px titles have room without clipping. */
 
 .ws-flyout {
     background-color: rgba(0, 43, 54, 0.42);
     border: 1px solid rgba(88, 110, 117, 0.30);
-    border-radius: 20px;
-    box-shadow: 0 0 40px 16px rgba(0, 43, 54, 0.42);
+    border-radius: 28px;
+    box-shadow: 0 0 56px 22px rgba(0, 43, 54, 0.48);
 }
 
 .ws-flyout-head {
     color: #2aa198;
-    font-size: 24px;
+    font-size: 40px;
     font-weight: 700;
-    letter-spacing: 3px;
+    letter-spacing: 4px;
 }
 
 .ws-flyout-row {
-    padding: 0 20px;
+    padding: 0 24px;
     border: 1px solid transparent;
-    border-radius: 16px;
+    border-radius: 20px;
     background-color: rgba(7, 54, 66, 0.58);
     transition-duration: 120ms;
 }
@@ -140,7 +143,7 @@
 
 .ws-flyout-row-app {
     color: #93a1a1;
-    font-size: 22px;
+    font-size: 32px;
     font-weight: 700;
     letter-spacing: 3px;
     margin-top: 2px;
@@ -149,16 +152,16 @@
 .ws-flyout-row-badge {
     color: #2aa198;
     background-color: rgba(42, 161, 152, 0.16);
-    border-radius: 14px;
-    padding: 4px 14px;
-    font-size: 22px;
+    border-radius: 20px;
+    padding: 6px 20px;
+    font-size: 32px;
     font-weight: 700;
 }
 
 .ws-flyout-cancel {
     background-color: rgba(203, 75, 22, 0.16);
     border: 2px dashed rgba(203, 75, 22, 0.75);
-    border-radius: 14px;
+    border-radius: 20px;
 }
 
 .ws-flyout-cancel.active {
@@ -168,16 +171,16 @@
 
 .ws-flyout-cancel-label {
     color: #eee8d5;
-    font-size: 22px;
+    font-size: 36px;
     font-weight: 700;
-    letter-spacing: 3px;
+    letter-spacing: 4px;
 }
 
 .ws-flyout-edge-label {
     color: #586e75;
-    font-size: 22px;
+    font-size: 32px;
     font-weight: 700;
-    letter-spacing: 2px;
+    letter-spacing: 3px;
 }
 
 .ws-flyout-edge.active .ws-flyout-edge-label {
@@ -563,7 +566,7 @@
 }
 
 .dmenu-panel .ws-flyout-edge-label {
-    font-size: 30px;
+    font-size: 36px;
 }
 
 .dmenu-results-box {
@@ -708,20 +711,26 @@
 /* ===================== LEFT-EDGE PINNED-APPS FLYOUT =====================
    The flyout is a Dash.Dash subclass forced vertical. Its internal
    .dash-background is suppressed; the OUTER .pinned-edge-dash actor
-   carries the visual so we don't fight upstream's sizerBox BindConstraints. */
+   carries the visual so we don't fight upstream's sizerBox BindConstraints.
+
+   The chrome below is deliberately large — 128 px icons, 20 px padding,
+   28 px corner radius — so the dash reads at the same visual weight as
+   the extension's enlarged tooltip. */
 
 .pinned-edge-dash {
     background-color: rgba(0, 43, 54, 0.97);
     border: 1px solid rgba(88, 110, 117, 0.35);
     border-left-width: 0;
-    border-radius: 0 20px 20px 0;
-    padding: 12px 8px;
-    box-shadow: 4px 0 32px 8px rgba(0, 22, 30, 0.55);
+    border-radius: 0 28px 28px 0;
+    padding: 20px 16px;
+    box-shadow: 6px 0 40px 10px rgba(0, 22, 30, 0.65);
 }
 
 .pinned-edge-dash .dash-item-container .overview-tile .app-grid-running-dot {
-    width: 24px;
-    height: 3px;
+    width: 36px;
+    height: 5px;
+    border-radius: 3px;
+    background-color: #2aa198;
 }
 
 .pinned-edge-dash .dash-background {
@@ -733,5 +742,61 @@
 .pinned-edge-dash .dash-item-container .overview-tile,
 .pinned-edge-dash .dash-item-container .app-well-app,
 .pinned-edge-dash .dash-item-container .show-apps {
-    padding: 6px;
+    padding: 10px;
+    border-radius: 16px;
+    transition-duration: 120ms;
+}
+
+.pinned-edge-dash .dash-item-container .overview-tile:hover,
+.pinned-edge-dash .dash-item-container .app-well-app:hover,
+.pinned-edge-dash .dash-item-container .show-apps:hover {
+    background-color: rgba(42, 161, 152, 0.14);
+}
+
+/* ===================== PINNED-EDGE CONTEXT MENU =====================
+   The .pinned-edge-menu class is attached to the AppMenu's outer actor
+   in pinnedEdgeFlyout.js (_styleAppMenu). Descendant selectors below
+   style the whole menu without touching the shell's global popup-menu
+   theme — size, palette, and rounding all match the enlarged tooltip. */
+
+.pinned-edge-menu .popup-menu-content {
+    background-color: rgba(7, 54, 66, 0.98);           /* base02 */
+    border: 2px solid rgba(42, 161, 152, 0.65);       /* cyan   */
+    border-radius: 18px;
+    padding: 12px;
+    box-shadow: 0 12px 36px 10px rgba(0, 22, 30, 0.78);
+}
+
+.pinned-edge-menu .popup-menu-item {
+    color: #eee8d5;                                   /* base2  */
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 16px 28px;
+    border-radius: 12px;
+    transition-duration: 100ms;
+}
+
+.pinned-edge-menu .popup-menu-item:hover {
+    background-color: rgba(42, 161, 152, 0.28);
+    color: #fdf6e3;
+}
+
+.pinned-edge-menu .popup-menu-item:active {
+    background-color: rgba(42, 161, 152, 0.45);
+    color: #fdf6e3;
+}
+
+.pinned-edge-menu .popup-menu-item:insensitive {
+    color: #586e75;
+}
+
+.pinned-edge-menu .popup-separator-menu-item {
+    height: 2px;
+    margin: 10px 4px;
+}
+
+.pinned-edge-menu .popup-separator-menu-item .popup-separator-menu-item-separator {
+    background-color: rgba(88, 110, 117, 0.85);
+    border-radius: 1px;
 }
