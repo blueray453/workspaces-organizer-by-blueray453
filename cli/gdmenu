@@ -14,7 +14,7 @@ const ARGS_MARKER = 'args::';
 const IFACE_XML = `
 <node>
    <interface name="io.github.blueray453.TopNotchWorkspaces.Overlay">
-      <method name="ShowWithOptions">
+      <method name="Show">
          <arg type="as"         direction="in" name="items"/>
          <arg type="b"          direction="in" name="multi"/>
          <arg type="s"          direction="in" name="hint"/>
@@ -156,7 +156,7 @@ function main() {
         () => { result = null; loop.quit(); });
 
     try {
-        proxy.ShowWithOptionsSync(lines, multi, hint, controls);
+        proxy.ShowSync(lines, multi, hint, controls);
     } catch (e) {
         if (e instanceof Gio.DBusError) Gio.DBusError.strip_remote_error(e);
         printerr(`gdmenu: D-Bus call failed: ${e.message}`);
