@@ -271,6 +271,28 @@ If you find this extension useful and want to support development:
 - Enhancements for modern GNOME Shell versions
 - Complete rewrite of ux took place after 09c41b52cb9e7587f1314085ff382491a65acce3
 
+### CLI Behaviour
+
+| Command | Result |
+|---|---|
+| `topnotch-call ShowAllWindows` | opens the all-windows overlay |
+| `topnotch-call ToggleAllApps` | toggles the app launcher |
+| `topnotch-call ShowWorkspaceWindows 2` | opens ws-2 overlay (0-based, matches D-Bus) |
+| `topnotch-call ToggleGroupFlyout 1 org.gnome.Nautilus` | prints `true` / `false` |
+| `topnotch-call CloseFlyout` | prints `true` / `false` |
+| `topnotch-call CycleWindowsOnWorkspace 0` | cycle |
+| `topnotch-call ToggleMarksFocusedWindow` | tag toggle |
+| `topnotch-call CloseOtherNotMarkedWindowsCurrentWorkspaceOfFocusedWindowWMClass` | sweep |
+| `topnotch-call CloseOverlay` | close any overlay |
+
+Exit codes mirror the reference script: `0` ok, `1` usage error, `2` proxy/bus failure (extension not enabled / not on session bus), `4` unknown method or bad arg count, `5` remote call failed or unsupported type.
+
+Two divergences from the reference worth noting:
+
+- **No spec cache.** The reference reads `~/.cache/gnome-dbus-spec/gnome-utils.json` because that extension's interface lives outside its own source. Here the interface *is* the source of truth in `lib/dbusService.js`, so embedding `IFACE_XML` in the CLI keeps the tool self-contained — no cache lifecycle to manage, no stale-spec failure mode.
+
+The excluded members are also excluded from `usage()`, so running `topnotch-call` bare documents exactly the callable surface.
+
 ## See Also
 
 - [GNOME Extensions](https://extensions.gnome.org)
