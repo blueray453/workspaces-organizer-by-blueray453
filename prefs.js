@@ -8,14 +8,8 @@ const NUMERIC_KEYS = [
     { key: 'thumbnail-min-width', label: 'Thumbnail minimum width', min: 20, max: 200, step: 2 },
     { key: 'workspace-name-font-size', label: 'Workspace name', min: 10, max: 100, step: 1 },
     { key: 'toolbar-icon-size', label: 'Panel toolbar icon size', min: 16, max: 64, step: 2 },
-    { key: 'title-popup-font-size', label: 'Title popup (Ctrl+hold)', min: 8, max: 48, step: 1 },
-    { key: 'collection-search-font-size', label: 'Collection search entry', min: 8, max: 48, step: 1 },
-    { key: 'collection-result-font-size', label: 'Collection result items', min: 8, max: 48, step: 1 },
-    { key: 'collection-result-icon-size', label: 'Search result icon size', min: 16, max: 128, step: 2 },
-    { key: 'clone-title-font-size', label: 'Clone preview title', min: 10, max: 80, step: 1 },
     { key: 'hover-preview-height', label: 'Hover preview height', min: 200, max: 1200, step: 10 },
     { key: 'close-button-size', label: 'Close button size', min: 16, max: 64, step: 2 },
-    { key: 'app-preview-icon-size', label: 'App search preview icon size', min: 32, max: 256, step: 2 },
     { key: 'tooltip-font-size', label: 'Tooltip text', min: 6, max: 32, step: 1 },
 ];
 
@@ -45,7 +39,6 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
         });
         page.add(iconGroup);
         this._addSpinRow(iconGroup, byKey('icon-size'), settings);
-        this._addSpinRow(iconGroup, byKey('app-preview-icon-size'), settings);
 
         // Group: Font Sizes
         const fontGroup = new Adw.PreferencesGroup({
@@ -53,11 +46,9 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
             description: 'Text size in various UI elements',
         });
         page.add(fontGroup);
-        ['workspace-name-font-size', 'title-popup-font-size',
-            'collection-search-font-size', 'collection-result-font-size', 'collection-result-icon-size',
-            'clone-title-font-size', 'tooltip-font-size'].forEach(key => {
-                this._addSpinRow(fontGroup, byKey(key), settings);
-            });
+        ['workspace-name-font-size', 'tooltip-font-size'].forEach(key => {
+            this._addSpinRow(fontGroup, byKey(key), settings);
+        });
 
         // Group: Layout
         const layoutGroup = new Adw.PreferencesGroup({
@@ -110,8 +101,8 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
         miscGroup.add(resetRow);
 
         const note = new Adw.ActionRow({
-            title: 'Changes take effect after restarting the extension (disable & enable).',
-            subtitle: 'You may need to reload GNOME Shell (Alt+F2, r) for some changes.',
+            title: 'Changes apply immediately',
+            subtitle: 'The panel re-renders on the next window/workspace change — usually within a second.',
         });
         miscGroup.add(note);
     }

@@ -5,7 +5,7 @@
     <key name="show-drun-button" type="b">
       <default>true</default>
       <summary>Show the "show apps" panel button</summary>
-      <description>Whether to show the button that opens `gdmenu --drun --fullscreen`.</description>
+      <description>Whether to show the panel button that opens the app launcher overlay (AppSearchOverlay).</description>
     </key>
     <key name="tooltip-font-size" type="i">
       <default>14</default>
@@ -15,7 +15,7 @@
     <key name="show-window-button" type="b">
       <default>true</default>
       <summary>Show the "all windows" panel button</summary>
-      <description>Whether to show the button that opens `gdmenu --window --fullscreen`.</description>
+      <description>Whether to show the panel button that opens the all-windows search overlay (WindowSearchOverlay).</description>
     </key>
     <key name="show-workspace-names" type="b">
       <default>true</default>
@@ -31,10 +31,6 @@
       <default>56</default>
       <summary>Icon size for panel toolbar buttons</summary>
       <description>Size of the 'apps' and 'all windows' button icons in the panel (pixels).</description>
-    </key>
-    <key name="app-preview-icon-size" type="i">
-      <default>128</default>
-      <summary>Icon size in the app search overlay's preview panel</summary>
     </key>
     <key name="icon-size" type="i">
       <default>96</default>
@@ -55,31 +51,6 @@
       <default>800</default>
       <summary>Height of the hover preview window clone</summary>
       <description>Height of the live preview shown when hovering over a window icon (pixels).</description>
-    </key>
-    <key name="title-popup-font-size" type="i">
-      <default>16</default>
-      <summary>Font size of the title popup (Ctrl‑held)</summary>
-      <description>Font size of the title popup shown while holding Ctrl (points).</description>
-    </key>
-    <key name="collection-search-font-size" type="i">
-      <default>18</default>
-      <summary>Font size of the collection overlay search entry</summary>
-      <description>Font size of the search entry in the window collection overlay (points).</description>
-    </key>
-    <key name="collection-result-font-size" type="i">
-      <default>13</default>
-      <summary>Font size of the collection overlay result items</summary>
-      <description>Font size of the search result items in the collection overlay (points).</description>
-    </key>
-    <key name="collection-result-icon-size" type="i">
-      <default>48</default>
-      <summary>Icon size for search result items</summary>
-      <description>Size of application icons shown in the search results overlay (pixels).</description>
-    </key>
-    <key name="clone-title-font-size" type="i">
-      <default>32</default>
-      <summary>Font size of the window title overlay on preview clones</summary>
-      <description>Font size of the window title shown on hover previews and collection overlay previews (pixels).</description>
     </key>
     <key name="close-button-size" type="i">
       <default>32</default>
