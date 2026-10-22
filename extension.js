@@ -13,6 +13,8 @@ import * as DBusService from './lib/dbusService.js';
 import * as Interactions from './lib/interactions.js';
 import * as Model from './lib/model.js';
 import * as WorkspaceActions from './lib/workspaceActions.js';
+import * as Sizes from './lib/sizes.js';
+import * as Theme from './lib/theme.js';
 
 import { initExternalDrag, destroyExternalDrag } from './lib/externalDrag.js';
 import { initFocusedWindowBorder, destroyFocusedWindowBorder } from './lib/focusedWindowBorder.js';
@@ -32,6 +34,7 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
         this._pinnedEdgeFlyout = null;
         this._edgeHud = null;
         this._lastScrollTime = 0;
+        this._unsubSizes = null;
     }
 
     enable() {
@@ -39,6 +42,13 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
         journal(`Enabled`);
 
         const settings = this.getSettings();
+
+        Sizes.initSizes(settings);
+        Theme.initTheme(settings);
+        this._unsubSizes = Sizes.onSizesChanged(() => {
+            Theme.refreshTheme();
+            Model.requestRender();
+        });
 
         Model.connectModelSignals(settings);
         initExternalDrag();
@@ -97,6 +107,10 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
         destroyExternalDrag();
         Model.disconnectModelSignals();
         Interactions.destroyTooltip();
+
+        this._unsubSizes?.(); this._unsubSizes = null;
+        Theme.destroyTheme();
+        Sizes.destroySizes();
     }
 
     _handleScroll(event) {
@@ -107,12 +121,10 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
         switch (event.get_scroll_direction()) {
             case Clutter.ScrollDirection.UP:
             case Clutter.ScrollDirection.LEFT:
-                step = -1;
-                break;
+                step = -1; break;
             case Clutter.ScrollDirection.DOWN:
             case Clutter.ScrollDirection.RIGHT:
-                step = 1;
-                break;
+                step = 1; break;
             default:
                 return Clutter.EVENT_PROPAGATE;
         }

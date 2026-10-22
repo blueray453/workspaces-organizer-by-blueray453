@@ -2,15 +2,22 @@
 <schemalist>
   <schema id="org.gnome.shell.extensions.workspaces-organizer-by-blueray453"
           path="/org/gnome/shell/extensions/workspaces-organizer-by-blueray453/">
-    <key name="tooltip-font-size" type="i">
-      <default>14</default>
-      <summary>Font size of floating tooltips</summary>
-      <description>Font size of the workspace name hint, pinned-app hover tooltip, and pinned-app drag insertion hint (points).</description>
+    <key name="base-size" type="i">
+      <range min="16" max="96"/>
+      <default>40</default>
+      <summary>Base UI size (px)</summary>
+      <description>Every text and icon size is a ratio of this value.</description>
+    </key>
+    <key name="glass-strength" type="i">
+      <range min="0" max="150"/>
+      <default>100</default>
+      <summary>Transparency strength (%)</summary>
+      <description>Scales the alpha of every translucent surface. 0 hides all glass, 100 is as designed, 150 is more see-through.</description>
     </key>
     <key name="show-window-button" type="b">
       <default>true</default>
       <summary>Show the "all windows" panel button</summary>
-      <description>Whether to show the panel button that opens the all-windows search overlay (WindowSearchOverlay).</description>
+      <description>Whether to show the panel button that opens the all-windows search overlay.</description>
     </key>
     <key name="show-workspace-names" type="b">
       <default>true</default>
@@ -20,60 +27,35 @@
     <key name="group-apps-always" type="b">
       <default>false</default>
       <summary>Always group windows by app in the panel</summary>
-      <description>When enabled, every app with more than one window on a workspace collapses into a single badged icon. When disabled, grouping only engages when the panel runs out of horizontal room (the prototype's progressive collapse), or for workspaces above the direct-mode window threshold.</description>
+      <description>When enabled, every app with more than one window on a workspace collapses into a single badged icon.</description>
     </key>
     <key name="direct-mode-max-windows" type="i">
       <range min="1" max="20"/>
       <default>5</default>
       <summary>Windows before a workspace auto-collapses to group icons</summary>
-      <description>Workspaces with more than this many windows collapse each app into a single badged group icon. Lower groups sooner. Ignored when group-apps-always is on.</description>
+      <description>Workspaces with more than this many windows collapse each app into a single badged group icon.</description>
     </key>
     <key name="flyout-dwell-ms" type="i">
       <range min="50" max="1500"/>
       <default>150</default>
       <summary>Dwell time before a flyout opens</summary>
-      <description>How long the pointer must rest on a badged group icon during a drag before its window flyout opens, and how long a hovered flyout row takes to preview its window (milliseconds).</description>
+      <description>Milliseconds the pointer must rest on a badged group icon during a drag before its window flyout opens, and how long a hovered flyout row takes to preview its window.</description>
     </key>
     <key name="ext-ws-dwell-ms" type="i">
       <range min="100" max="2000"/>
       <default>500</default>
       <summary>Dwell time before an external drag activates a workspace</summary>
-      <description>While dragging a file or text from another app onto a workspace thumbnail, how long to hover before the workspace activates (milliseconds).</description>
+      <description>Milliseconds to hover on a workspace thumbnail while dragging a file from another app.</description>
     </key>
     <key name="reduce-motion" type="b">
       <default>false</default>
       <summary>Reduce motion</summary>
       <description>Disable fade, settle and flyout animations. Layout changes snap instantly.</description>
     </key>
-    <key name="toolbar-icon-size" type="i">
-      <default>56</default>
-      <summary>Icon size for panel toolbar buttons</summary>
-      <description>Size of the 'apps' and 'all windows' button icons in the panel (pixels).</description>
-    </key>
-    <key name="icon-size" type="i">
-      <default>96</default>
-      <summary>Default icon size for window previews</summary>
-      <description>Size of each window icon in the workspace thumbnails (pixels). When app grouping engages, icons fall back to a denser ceiling so badged groups still fit.</description>
-    </key>
     <key name="thumbnail-min-width" type="i">
       <default>50</default>
       <summary>Minimum width of each workspace thumbnail</summary>
       <description>Minimum width of each workspace thumbnail in the panel (pixels).</description>
-    </key>
-    <key name="workspace-name-font-size" type="i">
-      <default>40</default>
-      <summary>Font size of the workspace name label</summary>
-      <description>Font size of the workspace name displayed in the panel (pixels).</description>
-    </key>
-    <key name="hover-preview-height" type="i">
-      <default>800</default>
-      <summary>Height of the hover preview window clone</summary>
-      <description>Height of the live preview shown when hovering over a window icon (pixels).</description>
-    </key>
-    <key name="close-button-size" type="i">
-      <default>32</default>
-      <summary>Size of the close button on previews</summary>
-      <description>Size of the close button icon on previews (pixels).</description>
     </key>
   </schema>
 </schemalist>
