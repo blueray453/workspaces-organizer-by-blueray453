@@ -424,21 +424,18 @@
       <default>false</default>
     </key>
 
-    <!-- ===================== Grouping ===================== -->
-    <key name="direct-mode-max-windows" type="i">
-      <default>5</default>
-      <range min="1" max="20"/>
-      <summary>Auto-group above N windows per workspace</summary>
-    </key>
-
     <!-- ===================== Timing ===================== -->
     <key name="flyout-dwell-ms" type="i">
       <default>400</default>
-      <range min="50" max="1500"/>
+      <range min="0" max="1500"/>
+      <summary>Flyout dwell (ms)</summary>
+      <description>How long the pointer must rest on a collapsed group icon (or on a flyout row) before the group flyout opens / previews. 0 = fire on the next main-loop tick.</description>
     </key>
     <key name="ext-ws-dwell-ms" type="i">
       <default>600</default>
-      <range min="100" max="2000"/>
+      <range min="0" max="2000"/>
+      <summary>External-drag workspace dwell (ms)</summary>
+      <description>How long the pointer must rest on a non-active workspace thumbnail during an external drag before that workspace activates. 0 = fire on the next poll tick.</description>
     </key>
 
     <!-- ===================== Accessibility ===================== -->
@@ -1376,15 +1373,14 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         return shell;
     }
 
-    _isCollapsed(entry, group) {
+    _isCollapsed(group) {
         if (group.count < 2) return false;
         if (this._settings.get_boolean('group-apps-always')) return true;
-        if (!entry.direct) return true;
         return this._collapsed.has(group.key);
     }
 
     _isGrouped(entry) {
-        return entry.groups.some(g => this._isCollapsed(entry, g));
+        return entry.groups.some(g => this._isCollapsed(g));
     }
 
     _iconSize() {
@@ -1430,7 +1426,6 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         const activeIdx = Model.WorkspaceManager.get_active_workspace_index();
         const out = [];
         for (const e of entries) {
-            if (!e.entry.direct) continue;
             for (const g of e.entry.groups)
                 if (g.count > 1) out.push({ key: g.key, count: g.count, wsIndex: e.entry.index });
         }
@@ -1505,7 +1500,7 @@ export class WorkspaceIndicator extends PanelMenu.Button {
             if (!entry.windows.length) continue;
 
             for (const group of entry.groups) {
-                if (this._isCollapsed(entry, group)) {
+                if (this._isCollapsed(group)) {
                     content.add_child(this._buildGroupIcon(shell, group, sz));
                     continue;
                 }
@@ -2511,15 +2506,12 @@ function buildCss() {
     padding: 0 ${px(0.50)}px;
     transition-duration: 150ms;
 }
-#panel .panel-button:hover {
-    background-color: ${rgba('bgRaised', 0.9)};
-    ${t('text')}
-}
+#panel .panel-button:hover,
 #panel .panel-button:active,
 #panel .panel-button:focus,
 #panel .panel-button:checked {
-    background-color: ${color('info')};
-    ${t('textOnAccent')}
+    background-color: ${rgba('bgRaised', 0.9)};
+    ${t('text')}
 }
 #panel .panel-button .system-status-icon,
 #panel .panel-button .app-menu-icon,
@@ -2573,7 +2565,20 @@ function buildCss() {
 .selector-row-label { ${t('selectorRow')} }
 .selector-rail { ${bg('selectorRail')} border-radius: ${radius('lg')}px; }
 .selector-rail-tip { ${bg('selectorTip')} ${t('selectorTitle')} ${rad('sm')} }
-.window-selector-overlay .overlay-search-entry { background-color: transparent; border: none; border-bottom: 2px solid ${rgba('text', 0.72)}; border-radius: 0; ${t('selectorEntry')} caret-color: ${color('accentBright')}; }
+
+.window-selector-overlay .overlay-search-entry {
+    ${bg('searchEntry')}
+    ${t('selectorEntry')}
+    ${ln('searchEntry', BORDER.thin)}
+    ${rad('lg')}
+    padding: 14px 32px;
+    caret-color: ${color('accentBright')};
+    transition-duration: 150ms;
+}
+.window-selector-overlay .overlay-search-entry:focus {
+    border-color: ${line('searchFocus')};
+    box-shadow: 0 0 0 4px ${rgba('accent', 0.35)};
+}
 
 .launcher-overlay { ${bg('launcher')} }
 .launcher-heading { ${t('launcherHeading')} }
@@ -5022,10 +5027,6 @@ function _removeOneCli(extensionPath, { name, path }) {
 // (pointerAt) — both drive the same PagedStrip. Also openable without a
 // drag ("sticky", e.g. from DBus; or "hover", from an icon hover).
 //
-// Drag-opened flyouts (onDrop set AND not sticky) get a CANCEL zone above
-// the header: dropping there closes the flyout and leaves the window where
-// it was. Sticky and hover flyouts do not get it.
-//
 // Sizing: every dimension below scales with sizes.js. ROW_SLOT in
 // strip.js is sized so row icons and labels fit without clipping.
 
@@ -5050,6 +5051,14 @@ import { createLogger } from '../logger.js';
 const journal = createLogger(import.meta.url);
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+// Hover-activate velocity gate — dwell only arms while the pointer has been
+// moving slower than HOVER_VELOCITY_MAX for HOVER_VELOCITY_WINDOW_MS.
+// Prevents activation while the pointer is still traveling from the anchor
+// to a target row.
+const HOVER_VELOCITY_WINDOW_MS = 120;
+const HOVER_VELOCITY_MAX = 0.25;   // px / ms
+const HOVER_POLL_MS = 30;
 
 export class GroupFlyout {
     constructor(settings) {
@@ -5078,9 +5087,14 @@ export class GroupFlyout {
             tick: () => this._watchTick(),
         });
 
-        this._cancelY = 0;
-        this._cancelH = 0;
-        this._cancelActive = false;
+        // Velocity-gated hover activation (see constants above).
+        this._motionSamples = [];
+        this._hoverPoll = new Poller(this._scope, {
+            interval: HOVER_POLL_MS,
+            name: 'flyout.hover',
+            tick: () => this._hoverTick(),
+        });
+
         this._wheelAccum = 0;
 
         this._hoverActivate = false;
@@ -5096,16 +5110,11 @@ export class GroupFlyout {
         this._head.clutter_text.set_ellipsize(Pango.EllipsizeMode.END);
         this._head.clutter_text.set_line_wrap(false);
 
-        const cancel = UI.createCancelZone('DROP HERE TO CANCEL');
-        this._cancelEl = cancel.actor;
-        this._cancelEl.visible = false;
-
         this._rowsEl = new St.Widget({ clip_to_allocation: true });
         this._upEl = new St.Widget({ style_class: 'ws-flyout-edge ws-flyout-edge-up' });
         this._downEl = new St.Widget({ style_class: 'ws-flyout-edge ws-flyout-edge-down' });
         this._rail = UI.createRail();
 
-        this._root.add_child(this._cancelEl);
         this._root.add_child(this._head);
         this._root.add_child(this._upEl);
         this._root.add_child(this._downEl);
@@ -5130,25 +5139,10 @@ export class GroupFlyout {
                 const [, py] = global.get_pointer();
                 const [, ry] = this._root.get_transformed_position();
                 const y = py - ry;
-
-                if (this._inCancel(y)) {
-                    this._strip.stopEdge();
-                    this._strip.clearHover();
-                    this._setCancelActive(true);
-                    return Interactions.DragMotionResult.MOVE_DROP;
-                }
-                this._setCancelActive(false);
                 this._strip.over(y);
                 return Interactions.DragMotionResult.MOVE_DROP;
             },
             acceptDrop: source => {
-                const [, py] = global.get_pointer();
-                const [, ry] = this._root.get_transformed_position();
-                if (this._inCancel(py - ry)) {
-                    journal('[flyout] drop on cancel zone -> cancelled');
-                    this.close(true);
-                    return true;
-                }
                 const idx = this._strip.highlighted;
                 const item = idx >= 0 ? this._items[idx] : null;
                 const handled = this._onDrop ? this._onDrop(source, item) : false;
@@ -5162,12 +5156,6 @@ export class GroupFlyout {
             const type = event.type();
 
             if (type === Clutter.EventType.SCROLL) {
-                if (this._cancelH > 0) {
-                    const [, py] = global.get_pointer();
-                    const [, ry] = this._root.get_transformed_position();
-                    if (this._inCancel(py - ry)) return Clutter.EVENT_STOP;
-                }
-
                 let step = 0;
                 const dir = event.get_scroll_direction();
                 if (dir === Clutter.ScrollDirection.UP) step = -1;
@@ -5191,13 +5179,12 @@ export class GroupFlyout {
             if (type !== Clutter.EventType.MOTION) return Clutter.EVENT_PROPAGATE;
             const [, sy] = event.get_coords();
             const [, ry] = this._root.get_transformed_position();
-            const idx = this._strip.over(sy - ry);
-            if (this._hoverActivate) this._onHoverRow(idx);
+            // Edge-scroll + highlight only. Activation is driven by _hoverPoll.
+            this._strip.over(sy - ry);
             return Clutter.EVENT_PROPAGATE;
         });
         this._scope.connect(this._root, 'leave-event', () => {
             this._hoverDwell.cancel();
-            this._setCancelActive(false);
             if (this._open) {
                 this._strip.stopEdge();
                 this._strip.clearHover();
@@ -5211,17 +5198,6 @@ export class GroupFlyout {
     get items() { return this._items; }
     get sticky() { return this._sticky; }
     get anchorKey() { return this._anchorKey; }
-
-    _inCancel(y) {
-        return this._cancelH > 0 && y >= this._cancelY && y <= this._cancelY + this._cancelH;
-    }
-
-    _setCancelActive(on) {
-        if (this._cancelActive === on) return;
-        this._cancelActive = on;
-        if (on) this._cancelEl.add_style_class_name('active');
-        else this._cancelEl.remove_style_class_name('active');
-    }
 
     _onHoverRow(idx) {
         const item = idx >= 0 ? this._items[idx] : null;
@@ -5237,6 +5213,47 @@ export class GroupFlyout {
     }
 
     _cancelHoverActivate() { this._hoverDwell.cancel(); }
+
+    // Called every HOVER_POLL_MS while a hover-activate flyout is open.
+    // Samples the pointer, gates dwell arming on velocity, and lets
+    // _onHoverRow arm/cancel the dwell exactly as before once the pointer
+    // has settled.
+    _hoverTick() {
+        if (!this._open || !this._hoverActivate) return false;
+
+        const [px, py] = global.get_pointer();
+        if (!this.contains(px, py)) {
+            this._hoverDwell.cancel();
+            this._motionSamples.length = 0;
+            return true;
+        }
+
+        this._pushSample(px, py);
+        if (this._pointerMoving()) {
+            this._hoverDwell.cancel();
+            return true;
+        }
+
+        const [, ry] = this._root.get_transformed_position();
+        this._onHoverRow(this._strip.over(py - ry));
+        return true;
+    }
+
+    _pushSample(x, y) {
+        const now = GLib.get_monotonic_time() / 1000;
+        const s = this._motionSamples;
+        s.push({ t: now, x, y });
+        while (s.length > 1 && now - s[0].t > HOVER_VELOCITY_WINDOW_MS) s.shift();
+    }
+
+    _pointerMoving() {
+        const s = this._motionSamples;
+        if (s.length < 2) return true;    // no data yet — be conservative
+        const first = s[0], last = s[s.length - 1];
+        const dt = last.t - first.t;
+        if (dt <= 0) return true;
+        return Math.hypot(last.x - first.x, last.y - first.y) / dt > HOVER_VELOCITY_MAX;
+    }
 
     _startWatch() {
         if (this._watch.running) return;
@@ -5325,19 +5342,11 @@ export class GroupFlyout {
 
     pointerAt(x, y) {
         if (!this.contains(x, y)) {
-            this._setCancelActive(false);
             this._strip.stopEdge();
             if (this._strip.highlighted >= 0) this._strip.clearHover();
             return null;
         }
         const [, ry] = this._root.get_transformed_position();
-        if (this._inCancel(y - ry)) {
-            this._setCancelActive(true);
-            this._strip.stopEdge();
-            this._strip.clearHover();
-            return null;
-        }
-        this._setCancelActive(false);
         const idx = this._strip.over(y - ry);
         if (idx < 0) return null;
         return { index: idx, item: this._items[idx] ?? null };
@@ -5381,6 +5390,10 @@ export class GroupFlyout {
 
         if (this._open && this._anchor === anchor) { this._misses.reset(); return true; }
 
+        // Reset any in-flight hover poll from a previous open().
+        this._hoverPoll.stop();
+        this._motionSamples.length = 0;
+
         const monitorIndex = Math.max(0, Main.layoutManager.findIndexForActor(anchor));
         const monitor = Main.layoutManager.monitors[monitorIndex] ?? Main.layoutManager.primaryMonitor;
 
@@ -5390,7 +5403,6 @@ export class GroupFlyout {
         this._hoverActivate = hoverActivate;
         this._wheelAccum = 0;
         this._hoverDwell.cancel();
-        this._setCancelActive(false);
 
         const F = S.flyout;
         const PAD = F.pad, RAIL_W = F.railW, GAP = F.gap, HEAD_H = F.headH, EDGE_H = F.edgeH;
@@ -5398,31 +5410,19 @@ export class GroupFlyout {
         const W = width ?? clamp(Math.round(monitor.width * 0.26), 720, 1440);
         const rowsW = W - PAD * 2 - RAIL_W - GAP;
 
-        const cancelH = (onDrop && !sticky) ? F.cancelH : 0;
-        const topExtra = cancelH ? cancelH + F.cancelGap : 0;
-
-        const chromeH = PAD * 2 + topExtra + HEAD_H + EDGE_H * 2;
+        const chromeH = PAD * 2 + HEAD_H + EDGE_H * 2;
         const maxRowsH = Math.max(F.rowSlot, monitor.height - 120 - chromeH);
         const slots = Math.max(1, Math.min(VISIBLE_SLOTS, items.length,
             Math.floor(maxRowsH / F.rowSlot)));
         const rowsH = slots * F.rowSlot;
         const H = chromeH + rowsH;
 
-        const cancelY = PAD;
-        const headY = PAD + topExtra;
+        const headY = PAD;
         const upY = headY + HEAD_H;
         const rowsY = upY + EDGE_H;
         const downY = rowsY + rowsH;
 
         this._rowsW = rowsW;
-        this._cancelY = cancelY;
-        this._cancelH = cancelH;
-
-        this._cancelEl.visible = cancelH > 0;
-        if (cancelH > 0) {
-            this._cancelEl.set_position(PAD, cancelY);
-            this._cancelEl.set_size(W - PAD * 2, cancelH);
-        }
 
         this._head.set_position(PAD, headY);
         this._head.set_size(W - PAD * 2, HEAD_H);
@@ -5483,7 +5483,7 @@ export class GroupFlyout {
 
         journal(`[flyout.open] W=${W} H=${H} slots=${slots} ` +
             `left=${Math.round(left)} top=${Math.round(top)} side=${side} ` +
-            `hoverActivate=${hoverActivate} sticky=${sticky} cancelZone=${cancelH > 0}`);
+            `hoverActivate=${hoverActivate} sticky=${sticky}`);
 
         if (side) {
             this._root.set_pivot_point(1, 0.5);
@@ -5508,6 +5508,10 @@ export class GroupFlyout {
         this._anchorKey = anchorKey;
         this._misses.reset();
 
+        // Velocity-gated hover activation only runs for hover-activate
+        // flyouts; every other mode relies on clicks / drags.
+        if (hoverActivate) this._hoverPoll.start();
+
         this._root.remove_all_transitions();
         Motion.enter(this._root, {
             dx: side ? 16 : 0,
@@ -5530,9 +5534,9 @@ export class GroupFlyout {
         this._sticky = false;
         this._anchorKey = null;
         this._hoverDwell.cancel();
+        this._hoverPoll.stop();
+        this._motionSamples.length = 0;
         this._wheelAccum = 0;
-        this._setCancelActive(false);
-        this._cancelH = 0;
         this._strip.stopEdge();
         this._strip.clearHover();
         this._onDrop = null;
@@ -5560,6 +5564,8 @@ export class GroupFlyout {
         this._anchorKey = null;
         this._side = null;
         this._hoverDwell.cancel();
+        this._hoverPoll.stop();
+        this._motionSamples.length = 0;
         this._watch.stop();
         this._strip?.destroy();
         this._scope.dispose();
@@ -5986,12 +5992,12 @@ const RATIOS = {
 
     selector: {
         center: 1.80,           //  72 — band title (large by design)
-        search: 1.00,           //  40 — search field text
+        search: 2.00,           //  40 — search field text
         tip: 1.00,              //  40 — rail tooltip
-        bandIcon: 1.00,         //  96 — band icon
+        bandIcon: 2.00,         //  96 — band icon
         bandApp: 1.00,          //  40 — app-name line
-        rowLabel: 1.00,         //  40 — neighbor row text
-        rowIcon: 1.00,          //  96 — neighbor row icon
+        rowLabel: 1.80,         //  40 — neighbor row text
+        rowIcon: 1.80,          //  96 — neighbor row icon
         rowSlot: 3.40,          // 136 — row fits 96 icon
         bandH: 3.50,            // 140 — band height fits 96 icon + 72 title
         searchH: 2.60,          // 104 — search field height
@@ -7577,9 +7583,9 @@ const journal = createLogger(import.meta.url);
 
 // ==================== DISCRETE FOCUS STRIP ====================
 function neighborOpacity(x) {
-    if (x <= 1) return 0.92;
-    if (x <= 2) return 0.92 - 0.40 * (x - 1);
-    return Math.max(0, 0.52 * (1 - (x - 2) / 0.8));
+    if (x <= 1) return 1.00;                                // was 0.92
+    if (x <= 2) return 1.00 - 0.3 * (x - 1);               // 1.00 → 0.85   (was 0.92 → 0.52)
+    return Math.max(0, 0.85 * (1 - (x - 2) / 0.8));         // 0.85 → 0 at 2.8
 }
 
 const appColor = name => UI.colorForApp(name);
@@ -8263,11 +8269,8 @@ export const Display = global.get_display();
 
 export const TimeoutDelay = 200;
 
-export let DIRECT_MODE_MAX_WINDOWS = 5;
-
 export function applySettings(settings) {
     if (!settings) return;
-    DIRECT_MODE_MAX_WINDOWS = settings.get_int('direct-mode-max-windows');
     configureMotion({ reduceMotion: settings.get_boolean('reduce-motion') });
 }
 
@@ -8395,7 +8398,6 @@ export function buildModel() {
 
         const entry = {
             workspace, index: i, windows,
-            direct: windows.length <= DIRECT_MODE_MAX_WINDOWS,
         };
         entry.groups = groupWindowsInWorkspace(entry);
         workspaces.push(entry);
@@ -8493,7 +8495,6 @@ export function getModelSnapshot(model) {
         workspaces: model.workspaces.map(ws => ({
             index: ws.index,
             windowCount: ws.windows.length,
-            direct: ws.direct,
             groups: ws.groups.map(g => `${g.appName}:${g.count}`),
         })),
     };
@@ -8517,8 +8518,7 @@ const journal = createLogger(import.meta.url);
 
 // ==================== OVERLAY SERVICE ====================
 // The single place any search overlay is opened or closed.
-// Overlays ignore the model's display-mode flag (`direct`): they always
-// list every window, so the 5+ regrouping threshold never leaks in here.
+// Overlays always list every window.
 //
 // Initial selection resolves through Model.lastFocusedWindow(): the shell
 // reports no focus right after a workspace switch, so the remembered
@@ -9912,9 +9912,8 @@ const NUMERIC_KEYS = [
     { key: 'base-size', label: 'UI base size', min: 16, max: 96, step: 2 },
     { key: 'glass-strength', label: 'Transparency strength (%)', min: 0, max: 150, step: 5 },
     { key: 'thumbnail-min-width', label: 'Thumbnail minimum width', min: 20, max: 200, step: 2 },
-    { key: 'direct-mode-max-windows', label: 'Auto-group above N windows', min: 1, max: 20, step: 1 },
-    { key: 'flyout-dwell-ms', label: 'Flyout dwell', min: 50, max: 1500, step: 10 },
-    { key: 'ext-ws-dwell-ms', label: 'External-drag workspace dwell', min: 100, max: 2000, step: 50 },
+    { key: 'flyout-dwell-ms', label: 'Flyout dwell (ms)', min: 0, max: 1500, step: 10 },
+    { key: 'ext-ws-dwell-ms', label: 'External-drag workspace dwell (ms)', min: 0, max: 2000, step: 50 },
 ];
 
 const BOOLEAN_KEYS = [
@@ -9982,18 +9981,10 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
             panelGroup.add(row);
         }
 
-        // Grouping
-        const groupingGroup = new Adw.PreferencesGroup({
-            title: 'Grouping',
-            description: 'When multiple windows of the same app collapse',
-        });
-        page.add(groupingGroup);
-        this._addSpinRow(groupingGroup, byKey('direct-mode-max-windows'), settings);
-
         // Timing
         const timingGroup = new Adw.PreferencesGroup({
             title: 'Timing',
-            description: 'Interaction delays (milliseconds)',
+            description: 'Interaction delays in milliseconds (0 = fire as soon as the pointer rests)',
         });
         page.add(timingGroup);
         ['flyout-dwell-ms', 'ext-ws-dwell-ms'].forEach(k =>
