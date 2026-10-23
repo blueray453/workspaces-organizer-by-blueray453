@@ -2,60 +2,110 @@
 <schemalist>
   <schema id="org.gnome.shell.extensions.workspaces-organizer-by-blueray453"
           path="/org/gnome/shell/extensions/workspaces-organizer-by-blueray453/">
+
+    <!-- ===================== Appearance / sizing ===================== -->
     <key name="base-size" type="i">
-      <range min="16" max="96"/>
       <default>40</default>
-      <summary>Base UI size (px)</summary>
-      <description>Every text and icon size is a ratio of this value.</description>
+      <range min="16" max="96"/>
+      <summary>UI base size</summary>
+      <description>Every text and icon size scales from this value.</description>
     </key>
     <key name="glass-strength" type="i">
-      <range min="0" max="150"/>
       <default>100</default>
-      <summary>Transparency strength (%)</summary>
-      <description>Scales the alpha of every translucent surface. 0 hides all glass, 100 is as designed, 150 is more see-through.</description>
+      <range min="0" max="150"/>
+      <summary>Surface transparency strength (%)</summary>
     </key>
+    <key name="thumbnail-min-width" type="i">
+      <default>120</default>
+      <range min="20" max="200"/>
+      <summary>Minimum workspace thumbnail width</summary>
+    </key>
+
+    <!-- ===================== Panel elements ===================== -->
     <key name="show-window-button" type="b">
       <default>true</default>
-      <summary>Show the "all windows" panel button</summary>
-      <description>Whether to show the panel button that opens the all-windows search overlay.</description>
     </key>
     <key name="show-workspace-names" type="b">
       <default>true</default>
-      <summary>Show workspace name label and drag-over hint</summary>
-      <description>Whether to show the workspace name in the panel and as a hint while dragging a window over a thumbnail.</description>
     </key>
     <key name="group-apps-always" type="b">
       <default>false</default>
-      <summary>Always group windows by app in the panel</summary>
-      <description>When enabled, every app with more than one window on a workspace collapses into a single badged icon.</description>
     </key>
+
+    <!-- ===================== Grouping ===================== -->
     <key name="direct-mode-max-windows" type="i">
-      <range min="1" max="20"/>
       <default>5</default>
-      <summary>Windows before a workspace auto-collapses to group icons</summary>
-      <description>Workspaces with more than this many windows collapse each app into a single badged group icon.</description>
+      <range min="1" max="20"/>
+      <summary>Auto-group above N windows per workspace</summary>
     </key>
+
+    <!-- ===================== Timing ===================== -->
     <key name="flyout-dwell-ms" type="i">
+      <default>400</default>
       <range min="50" max="1500"/>
-      <default>150</default>
-      <summary>Dwell time before a flyout opens</summary>
-      <description>Milliseconds the pointer must rest on a badged group icon during a drag before its window flyout opens, and how long a hovered flyout row takes to preview its window.</description>
     </key>
     <key name="ext-ws-dwell-ms" type="i">
+      <default>600</default>
       <range min="100" max="2000"/>
-      <default>500</default>
-      <summary>Dwell time before an external drag activates a workspace</summary>
-      <description>Milliseconds to hover on a workspace thumbnail while dragging a file from another app.</description>
     </key>
+
+    <!-- ===================== Accessibility ===================== -->
     <key name="reduce-motion" type="b">
       <default>false</default>
-      <summary>Reduce motion</summary>
-      <description>Disable fade, settle and flyout animations. Layout changes snap instantly.</description>
     </key>
-    <key name="thumbnail-min-width" type="i">
-      <default>50</default>
-      <summary>Minimum width of each workspace thumbnail</summary>
-      <description>Minimum width of each workspace thumbnail in the panel (pixels).</description>
+
+    <!-- ===================== Panel ordering ===================== -->
+    <key name="order-left" type="as">
+      <default>['workspace-indicator']</default>
+      <summary>Desired order of indicators in the left panel box</summary>
+      <description>Roles listed here get repositioned; roles present in the box but not listed are left where they are.</description>
     </key>
+    <key name="order-center" type="as">
+      <default>[]</default>
+      <summary>Desired order of indicators in the center panel box</summary>
+    </key>
+    <key name="order-right" type="as">
+      <default>['ShowNetSpeedButton', 'printers', 'lockkeys@febueldo.test', 'color-picker@tuberry', 'clipboardIndicator', 'emoji-copy@felipeftn', 'athan@goodm4ven']</default>
+      <summary>Desired order of indicators in the right panel box</summary>
+    </key>
+
+    <key name="discovered-left" type="as">
+      <default>[]</default>
+      <summary>Roles currently present in the left panel box (read-only snapshot)</summary>
+    </key>
+    <key name="discovered-center" type="as">
+      <default>[]</default>
+      <summary>Roles currently present in the center panel box (read-only snapshot)</summary>
+    </key>
+    <key name="discovered-right" type="as">
+      <default>[]</default>
+      <summary>Roles currently present in the right panel box (read-only snapshot)</summary>
+    </key>
+
+    <!-- ===================== Panel behaviour ===================== -->
+    <key name="move-panel-to-bottom" type="b">
+      <default>true</default>
+      <summary>Move the top bar to the bottom of the screen</summary>
+      <description>When off, the panel stays where the shell placed it. Ordering still applies.</description>
+    </key>
+    <key name="hide-activities" type="b">
+      <default>true</default>
+      <summary>Hide the Activities button</summary>
+    </key>
+    <key name="disable-panel-window-drag" type="b">
+      <default>true</default>
+      <summary>Stop pressing the panel from starting a window drag</summary>
+    </key>
+    <key name="date-menu-position" type="s">
+      <choices>
+        <choice value="stock"/>
+        <choice value="left-first"/>
+        <choice value="center-first"/>
+        <choice value="right-first"/>
+      </choices>
+      <default>'right-first'</default>
+      <summary>Where to move the date/clock menu</summary>
+    </key>
+
   </schema>
 </schemalist>

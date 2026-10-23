@@ -8,6 +8,7 @@ import { WorkspaceIndicator } from './lib/workspaceIndicator.js';
 import { TitleBarMoveMonitor } from './lib/titleBarMoveMonitor.js';
 import { PinnedEdgeFlyout } from './lib/pinnedEdgeFlyout.js';
 import { EdgeHud } from './lib/edgeHud.js';
+import { PanelManager } from './lib/panel.js';
 import * as OverlayService from './lib/overlayService.js';
 import * as DBusService from './lib/dbusService.js';
 import * as Interactions from './lib/interactions.js';
@@ -33,6 +34,7 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
         this._titleBarMoveMonitor = null;
         this._pinnedEdgeFlyout = null;
         this._edgeHud = null;
+        this._panel = null;
         this._lastScrollTime = 0;
         this._unsubSizes = null;
     }
@@ -73,6 +75,9 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
         });
         this._edgeHud = new EdgeHud(settings);
 
+        // Panel order / position — after all custom UI is in place.
+        this._panel = new PanelManager(settings);
+
         this._lastScrollTime = 0;
         Main.panel.connectObject('scroll-event',
             (_actor, event) => this._handleScroll(event), this);
@@ -80,6 +85,11 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
 
     disable() {
         Main.panel.disconnectObject(this);
+
+        if (this._panel) {
+            this._panel.destroy();
+            this._panel = null;
+        }
 
         DBusService.removeCli(this.path);
         DBusService.destroyDBusService();
