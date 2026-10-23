@@ -35,11 +35,15 @@
     <!-- ===================== Timing ===================== -->
     <key name="flyout-dwell-ms" type="i">
       <default>400</default>
-      <range min="50" max="1500"/>
+      <range min="0" max="1500"/>
+      <summary>Flyout dwell (ms)</summary>
+      <description>How long the pointer must rest on a collapsed group icon (or on a flyout row) before the group flyout opens / previews. 0 = fire on the next main-loop tick.</description>
     </key>
     <key name="ext-ws-dwell-ms" type="i">
       <default>600</default>
-      <range min="100" max="2000"/>
+      <range min="0" max="2000"/>
+      <summary>External-drag workspace dwell (ms)</summary>
+      <description>How long the pointer must rest on a non-active workspace thumbnail during an external drag before that workspace activates. 0 = fire on the next poll tick.</description>
     </key>
 
     <!-- ===================== Accessibility ===================== -->

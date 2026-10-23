@@ -9,8 +9,8 @@ const NUMERIC_KEYS = [
     { key: 'base-size', label: 'UI base size', min: 16, max: 96, step: 2 },
     { key: 'glass-strength', label: 'Transparency strength (%)', min: 0, max: 150, step: 5 },
     { key: 'thumbnail-min-width', label: 'Thumbnail minimum width', min: 20, max: 200, step: 2 },
-    { key: 'flyout-dwell-ms', label: 'Flyout dwell', min: 50, max: 1500, step: 10 },
-    { key: 'ext-ws-dwell-ms', label: 'External-drag workspace dwell', min: 100, max: 2000, step: 50 },
+    { key: 'flyout-dwell-ms', label: 'Flyout dwell (ms)', min: 0, max: 1500, step: 10 },
+    { key: 'ext-ws-dwell-ms', label: 'External-drag workspace dwell (ms)', min: 0, max: 2000, step: 50 },
 ];
 
 const BOOLEAN_KEYS = [
@@ -81,7 +81,7 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
         // Timing
         const timingGroup = new Adw.PreferencesGroup({
             title: 'Timing',
-            description: 'Interaction delays (milliseconds)',
+            description: 'Interaction delays in milliseconds (0 = fire as soon as the pointer rests)',
         });
         page.add(timingGroup);
         ['flyout-dwell-ms', 'ext-ws-dwell-ms'].forEach(k =>
