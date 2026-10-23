@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GNOME St Compatible Solarized Prototype</title>
+    <style>
+        /* --- Pure Solarized Dark Content Tones Locked on Foreground --- */
+        :root {
+            /* Background Canvas Toggle States */
+            --canvas-bg: #002b36;
+            /* Starts as Solarized Dark base */
+            --btn-bg: #ffffff;
+            --btn-text: #000000;
+
+            /* FORBIDDEN TO CHANGE: Fixed Solarized Dark Font Palette */
+            --sol-dark-center: #268bd2;
+            /* Solarized Blue (Max Attention Anchor) */
+            --sol-dark-neighbor: #93a1a1;
+            /* Solarized Base1 (Medium Attention) */
+            --sol-dark-outer: #586e75;
+            /* Solarized Base01 (Low Attention) */
+        }
+
+        /* Triggered by the check button to swap to pure absolute white canvas */
+        body.white-canvas {
+            --canvas-bg: #ffffff;
+            --btn-bg: #002b36;
+            --btn-text: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--canvas-bg);
+            font-family: system-ui, -apple-system, sans-serif;
+            height: 100vh;
+            width: 100vw;
+            padding: 90px 40px 40px 40px;
+            transition: background-color 0.2s ease;
+        }
+
+        /* Fixed Test Toggle Button */
+        .toggle-btn {
+            position: fixed;
+            top: 25px;
+            right: 40px;
+            padding: 12px 24px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 6px;
+            background-color: var(--btn-bg);
+            color: var(--btn-text);
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+        }
+
+        /* 1. Rigid 5-Row Parent Layout Container */
+        .layout-container {
+            display: grid;
+            grid-template-rows: repeat(5, 1fr);
+            gap: 20px;
+            height: 100%;
+            width: 100%;
+        }
+
+        /* 2. Uniform Row Structural Constraints (NO Background Colors Allowed) */
+        .row {
+            display: grid;
+            place-items: center;
+            background-color: transparent;
+            /* Explicitly forced to stay transparent */
+            font-size: 1.6rem;
+            font-weight: 800;
+            /* Extra bolding dramatically enhances the shadow protective shell */
+            letter-spacing: 0.5px;
+
+            /* THE TRICK: Multi-layered contrast shields natively supported by GNOME St Toolkit.
+         Creates an artificial 360-degree dark barrier protecting light/dark text */
+            text-shadow:
+                -1px -1px 0px rgba(0, 43, 54, 0.95),
+                1px -1px 0px rgba(0, 43, 54, 0.95),
+                -1px 1px 0px rgba(0, 43, 54, 0.95),
+                1px 1px 0px rgba(0, 43, 54, 0.95),
+                0px 2px 4px rgba(0, 0, 0, 0.6);
+        }
+
+        /* 3. Pure Attention Focus Assignments (Locked Solarized Dark Colors) */
+
+        /* ATTENTION LEVEL 3: Furthest from center (Low Focus) */
+        .furthest-outer {
+            color: var(--sol-dark-outer);
+        }
+
+        /* ATTENTION LEVEL 2: 1st closest neighbors (Medium Focus) */
+        .closest-neighbor {
+            color: var(--sol-dark-neighbor);
+        }
+
+        /* ATTENTION LEVEL 1: Main target center focus (Maximum Focus) */
+        .center-focus {
+            color: var(--sol-dark-center);
+        }
+    </style>
+</head>
+
+<body>
+
+    <button class="toggle-btn" id="toggleBtn">Toggle to White Canvas</button>
+
+    <div class="layout-container">
+        <div class="row furthest-outer">Row 1: Top Outer</div>
+        <div class="row closest-neighbor">Row 2: Top Inner</div>
+
+        <!-- Core Center Focus anchored strictly via Solarized Dark Blue -->
+        <div class="row center-focus">Row 3: Absolute Center Focus</div>
+
+        <div class="row closest-neighbor">Row 4: Bottom Inner</div>
+        <div class="row furthest-outer">Row 5: Bottom Outer</div>
+    </div>
+
+    <script>
+        const toggleBtn = document.getElementById('toggleBtn');
+        toggleBtn.addEventListener('click', () => {
+            const isWhite = document.body.classList.toggle('white-canvas');
+            toggleBtn.textContent = isWhite ? 'Toggle to Dark Canvas' : 'Toggle to White Canvas';
+        });
+    </script>
+</body>
+
+</html>
