@@ -33,15 +33,7 @@
 }
 
 .ws-contents {
-    spacing: 6px;
-}
-
-.workspace-indicator-class.grouped-layout .workspace-thumbnail {
-    padding: 8px 6px 6px 6px;
-}
-
-.workspace-indicator-class.grouped-layout .ws-contents {
-    spacing: 3px;
+    spacing: 10px;
 }
 
 .window-preview-icon {
@@ -1126,6 +1118,9 @@ export class WorkspaceIndicator extends PanelMenu.Button {
 
         this._scope = new Scheduling.Scope();
         this._renderCoalescer = new Scheduling.Coalescer(() => this._render());
+        this._focusCoalescer = new Scheduling.Coalescer(() => this._syncFocusStates());
+        this._scope.connect(global.display, 'notify::focus-window',
+            () => this._focusCoalescer.queue());
         this._leavePollId = 0;
 
         this._groupDwell = new Dwell(this._scope,
@@ -1153,10 +1148,9 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         this._lastHintWs = Model.intent.hintWs;
         this._lastDragActive = !!Model.intent.drag;
         this._lastMenuOpen = !!Model.intent.menuOpen;
+        this._lastPick = Model.intent.overlayPick;
 
-        this._ghost = Interactions.createReorderGhost({
-            iconSize: () => S.indicator.windowIcon,
-        });
+        this._reorder = Interactions.createReorderBar({ axis: 'x' });
 
         this._mainBox = new St.BoxLayout({
             style_class: 'workspace-indicator-main-box',
@@ -1175,6 +1169,9 @@ export class WorkspaceIndicator extends PanelMenu.Button {
     _dragActive() { return !!Model.intent.drag || externalDrag.active; }
 
     _onIntentChanged() {
+        const pickChanged = Model.intent.overlayPick !== this._lastPick;
+        this._lastPick = Model.intent.overlayPick;
+
         const hintChanged = Model.intent.hintWs !== this._lastHintWs;
         const isDragging = !!Model.intent.drag;
         const isMenu = !!Model.intent.menuOpen;
@@ -1198,6 +1195,7 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         }
         if (hintChanged) this._syncHint();
         if (dragChanged || menuChanged) this._queueRender();
+        if (pickChanged) this._syncFocusStates();
     }
 
     _queueRender(delay = 0) {
@@ -1220,7 +1218,7 @@ export class WorkspaceIndicator extends PanelMenu.Button {
             this._flyout.close(true);
         }
 
-        this._ghost.clear();
+        this._reorder.clear();
 
         const model = Model.buildModel();
         const s = this._settings;
@@ -1291,10 +1289,25 @@ export class WorkspaceIndicator extends PanelMenu.Button {
             }
         }
 
+        this._syncFocusStates();
         if (this._settleActor) Motion.settle(this._settleActor);
         this._syncHint();
 
         this._lastRenderTime = GLib.get_monotonic_time() / 1000;
+    }
+
+    _syncFocusStates() {
+        const pick = Model.intent.overlayPick;
+        // While the overlay has a pick, it is the only marker. Real focus lags it.
+        const focus = pick ? null : Model.focusedWindow();
+
+        const apply = (actor, windows) => UI.setFocusState(actor, {
+            focused: !!focus && windows.includes(focus),
+            pick: !!pick && windows.includes(pick),
+        });
+
+        for (const ctrl of this._controllers.values()) apply(ctrl.actor, [ctrl.window]);
+        for (const [actor, info] of this._groupIcons) apply(actor, info.group.windows);
     }
 
     _buildToolbar(s) {
@@ -1340,7 +1353,7 @@ export class WorkspaceIndicator extends PanelMenu.Button {
 
         const strip = Interactions.createDropStrip({
             container: content,
-            ghost: this._ghost,
+            reorder: this._reorder,
             acceptSource: source => source?._dragPayload?.kind === 'window',
             externalResult: Interactions.DragMotionResult.MOVE_DROP,
             onDragOver: () => {
@@ -1489,12 +1502,10 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         this._groupIcons.clear();
 
         const sz = this._iconSize();
-        const dense = this._entries.some(e => this._isGrouped(e.entry));
 
         for (const shell of this._entries) {
             const { entry, content } = shell;
             content.destroy_all_children();
-            content.spacing = dense ? 3 : 6;
 
             if (!entry.windows.length) continue;
 
@@ -2145,6 +2156,12 @@ export class WorkspaceIndicator extends PanelMenu.Button {
     _syncHint() {
         const s = this._settings;
         const wsIndex = Model.intent.hintWs;
+
+        this._thumbsBox?.get_children().forEach((thumb, i) => {
+            if (i === wsIndex) thumb.add_style_class_name('drop-target');
+            else thumb.remove_style_class_name('drop-target');
+        });
+
         const target = (wsIndex !== null && this._thumbsBox)
             ? this._thumbsBox.get_child_at_index(wsIndex)
             : null;
@@ -2178,8 +2195,6 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         }, { onStateChange: Model.menuIntent });
     }
 
-    // Ghost insertion (actor + side) -> { neighbor: Meta.Window, before }.
-    // A group button stands for its first window (before) or last (after).
     _resolveDrop(insertion) {
         const a = insertion?.neighbor;
         if (!a) return null;
@@ -2227,7 +2242,7 @@ export class WorkspaceIndicator extends PanelMenu.Button {
                 this._leavePollId = 0;
                 this._cancelDwell();
                 Model.setIntent({ hintWs: null });
-                this._ghost.clear();
+                this._reorder.clear();
                 return GLib.SOURCE_REMOVE;
             }
             return GLib.SOURCE_CONTINUE;
@@ -2255,6 +2270,7 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         this._extUnsub = null;
 
         this._renderCoalescer.cancel();
+        this._focusCoalescer.cancel();
         this._unsubIntent?.(); this._unsubIntent = null;
         this._unsubWorld?.(); this._unsubWorld = null;
         Model.resetIntent();
@@ -2267,8 +2283,9 @@ export class WorkspaceIndicator extends PanelMenu.Button {
 
         this._groupIcons.clear();
 
-        this._ghost?.clear();
-        this._ghost = null;
+        this._reorder?.destroy();
+        this._reorder = null;
+
         _instance = null;
         _settleWindow = null;
 
@@ -2380,7 +2397,8 @@ export const SURFACES = {
     searchEntry: ['bgDeep', 'solid'],
     thumb: ['bgRaised', 'firm'],
     thumbHover: ['bgRaised', 'solid'],
-    thumbActive: ['accent', 'tint'],
+    thumbActive: ['textMuted', 'tint'],
+    thumbDrop: ['info', 'tint'],
     groupHover: ['info', 'hover'],
     toolbarHover: ['info', 'hover'],
     flyout: ['bgDeep', 'glass'],
@@ -2391,8 +2409,6 @@ export const SURFACES = {
     cancelZoneActive: ['danger', 'tint'],
     selectorTint: ['bgInk', 'wash'],
     selectorTintCancel: ['danger', 'hover'],
-    // Single glass surface for the whole selector list. Matches the
-    // prototype's ~0.65 feel; glass tier is what the flyout uses.
     selectorList: ['bgDeep', 'glass'],
     selectorBand: ['bgDeep', 'clear'],
     selectorRow: ['bgDeep', 'clear'],
@@ -2431,7 +2447,10 @@ export const TEXT = {
 };
 
 export const LINES = {
-    thumb: ['edge', 0.60], thumbRing: ['info', 0.70], thumbActive: ['accent', 1],
+    thumb: ['edge', 0.60],
+    thumbRing: ['edge', 0.45],
+    thumbActive: ['textMuted', 0.9],
+    focusPill: ['accent', 1],
     flyout: ['edge', 0.55], flyoutRowSel: ['info', 1],
     focusBorder: ['accent', 1], selectBorder: ['ok', 1], focusRing: ['accent', 1],
     searchEntry: ['edge', 1], searchFocus: ['accent', 1],
@@ -2507,7 +2526,6 @@ function buildCss() {
     return `
 /* ============================================================
    PANEL (Solarized Dark) — ported from fix-panel-order.
-   Height scales with base-size (ratio 3.20 => 128px at base 40).
    ============================================================ */
 #panel {
     height: ${px(3.20)}px;
@@ -2548,10 +2566,24 @@ function buildCss() {
 .workspace-thumbnail { ${bg('thumb')} ${ln('thumb')} ${rad('sm')} box-shadow: inset 0 0 0 2px ${line('thumbRing')}; }
 .workspace-thumbnail:hover { ${bg('thumbHover')} }
 .workspace-thumbnail.active { ${bg('thumbActive')} box-shadow: inset 0 0 0 2px ${line('thumbActive')}; }
+.workspace-thumbnail.drop-target { ${bg('thumbDrop')} box-shadow: inset 0 0 0 2px ${line('dragSource')}; }
+
 .workspace-name-label { ${t('workspaceName')} }
-.window-preview-icon { ${rad('sm')} }
-.window-preview-icon.focused { box-shadow: 0 0 0 2px ${line('focusRing')}, 0 0 10px ${rgba('accent', 0.65)}; }
-.ws-app-group { ${rad('sm')} }
+
+/* Reserve the underline slot on every icon so focus moves never shift layout.
+   Square bottom corners render the underline as a flat bar, not a smile. */
+.window-preview-icon,
+.ws-app-group {
+    border-bottom: ${BORDER.frame}px solid transparent;
+    border-radius: ${radius('xs')}px ${radius('xs')}px 0 0;
+}
+.window-preview-icon.focused,
+.ws-app-group.focused { border-bottom-color: ${line('focusPill')}; }
+.window-preview-icon.pick,
+.ws-app-group.pick {
+    border-bottom-color: ${color('accentBright')};
+    background-color: ${rgba('accent', 0.28)};
+}
 .ws-app-group:hover, .workspace-toolbar-button:hover { ${bg('groupHover')} }
 .ws-badge { background-color: ${color('badgeBg')}; border: 1px solid ${color('textStrong')}; box-shadow: 0 1px 3px ${rgba('black', 0.65)}; }
 .ws-badge-label { color: ${color(TEXT.badgeLabel)}; }
@@ -2579,8 +2611,6 @@ function buildCss() {
 .selector-tint { ${bg('selectorTint')} }
 .window-selector-overlay.selector-cancelling .selector-tint { ${bg('selectorTintCancel')} }
 
-/* Single glass box around the whole visible list (5 lines: band + 2 above + 2 below
-   at most). Sized dynamically by lib/windowOverlay.js. */
 .selector-list {
     ${bg('selectorList')}
     border: ${BORDER.thin}px solid ${line('selectorListEdge')};
@@ -2652,18 +2682,18 @@ function buildCss() {
 .focused-border  { border: ${BORDER.frame}px solid ${line('focusBorder')};  ${rad('md')} }
 .selected-border { border: ${BORDER.frame}px solid ${line('selectBorder')}; ${rad('md')} }
 .reorder-drag-source { ${ln('dragSource', BORDER.thick)} ${rad('sm')} }
-.drag-placeholder-icon { ${ln('dragGhost', BORDER.thick, 'dashed')} ${bg('dragPlaceholder')} ${rad('sm')} }
 .clone-title-overlay { ${bg('cloneTitle')} color: ${color('textStrong')}; ${rad('xs')} }
 .hover-preview-wrapper { border: ${BORDER.thick}px solid ${color('info')}; background-color: ${color('info')}; ${rad('md')} }
 .window-close-button { background-color: ${rgba('danger', 0.85)}; ${rad('xs')} }
 .window-close-button:hover { background-color: ${color('danger')}; }
+
+.reorder-bar { background-color: ${color('info')}; border-radius: 3px; box-shadow: 0 0 10px ${rgba('info', 0.8)}; }
 
 .pinned-edge-dash { ${bg('dash')} ${ln('dash')} border-left-width: 0; border-radius: 0 ${radius('xl')}px ${radius('xl')}px 0; box-shadow: ${shadow('edge', 6)}; }
 .pinned-edge-dash .app-grid-running-dot { background-color: ${color('accent')}; }
 .pinned-edge-dash .overview-tile:hover,
 .pinned-edge-dash .app-well-app:hover,
 .pinned-edge-dash .show-apps:hover { ${bg('dashItemHover')} }
-.dash-drop-line { background-color: ${color('accentBright')}; border-radius: 3px; box-shadow: 0 0 8px ${rgba('accent', 0.8)}; }
 .pinned-edge-menu .popup-menu-content { ${bg('menu')} ${ln('menu', BORDER.thin)} ${rad('lg')} box-shadow: ${shadow('drop')}; min-width: 180px; }
 .pinned-edge-menu .popup-menu-item { ${t('menuItem')} ${rad('md')} }
 .pinned-edge-menu .popup-menu-item:hover { ${bg('menuItemHover')} color: ${color('textStrong')}; }
@@ -3025,7 +3055,7 @@ import * as Model from './model.js';
 import * as UI from './ui.js';
 import * as WorkspaceActions from './workspaceActions.js';
 import * as Motion from './motion.js';
-import { S } from './sizes.js';
+import { S, px } from './sizes.js';
 
 import { createLogger } from '../logger.js';
 const journal = createLogger(import.meta.url);
@@ -3291,101 +3321,118 @@ export function destroyTooltip() {
     _sharedTooltip = null;
 }
 
-// ==================== reorder ghost ====================
-export function createReorderGhost({ iconSize, giconFor = s => s._dragPayload?.gicon }) {
-    let container = null;
-    let source = null;
-    let ghost = null;
-    let ghostIndex = null;
-    let snap = null;
-    let last = null;
+// ==================== reorder bar ====================
+// One insertion bar for every reorderable strip. Nothing in the layout moves.
+export function createReorderBar({
+    axis = 'x',
+    isTarget = b => b._dragItem || b._groupWindows,
+    sourceItem = s => s?._actor ?? s,
+    items = null,
+    viewport = null,
+} = {}) {
+    const vert = axis === 'y';
+    const T = px(0.15);
+    const PAD = 8;
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-    // Individual draggable icons and collapsed-group buttons are both neighbors.
-    const isTarget = b => b._dragItem || b._groupWindows;
-
-    function dropGhost() {
-        ghost?.get_parent()?.remove_child(ghost);
-        ghostIndex = null;
-        last = null;
-        snap = null;
-    }
+    let container = null, source = null, bar = null;
+    let snap = null, last = null;
 
     function takeSnapshot() {
-        const src = source._actor ?? source;
-        return container.get_children()
-            .filter(b => b !== src && isTarget(b) && b.get_stage())
-            .map(b => {
-                const [x] = b.get_transformed_position();
-                const [w] = b.get_transformed_size();
-                return { item: b, x, width: w, mid: x + w / 2, right: x + w };
-            });
+        const src = sourceItem(source);
+        const all = (items ? items() : container.get_children())
+            .filter(b => isTarget(b) && b.get_stage());
+        const rects = all.filter(b => b !== src).map(b => {
+            const [x, y] = b.get_transformed_position();
+            const [w, h] = b.get_transformed_size();
+            const start = vert ? y : x, size = vert ? h : w;
+            return {
+                item: b, start, end: start + size, mid: start + size / 2,
+                cross: vert ? x : y, crossSize: vert ? w : h,
+            };
+        });
+        return { rects, srcAt: all.indexOf(src) };
     }
 
-    // The snapshot is ghost-free. Once the ghost is in the container, icons
-    // to its right are displaced by (ghost width + spacing); undo that so the
-    // hit-test doesn't flip-flop as the ghost moves.
-    function toGhostFreeX(px) {
-        if (!ghost || ghost.get_parent() !== container || !ghost.get_stage()) return px;
-        const [gx] = ghost.get_transformed_position();
-        const [gw] = ghost.get_transformed_size();
-        if (![gx, gw].every(Number.isFinite) || gw <= 0) return px;
-        const shift = gw + (container.spacing ?? 0);
-        if (px >= gx + gw) return px - shift;
-        if (px >= gx) return gx;
-        return px;
+    function ensureBar() {
+        if (bar) return bar;
+        bar = new St.Widget({ style_class: 'reorder-bar', reactive: false, visible: false });
+        Main.layoutManager.addTopChrome(bar,
+            { affectsInputRegion: false, trackFullscreen: false });
+        return bar;
     }
 
-    function place(insertion) {
-        if (ghostIndex === insertion.index && ghost?.get_parent()) return;
+    function hide() { bar?.hide(); }
 
-        if (!ghost)
-            ghost = UI.createGhostIcon(giconFor(source), iconSize());
+    function place(ins) {
+        const { rects } = snap;
+        const n = rects.length, k = ins.index;
+        let pos;
+        if (k === 0) pos = rects[0].start - T;
+        else if (k === n) pos = rects[n - 1].end + T;
+        else pos = (rects[k - 1].end + rects[k].start) / 2;
 
-        ghost.get_parent()?.remove_child(ghost);
+        const v = viewport?.();
+        if (v?.get_stage()) {
+            const [vx, vy] = v.get_transformed_position();
+            const [vw, vh] = v.get_transformed_size();
+            const lo = vert ? vy : vx;
+            pos = clamp(pos, lo + T / 2, lo + (vert ? vh : vw) - T / 2);
+        }
 
-        const { neighbor, insertBefore } = insertion;
-        if (!neighbor) container.add_child(ghost);
-        else if (insertBefore) container.insert_child_below(ghost, neighbor);
-        else container.insert_child_above(ghost, neighbor);
+        const ref = rects[Math.min(k, n - 1)];
+        const b = ensureBar();
+        const len = Math.round(ref.crossSize + PAD * 2);
+        const cross = Math.round(ref.cross - PAD);
+        const along = Math.round(pos - T / 2);
+        if (vert) { b.set_size(len, T); b.set_position(cross, along); }
+        else { b.set_size(T, len); b.set_position(along, cross); }
 
-        ghostIndex = insertion.index;
+        if (!b.visible) {
+            b.show();
+            try { Main.layoutManager.uiGroup.set_child_above_sibling(b, null); }
+            catch (e) { /* uiGroup not ready */ }
+        }
     }
 
     function begin(newContainer, newSource) {
-        if (container !== newContainer || source !== newSource) dropGhost();
+        if (container !== newContainer || source !== newSource) {
+            snap = null; last = null; hide();
+        }
         container = newContainer;
         source = newSource;
     }
 
-    function update(pointerX) {
+    function update(pointer) {
         if (!container || !source) return null;
-        if (!snap) snap = takeSnapshot();
-        const insertion = UI.computeInsertion(snap, toGhostFreeX(pointerX));
-        place(insertion);
-        last = insertion;
-        return insertion;
+        snap ??= takeSnapshot();
+        const ins = UI.computeInsertion(snap.rects, pointer);
+        last = ins;
+        const noop = snap.srcAt >= 0 && ins.index === snap.srcAt;
+        if (noop || snap.rects.length === 0) hide();
+        else place(ins);
+        return ins;
     }
 
     function clear() {
-        const g = ghost;
-        ghost = null;
-        ghostIndex = null;
-        snap = null;
-        last = null;
-        container = null;
-        source = null;
-        if (!g) return;
-        try { g.get_parent()?.remove_child(g); g.destroy(); }
-        catch (e) { /* already gone */ }
+        hide();
+        container = null; source = null; snap = null; last = null;
+    }
+
+    function destroy() {
+        clear();
+        if (!bar) return;
+        try { Main.layoutManager.removeChrome(bar); } catch (e) { /* gone */ }
+        try { bar.destroy(); } catch (e) { /* gone */ }
+        bar = null;
     }
 
     return {
-        get index() { return ghostIndex; },
-        // { neighbor: actor|null, insertBefore: bool } of the last placement.
+        get index() { return last ? last.index : null; },
         get insertion() {
             return last ? { neighbor: last.neighbor, insertBefore: last.insertBefore } : null;
         },
-        begin, update, clear,
+        begin, update, clear, destroy,
     };
 }
 
@@ -3408,6 +3455,7 @@ export function makeDraggable(actor, {
         dragActorOpacity: 178,
     });
     draggable.connect('drag-begin', () => { actor.opacity = 80; onDragBegin?.(); });
+    // Restores the plain full opacity on drag end (no derived state to sync).
     draggable.connect('drag-end', () => {
         try { actor.opacity = 255; } catch (e) { /* source may be gone */ }
         onDragEnd?.();
@@ -3417,7 +3465,7 @@ export function makeDraggable(actor, {
 
 // ==================== drop strip ====================
 export function createDropStrip({
-    container, ghost, acceptSource,
+    container, reorder, acceptSource,
     externalResult = DragMotionResult.MOVE_DROP,
     onDragOver = null, onExternalDragOver = null, onDrop,
     hint = null, hintText = null,
@@ -3432,8 +3480,8 @@ export function createDropStrip({
         }
 
         const [pointerX] = global.get_pointer();
-        ghost.begin(container, src);
-        const insertion = ghost.update(pointerX);
+        reorder.begin(container, src);
+        const insertion = reorder.update(pointerX);
         if (insertion && hint && hintText)
             hint.show(insertion.neighbor ?? container, hintText(insertion));
         return DragMotionResult.MOVE_DROP;
@@ -3441,14 +3489,14 @@ export function createDropStrip({
 
     function acceptDrop(src, actor) {
         const accepted = acceptSource(src);
-        const index = accepted ? ghost.index : null;
-        const insertion = accepted ? ghost.insertion : null;
+        const index = accepted ? reorder.index : null;
+        const insertion = accepted ? reorder.insertion : null;
         cancel();
         return onDrop(src, index, actor, insertion);
     }
 
     function cancel() {
-        ghost.clear();
+        reorder.clear();
         hint?.hide();
     }
 
@@ -3592,7 +3640,6 @@ export class WindowIconController {
 
         this._scope.connect(window, 'notify::wm-class', onRequestRender);
         this._scope.connect(window, 'notify::mapped', onRequestRender);
-        this._scope.connect(window, 'notify::appears-focused', () => this._syncFocus());
 
         makeDraggable(actor, {
             iconSize,
@@ -3613,8 +3660,6 @@ export class WindowIconController {
         this._scope.connect(actor, 'notify::hover', () => this._onHover());
         this._scope.connect(actor, 'button-press-event', (a, e) => this._onPressed(e));
         this._scope.connect(actor, 'button-release-event', (a, e) => this._onReleased(e));
-
-        this._syncFocus();
     }
 
     setStrip(strip) { this._strip = strip; }
@@ -3765,14 +3810,6 @@ export class WindowIconController {
         this._preview = null;
         Main.layoutManager.removeChrome(actor);
         actor.destroy();
-    }
-
-    _syncFocus() {
-        const on = !!this.window.appears_focused;
-        if (on) this.actor.add_style_class_name('focused');
-        else this.actor.remove_style_class_name('focused');
-        this.actor.set_pivot_point(0.5, 0.5);
-        this.actor.set_scale(on ? 1.06 : 1, on ? 1.06 : 1);
     }
 
     _onPressed(event) {
@@ -4055,7 +4092,6 @@ export function buttonHeld(mods) {
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import Pango from 'gi://Pango';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 
@@ -4120,7 +4156,10 @@ export class AppSearchOverlay extends SearchOverlayBase {
         this._justDroppedAppId = null;
         this._apps = null;
         this._pinnedScope = new Scheduling.Scope();
-        this._ghost = Interactions.createReorderGhost({ iconSize: () => S.launcher.pinnedIcon });
+        this._reorder = Interactions.createReorderBar({
+            axis: 'x',
+            viewport: () => this._pinnedScroll,
+        });
 
         this._zone = 'grid';
         this._pinnedIndex = 0;
@@ -4138,6 +4177,7 @@ export class AppSearchOverlay extends SearchOverlayBase {
         this._pinnedAdj = null;
         this._pinnedLeftFade = null;
         this._pinnedRightFade = null;
+        this._pinnedScroll = null;
 
         this._buildUI();
         this._onSearchChanged();
@@ -4261,12 +4301,14 @@ export class AppSearchOverlay extends SearchOverlayBase {
         this._container.add_child(search.actor);
 
         const pinned = UI.createPinnedRow();
+        this._pinnedScroll = pinned.scroll;
         this._pinnedBarBox = pinned.box;
         this._pinnedLeftFade = pinned.leftFade;
         this._pinnedRightFade = pinned.rightFade;
         this._wirePinnedScroll(pinned);
         this._pinnedStrip = Interactions.createDropStrip({
-            container: this._pinnedBarBox, ghost: this._ghost,
+            container: this._pinnedBarBox,
+            reorder: this._reorder,
             acceptSource: source => source?._dragPayload?.kind === 'app',
             externalResult: Interactions.DragMotionResult.NO_DROP,
             hint: {
@@ -4401,7 +4443,7 @@ export class AppSearchOverlay extends SearchOverlayBase {
                 payload: { kind: 'app', appId: id, gicon: icon, name },
                 delegate: this._pinnedStrip.delegate(),
                 onDragBegin: () => { Interactions.getTooltip().hide(); },
-                onDragEnd: () => { this._ghost.clear(); Interactions.getTooltip().hide(); },
+                onDragEnd: () => { this._reorder.clear(); Interactions.getTooltip().hide(); },
             });
 
             this._pinnedBarBox.add_child(button);
@@ -4680,7 +4722,7 @@ export class AppSearchOverlay extends SearchOverlayBase {
 
     _onBeforeClose() {
         this._closeContextMenu();
-        this._ghost.clear();
+        this._reorder.destroy();
         this._pinnedScope.dispose();
         Interactions.getTooltip().hide();
         this._apps = null;
@@ -7020,6 +7062,18 @@ import { S, REL } from './sizes.js';
 // Re-export theme's hasher as colorForApp so existing callers keep working.
 export { appColor as colorForApp } from './theme.js';
 
+// ==================== focus state ====================
+// Single owner of the `focused` / `pick` classes. Opacity is not managed
+// here; the only opacity change left is the drag source (handled in
+// interactions.makeDraggable).
+export function setFocusState(actor, { focused = false, pick = false }) {
+    const toggle = (cls, on) => on
+        ? actor.add_style_class_name(cls)
+        : actor.remove_style_class_name(cls);
+    toggle('focused', focused);
+    toggle('pick', pick);
+}
+
 // ==================== app / icon resolution ====================
 function resolveApp(window) {
     return Shell.WindowTracker.get_default().get_window_app(window)
@@ -7041,13 +7095,6 @@ function createWindowIconTexture(window, iconSize) {
 }
 
 // ==================== drag visuals ====================
-export function createGhostIcon(gicon, size) {
-    const ghost = new St.Bin({ style_class: 'drag-placeholder-icon', width: size, height: size });
-    ghost.opacity = 140;
-    if (gicon) ghost.set_child(new St.Icon({ gicon, icon_size: size }));
-    return ghost;
-}
-
 export function createDragActor(gicon, size) {
     const bin = new St.Bin({ style_class: 'reorder-drag-source', width: size, height: size });
     bin.opacity = 178;
@@ -7328,20 +7375,21 @@ export function createClonePreview(window, targetHeight, options = {}) {
 }
 
 // ==================== insertion math ====================
-export function computeInsertion(rects, pointerX) {
+// rects: [{ item, start, end, mid, ... }] along the reorder axis.
+export function computeInsertion(rects, p) {
     if (rects.length === 0) return { index: 0, neighbor: null, insertBefore: true };
 
     const first = rects[0];
     const last = rects[rects.length - 1];
     let target = last, before = false;
 
-    if (pointerX < first.x) { target = first; before = true; }
-    else if (pointerX < last.right) {
+    if (p < first.start) { target = first; before = true; }
+    else if (p < last.end) {
         for (let i = 0; i < rects.length; i++) {
             const r = rects[i], next = rects[i + 1];
-            if (pointerX >= r.x && pointerX < r.right) { target = r; before = pointerX < r.mid; break; }
-            if (next && pointerX >= r.right && pointerX <= next.x) {
-                before = (pointerX - r.right) > (next.x - pointerX);
+            if (p >= r.start && p < r.end) { target = r; before = p < r.mid; break; }
+            if (next && p >= r.end && p <= next.start) {
+                before = (p - r.end) > (next.start - p);
                 target = before ? next : r;
                 break;
             }
@@ -7631,11 +7679,21 @@ const appColor = name => UI.colorForApp(name);
 const MAX_ROWS_EACH_SIDE = 2;
 const rowsEachSideFor = n => Math.min(MAX_ROWS_EACH_SIDE, Math.max(0, n - 1));
 
+// Overlay area = monitor minus the panel strip, wherever the panel sits.
+function usableArea(monitor) {
+    const pb = Main.layoutManager.panelBox;
+    let { x, y, width, height } = monitor;
+    if (pb && pb.height > 0) {
+        const atBottom = pb.y + pb.height / 2 > monitor.y + monitor.height / 2;
+        height -= pb.height;
+        if (!atBottom) y += pb.height;
+    }
+    return { x, y, width, height };
+}
+
 // ==================== LAYOUT ====================
 function computeOverlayLayout(monitor) {
-    return {
-        x: monitor.x, y: monitor.y, width: monitor.width, height: monitor.height,
-    };
+    return usableArea(monitor);
 }
 
 function computeRailLayout(overlay) {
@@ -7773,7 +7831,7 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         const BAND = this._bandL;
         const ROW = this._rowL;
 
-        this._container = UI.createFullscreenContainer(monitor, 'window-selector-overlay');
+        this._container = UI.createFullscreenContainer(this._overlayL, 'window-selector-overlay');
         this._container.add_style_class_name('search-mode');
 
         const size = { width: OV.width, height: OV.height };
@@ -8091,6 +8149,7 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         const BAND = this._bandL;
 
         if (index < 0) {
+            Model.setIntent({ overlayPick: null });
             const label = new St.Label({
                 text: this._query ? 'No matching windows' : 'No windows here',
                 x_align: Clutter.ActorAlign.CENTER,
@@ -8103,6 +8162,7 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         }
 
         const item = this._results[index];
+        Model.setIntent({ overlayPick: item.window });
 
         this._bandBin.set_child(UI.createBandTitle({
             icon: item.icon,
@@ -8221,6 +8281,7 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         this._releaseRailGrab();
         this._railDragging = false;
         this._cancelReveal();
+        Model.setIntent({ overlayPick: null });
         if (this._cancelled) this._restoreOrigin();
     }
 
@@ -8330,7 +8391,10 @@ export function applySettings(settings) {
 }
 
 // ---- intent ----
-export const intentStore = new Store({ drag: null, hintWs: null, menuOpen: false });
+export const intentStore = new Store({
+    drag: null, hintWs: null, menuOpen: false,
+    overlayPick: null,
+});
 export const intent = intentStore.state;
 export const world = new Emitter();
 export const requestRender = () => world.emit();
@@ -8410,8 +8474,7 @@ export function groupKey(workspaceIndex, appId, anchorId = '') {
     return `${workspaceIndex}::${appId}${anchorId !== '' ? `#${anchorId}` : ''}`;
 }
 
-// Groups are contiguous runs in display order. A group is never reordered
-// relative to entry.windows, so display index == model index.
+// Groups are contiguous runs in display order.
 export function groupWindowsInWorkspace(entry) {
     const out = [];
     let cur = null;
@@ -9112,6 +9175,13 @@ const EdgeDash = GObject.registerClass(
             this._keepDashShown = false;
             this._destroying = false;
 
+            this._reorder = Interactions.createReorderBar({
+                axis: 'y',
+                isTarget: () => true,
+                items: () => this._favoriteItems(),
+                sourceItem: s => this._favoriteItems().find(i => appOf(i) === s?.app) ?? null,
+            });
+
             this._forceVertical();
 
             this.reactive = true;
@@ -9331,9 +9401,6 @@ const EdgeDash = GObject.registerClass(
                 `iconSize=${this.iconSize}`);
         }
 
-        // The shell dash shows favorites PLUS running apps that are not
-        // pinned. This dash is favorites-only, so drop everything that
-        // isn't a favorite and drop the running-apps separator.
         _hideNonFavoriteApps() {
             const favorites = new Set(
                 AppFavorites.getAppFavorites().getFavorites().map(a => a.get_id()));
@@ -9352,7 +9419,6 @@ const EdgeDash = GObject.registerClass(
                     item.visible = show;
                     if (!show) hidden++;
                 } else {
-                    // separator or any shell chrome without an app id
                     item.visible = false;
                     hidden++;
                 }
@@ -9454,70 +9520,28 @@ const EdgeDash = GObject.registerClass(
         }
 
         // ---------- drag & drop reorder ----------
-        // Visible favorite tiles, top to bottom. Non-favorites are hidden by
-        // _hideNonFavoriteApps, so index here == index in the favorites list.
         _favoriteItems() {
             return (this._box?.get_children() ?? []).filter(i =>
                 i.visible && i !== this._showAppsIcon && appOf(i));
         }
 
-        // Insertion slot (0..n) for pointer y: count tiles whose midpoint is above it.
-        _slotAt(y) {
-            const items = this._favoriteItems();
-            let pos = 0;
-            for (const it of items) {
-                const [, iy] = it.get_transformed_position();
-                const [, ih] = it.get_transformed_size();
-                if (y > iy + ih / 2) pos++;
-            }
-            return { items, pos };
-        }
-
-        _ensureDropLine() {
-            if (this._dropLine) return this._dropLine;
-            this._dropLine = new St.Widget({
-                style_class: 'dash-drop-line', reactive: false, visible: false,
-            });
-            Main.layoutManager.addTopChrome(this._dropLine,
-                { affectsInputRegion: false, trackFullscreen: false });
-            return this._dropLine;
-        }
-
-        _showDropLine(items, pos) {
-            if (!items.length) { this._hideDropLine(); return; }
-            const line = this._ensureDropLine();
-            const ref = items[Math.min(pos, items.length - 1)];
-            const [rx, ry] = ref.get_transformed_position();
-            const [rw, rh] = ref.get_transformed_size();
-            const y = pos < items.length ? ry : ry + rh;
-            line.set_size(Math.round(rw), 6);
-            line.set_position(Math.round(rx), Math.round(y - 3));
-            line.show();
-            Main.layoutManager.uiGroup.set_child_above_sibling(line, null);
-        }
-
-        _hideDropLine() { this._dropLine?.hide(); }
-
-        // Called by the shell on drag end and when the pointer leaves the box.
         _clearDragPlaceholder() {
-            this._hideDropLine();
+            this._reorder.clear();
             super._clearDragPlaceholder();
         }
 
-        // Keep the dash open for the whole drag, even if the poll sees the
-        // pointer momentarily outside it.
         _onItemDragBegin(...args) {
             this._keepDashShown = true;
             super._onItemDragBegin(...args);
         }
         _onItemDragEnd(...args) {
             this._keepDashShown = false;
-            this._hideDropLine();
+            this._reorder.clear();
             super._onItemDragEnd(...args);
         }
         _onItemDragCancelled(...args) {
             this._keepDashShown = false;
-            this._hideDropLine();
+            this._reorder.clear();
             super._onItemDragCancelled(...args);
         }
 
@@ -9525,8 +9549,8 @@ const EdgeDash = GObject.registerClass(
             const app = source?.app;
             if (!app || app.is_window_backed()) return DND.DragMotionResult.NO_DROP;
             const [, py] = global.get_pointer();
-            const { items, pos } = this._slotAt(py);
-            this._showDropLine(items, pos);
+            this._reorder.begin(this, source);
+            this._reorder.update(py);
             return DND.DragMotionResult.MOVE_DROP;
         }
 
@@ -9535,35 +9559,28 @@ const EdgeDash = GObject.registerClass(
             if (!app || app.is_window_backed()) return false;
 
             const [, py] = global.get_pointer();
-            const { pos } = this._slotAt(py);
-            this._hideDropLine();
+            this._reorder.begin(this, source);
+            const pos = this._reorder.update(py)?.index ?? 0;
+            this._reorder.clear();
 
             const favs = AppFavorites.getAppFavorites();
             const id = app.get_id();
             const cur = favs.getFavorites().map(a => a.get_id()).indexOf(id);
 
-            if (cur >= 0) {
-                // moveFavoriteToPos removes first, so slots below the source shift up by one.
-                const to = cur < pos ? pos - 1 : pos;
-                if (to !== cur) favs.moveFavoriteToPos(id, to);
-            } else {
-                favs.addFavoriteAtPos(id, pos);
-            }
+            if (cur >= 0) { if (pos !== cur) favs.moveFavoriteToPos(id, pos); }
+            else favs.addFavoriteAtPos(id, pos);
             return true;
         }
 
         destroy() {
             this._destroying = true;
             Interactions.getTooltip().hideNow();
-            if (this._dropLine) {
-                try { Main.layoutManager.removeChrome(this._dropLine); } catch (e) { /* gone */ }
-                try { this._dropLine.destroy(); } catch (e) { /* gone */ }
-                this._dropLine = null;
-            }
             if (this._setGeometryTimeout) {
                 GLib.Source.remove(this._setGeometryTimeout);
                 this._setGeometryTimeout = 0;
             }
+            this._reorder?.destroy();
+            this._reorder = null;
             if (this.get_parent() === Main.layoutManager.uiGroup)
                 Main.layoutManager.removeChrome(this);
             super.destroy();
@@ -9583,8 +9600,6 @@ export class PinnedEdgeFlyout {
         this._open = false;
         this._edgeSince = 0;
 
-        // Suppression: window grab in flight, or pointer still parked on the
-        // edge after a grab ended (must leave the zone once to re-arm).
         this._grabActive = false;
         this._needLeave = false;
 
@@ -9628,7 +9643,6 @@ export class PinnedEdgeFlyout {
         journal('[pinnedEdge] constructor:exit');
     }
 
-    // ---------- geometry ----------
     _hasLeftNeighbor(monitor) {
         return Main.layoutManager.monitors.some(other =>
             other !== monitor
@@ -9706,7 +9720,6 @@ export class PinnedEdgeFlyout {
         });
     }
 
-    // ---------- barrier ----------
     _installBarrierDeferred() {
         if (this._barrierIdleId) return;
         this._barrierIdleId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
@@ -9787,7 +9800,6 @@ export class PinnedEdgeFlyout {
         this._installBarrierDeferred();
     }
 
-    // ---------- poll ----------
     _tick() {
         if (!this._dash && !this._ensureDash()) return;
 
@@ -9826,7 +9838,6 @@ export class PinnedEdgeFlyout {
         return x >= rx && x <= rx + rw && y >= ry && y <= ry + rh;
     }
 
-    // ---------- show / close ----------
     _show(source = '?') {
         if (this._open || this._grabActive) return;
         if (!this._ensureDash()) {
