@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>White Text on White Background Simulation</title>
+    <style>
+        /* Force a solid white background */
+        body {
+            background-color: #ffffff;
+            color: #000000;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            text-align: center;
+            padding: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            color: #666666;
+            margin-bottom: 8px;
+        }
+
+        /* The exact CSS block for your GNOME Extension stylesheet */
+        .my-stroked-label {
+            color: #ffffff;
+            /* Inside letter fill color (Matches background) */
+            font-size: 16px;
+            font-weight: bold;
+
+            /* 4-way shadow simulation for a 1px border */
+            text-shadow:
+                -1px -1px 0 #000000,
+                1px -1px 0 #000000,
+                -1px 1px 0 #000000,
+                1px 1px 0 #000000;
+        }
+
+        /* Upscaled version to check readability at larger sizes */
+        .my-stroked-label-large {
+            color: #ffffff;
+            /* Inside letter fill color (Matches background) */
+            font-size: 48px;
+            font-weight: bold;
+            text-shadow:
+                -1px -1px 0 #000000,
+                1px -1px 0 #000000,
+                -1px 1px 0 #000000,
+                1px 1px 0 #000000;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <label>Standard Size (16px) White-on-White:</label>
+        <div class="my-stroked-label">Outlined Text Label</div>
+
+        <br><br><br>
+
+        <label>Upscaled Size (48px) White-on-White:</label>
+        <div class="my-stroked-label-large">Outlined Text Label</div>
+    </div>
+
+</body>
+
+</html>

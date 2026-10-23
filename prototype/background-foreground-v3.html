@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>White Text on White Background Tricks</title>
+    <style>
+        body {
+            background-color: #ffffff;
+            color: #000000;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .section {
+            margin-bottom: 50px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: bold;
+            color: #666666;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* TRICK 1: The 8-Way Cross Shadow (Seals all corner gaps perfectly) */
+        .trick-8-way {
+            color: #ffffff;
+            font-size: 40px;
+            font-weight: 900;
+            text-shadow:
+                /* Cardinals (Up, Down, Left, Right) */
+                -1px 0px 0 #000000,
+                1px 0px 0 #000000,
+                0px -1px 0 #000000,
+                0px 1px 0 #000000,
+                /* Diagonals (Corners) */
+                -1px -1px 0 #000000,
+                1px -1px 0 #000000,
+                -1px 1px 0 #000000,
+                1px 1px 0 #000000;
+        }
+
+        /* TRICK 2: Ambient Glow/Blur Outlining (Softer, highly visible contrast) */
+        .trick-glow {
+            color: #ffffff;
+            font-size: 40px;
+            font-weight: 900;
+            /* Multiple overlapping blurred shadows create a high-contrast dark halo */
+            text-shadow:
+                0 0 2px #000000,
+                0 0 4px #000000,
+                0 0 6px #000000;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <!-- Section 1 -->
+        <div class="section">
+            <label>Trick 1: Complete 8-Way Vector Outline</label>
+            <div class="trick-8-way">Perfect Sealed Border</div>
+        </div>
+
+        <!-- Section 2 -->
+        <div class="section">
+            <label>Trick 2: High-Contrast Ambient Glow</label>
+            <div class="trick-glow">Dark Halo Contrast</div>
+        </div>
+    </div>
+
+</body>
+
+</html>

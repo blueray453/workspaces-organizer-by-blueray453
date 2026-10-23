@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Contrast Simulation</title>
+    <style>
+        /* Test this by swapping between #ffffff and black */
+        body {
+            background-color: #ffffff;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        /* Universal high-contrast widget container */
+        .my-stroked-label {
+            /* 1. Box Tint: Dark enough to pop on white, transparent enough to see through */
+            background-color: rgba(30, 30, 30, 0.65);
+
+            /* 2. The Border Trick: A semi-transparent white outline makes the box pop on dark/black backgrounds */
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 8px;
+            padding: 12px 24px;
+            display: inline-block;
+
+            /* 3. Text Typography */
+            color: #ffffff;
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+
+            /* 4. Text Stroke Simulation (Keeps text sharp if box opacity is lowered) */
+            text-shadow:
+                -1px 0px 0 #000000,
+                1px 0px 0 #000000,
+                0px -1px 0 #000000,
+                0px 1px 0 #000000,
+                -1px -1px 0 #000000,
+                1px -1px 0 #000000,
+                -1px 1px 0 #000000,
+                1px 1px 0 #000000;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="my-stroked-label">
+        Universally Visible Label
+    </div>
+
+</body>
+
+</html>
