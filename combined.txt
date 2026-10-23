@@ -1352,12 +1352,11 @@ export class WorkspaceIndicator extends PanelMenu.Button {
                 if (entry.workspace !== Model.WorkspaceManager.get_active_workspace())
                     entry.workspace.activate(global.get_current_time());
             },
-            onDrop: (source, dropIndex, dragActor) => {
+            onDrop: (source, dropIndex, dragActor, insertion) => {
                 this._cancelDwell();
                 this._flyout.close(true);
-                const grouped = this._isGrouped(entry);
                 return this._dropOnWorkspace(thumb, entry, source,
-                    grouped ? null : dropIndex, dragActor);
+                    this._resolveDrop(insertion), dragActor);
             },
         });
         shell.strip = strip;
@@ -1550,6 +1549,7 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         actor.add_style_class_name('window-preview-icon');
         actor.accessible_name = `${group.appName}, ${group.count} windows`;
         actor.set_name(`group-${group.key}`);
+        actor._groupWindows = group.windows;
 
         this._groupIcons.set(actor, { shell, entry, group });
 
@@ -1719,14 +1719,14 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         const entry = Model.buildModel().workspaces[workspaceIndex];
         if (!entry) return false;
 
-        const group = entry.groups
-            .find(g => g.windows.some(w => w.get_wm_class() === wmClass));
-        if (!group || group.count < 2) {
+        const group = entry.groups.find(g =>
+            g.count > 1 && g.windows.some(w => w.get_wm_class() === wmClass));
+        if (!group) {
             journal(`[flyout.dbus] no badged group with wmclass "${wmClass}" on ws ${workspaceIndex}`);
             return false;
         }
 
-        const key = `${workspaceIndex}::${group.appId}`;
+        const key = group.key;
         if (this._flyout.isOpen && this._flyout.anchorKey === key) {
             this._closeGroupFlyout();
             return false;
@@ -1869,7 +1869,7 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         if (!win) return false;
 
         const sameWs = win.get_workspace() === entry.workspace;
-        Model.placeWindow(win, entry.workspace, item ? item.index : null);
+        Model.placeWindowNear(win, entry.workspace, item?.window ?? null, true);
 
         if (!sameWs) {
             const monitorIndex = Main.layoutManager.findIndexForActor(shell.actor);
@@ -2178,7 +2178,20 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         }, { onStateChange: Model.menuIntent });
     }
 
-    _dropOnWorkspace(thumb, entry, source, index, dragActor) {
+    // Ghost insertion (actor + side) -> { neighbor: Meta.Window, before }.
+    // A group button stands for its first window (before) or last (after).
+    _resolveDrop(insertion) {
+        const a = insertion?.neighbor;
+        if (!a) return null;
+        const wins = a._dragPayload?.window ? [a._dragPayload.window] : a._groupWindows;
+        if (!wins?.length) return null;
+        return {
+            neighbor: insertion.insertBefore ? wins[0] : wins[wins.length - 1],
+            before: insertion.insertBefore,
+        };
+    }
+
+    _dropOnWorkspace(thumb, entry, source, target, dragActor) {
         Model.setIntent({ hintWs: null });
 
         const win = source?._dragPayload?.window ?? null;
@@ -2191,9 +2204,10 @@ export class WorkspaceIndicator extends PanelMenu.Button {
             try { dragActor.destroy(); } catch (e) { /* ignore */ }
         }
 
-        if (sameWs && index === null) { Model.setIntent({ drag: null }); return true; }
+        if (sameWs && !target) { Model.setIntent({ drag: null }); return true; }
 
-        Model.placeWindow(win, entry.workspace, index);
+        Model.placeWindowNear(win, entry.workspace,
+            target?.neighbor ?? null, target?.before ?? true);
         if (!sameWs) {
             const monitorIndex = Main.layoutManager.findIndexForActor(thumb);
             if (monitorIndex !== win.get_monitor()) win.move_to_monitor(monitorIndex);
@@ -2377,8 +2391,11 @@ export const SURFACES = {
     cancelZoneActive: ['danger', 'tint'],
     selectorTint: ['bgInk', 'wash'],
     selectorTintCancel: ['danger', 'hover'],
-    selectorBand: ['bgInk', 'glass'],
-    selectorRow: ['bgInkDeep', 'firm'],
+    // Single glass surface for the whole selector list. Matches the
+    // prototype's ~0.65 feel; glass tier is what the flyout uses.
+    selectorList: ['bgDeep', 'glass'],
+    selectorBand: ['bgDeep', 'clear'],
+    selectorRow: ['bgDeep', 'clear'],
     selectorRail: ['bgInkDeep', 'firm'],
     selectorTip: ['bgInkDeep', 'solid'],
     launcher: ['bgDeep', 'solid'],
@@ -2403,8 +2420,8 @@ export const TEXT = {
     cancelLabel: 'text', tooltip: 'text',
     searchEntry: 'text', searchIcon: 'textMuted', searchHint: 'textDim',
     launcherHeading: 'textDim', launcherTile: 'text',
-    selectorTitle: 'textBright', selectorApp: 'accentBright', selectorRow: 'text',
-    selectorEntry: 'textBright',
+    selectorTitle: 'textStrong', selectorApp: 'accentBright', selectorRow: 'textStrong',
+    selectorEntry: 'textStrong',
     dmenuRow: 'text', dmenuRowSel: 'textStrong', dmenuEmpty: 'textDim',
     dmenuSection: 'textFaint', dmenuControl: 'text',
     dmenuSegment: 'base0', dmenuSegmentOn: 'textStrong',
@@ -2421,6 +2438,9 @@ export const LINES = {
     divider: ['edge', 0.85], dash: ['edge', 0.55], menu: ['accent', 0.75],
     dragSource: ['info', 1], dragGhost: ['info', 1],
     cancelZone: ['warn', 0.85],
+    selectorEdge: ['textMuted', 0.55],
+    selectorEdgeSoft: ['textMuted', 0.40],
+    selectorListEdge: ['textMuted', 0.55],
 };
 
 const RADIUS_RATIO = { xs: 0.15, sm: 0.20, md: 0.30, lg: 0.50, xl: 0.70 };
@@ -2480,14 +2500,14 @@ const t = name => `color: ${color(TEXT[name] ?? name)};`;
 const bg = name => `background-color: ${surface(name)};`;
 const ln = (name, w = BORDER.hair, style = 'solid') => `border: ${w}px ${style} ${line(name)};`;
 const rad = key => `border-radius: ${radius(key)}px;`;
+const halo = `text-shadow: 0px 0px 3px ${rgba('ink0', 1)};`;
+const ring = name => `box-shadow: inset 0 0 0 1px ${line(name)};`;
 
 function buildCss() {
     return `
 /* ============================================================
    PANEL (Solarized Dark) — ported from fix-panel-order.
    Height scales with base-size (ratio 3.20 => 128px at base 40).
-   Fits S.indicator.windowIcon (2.00 = 80px) + thumbnail vpad
-   (18px from stylesheet.css) + button vmargin (12px top/bottom).
    ============================================================ */
 #panel {
     height: ${px(3.20)}px;
@@ -2558,18 +2578,31 @@ function buildCss() {
 
 .selector-tint { ${bg('selectorTint')} }
 .window-selector-overlay.selector-cancelling .selector-tint { ${bg('selectorTintCancel')} }
-.selector-band { ${bg('selectorBand')} box-shadow: ${shadow('band')}; }
-.selector-band-title-label { ${t('selectorTitle')} }
-.selector-band-app-label { ${t('selectorApp')} }
-.selector-row-inner { ${bg('selectorRow')} ${rad('md')} }
-.selector-row-label { ${t('selectorRow')} }
-.selector-rail { ${bg('selectorRail')} border-radius: ${radius('lg')}px; }
-.selector-rail-tip { ${bg('selectorTip')} ${t('selectorTitle')} ${rad('sm')} }
+
+/* Single glass box around the whole visible list (5 lines: band + 2 above + 2 below
+   at most). Sized dynamically by lib/windowOverlay.js. */
+.selector-list {
+    ${bg('selectorList')}
+    border: ${BORDER.thin}px solid ${line('selectorListEdge')};
+    ${rad('xl')}
+    box-shadow: ${shadow('panel')};
+}
+
+.selector-band { }
+.selector-band-title-label { ${t('selectorTitle')} ${halo} }
+.selector-band-app-label { ${t('selectorApp')} ${halo} }
+
+.selector-row-inner { ${rad('md')} }
+.selector-row-label { ${t('selectorRow')} ${halo} }
+
+.selector-rail { ${bg('selectorRail')} border-radius: ${radius('lg')}px; ${ring('selectorEdgeSoft')} }
+.selector-rail-tip { ${bg('selectorTip')} ${t('selectorTitle')} ${rad('sm')} ${ring('selectorEdge')} ${halo} }
 
 .window-selector-overlay .overlay-search-entry {
     ${bg('searchEntry')}
     ${t('selectorEntry')}
-    ${ln('searchEntry', BORDER.thin)}
+    ${halo}
+    border: ${BORDER.thin}px solid ${rgba('textMuted', 0.6)};
     ${rad('lg')}
     padding: 14px 32px;
     caret-color: ${color('accentBright')};
@@ -2630,6 +2663,7 @@ function buildCss() {
 .pinned-edge-dash .overview-tile:hover,
 .pinned-edge-dash .app-well-app:hover,
 .pinned-edge-dash .show-apps:hover { ${bg('dashItemHover')} }
+.dash-drop-line { background-color: ${color('accentBright')}; border-radius: 3px; box-shadow: 0 0 8px ${rgba('accent', 0.8)}; }
 .pinned-edge-menu .popup-menu-content { ${bg('menu')} ${ln('menu', BORDER.thin)} ${rad('lg')} box-shadow: ${shadow('drop')}; min-width: 180px; }
 .pinned-edge-menu .popup-menu-item { ${t('menuItem')} ${rad('md')} }
 .pinned-edge-menu .popup-menu-item:hover { ${bg('menuItemHover')} color: ${color('textStrong')}; }
@@ -2999,20 +3033,6 @@ const journal = createLogger(import.meta.url);
 export const DragMotionResult = DND.DragMotionResult;
 
 // ==================== shared tooltip ====================
-// One St.Label, parented to layoutManager's uiGroup, shared by every
-// caller. Font size comes exclusively from the generated CSS
-// (sizes.js), so every tooltip renders at the same size no matter
-// where it is shown. Text is never truncated; the box hugs the text
-// exactly (no padding, no explicit width).
-//
-// Reliability:
-//   • show() retries on idle while the anchor has no usable geometry,
-//     instead of silently giving up when the anchor isn't on stage yet.
-//   • the tooltip is bound to its anchor; if that anchor is destroyed
-//     (e.g. by an indicator re-render), the tooltip hides itself.
-//   • position is clamped to the anchor's monitor. For a bottom panel,
-//     callers use showAbove() so the tooltip appears above the panel.
-
 const TOOLTIP_HIDE_GRACE_MS = 80;
 const TOOLTIP_EDGE_PAD = 12;
 const TOOLTIP_GEOMETRY_TRIES = 3;
@@ -3089,8 +3109,6 @@ function createTooltip() {
         ct.set_single_line_mode(true);
     }
 
-    // Natural size only. Do NOT call label.set_width() here — St caches
-    // an explicit width and the box stops hugging the text.
     function measure() {
         const [, w] = label.get_preferred_width(-1);
         const [, h] = label.get_preferred_height(w);
@@ -3109,7 +3127,7 @@ function createTooltip() {
             const aw = actor.get_width();
             const ah = actor.get_height();
             if (![ax, ay, aw, ah].every(Number.isFinite)) return null;
-            if (aw <= 0 && ah <= 0) return null; // not allocated yet
+            if (aw <= 0 && ah <= 0) return null;
             return { ax, ay, aw, ah };
         } catch (e) {
             return null;
@@ -3148,7 +3166,7 @@ function createTooltip() {
             x = ax + aw + gap;
             y = ay + (ah - h) / 2;
             if (x + w > monitor.x + monitor.width - TOOLTIP_EDGE_PAD) x = ax - w - gap;
-        } else { // left
+        } else {
             x = ax - w - gap;
             y = ay + (ah - h) / 2;
             if (x < monitor.x + TOOLTIP_EDGE_PAD) x = ax + aw + gap;
@@ -3238,18 +3256,10 @@ function createTooltip() {
     return {
         get hover() { return label.hover; },
 
-        showAbove(actor, text) {
-            show(actor, text, { mode: 'above' });
-        },
-        showBelow(actor, text) {
-            show(actor, text, { mode: 'below' });
-        },
-        showRight(actor, text, gap = 8) {
-            show(actor, text, { mode: 'right', gap });
-        },
-        showLeft(actor, text, gap = 8) {
-            show(actor, text, { mode: 'left', gap });
-        },
+        showAbove(actor, text) { show(actor, text, { mode: 'above' }); },
+        showBelow(actor, text) { show(actor, text, { mode: 'below' }); },
+        showRight(actor, text, gap = 8) { show(actor, text, { mode: 'right', gap }); },
+        showLeft(actor, text, gap = 8) { show(actor, text, { mode: 'left', gap }); },
         showCentered(actor, text, y, padding = 10) {
             show(actor, text, { mode: 'centered', y, padding });
         },
@@ -3288,16 +3298,41 @@ export function createReorderGhost({ iconSize, giconFor = s => s._dragPayload?.g
     let ghost = null;
     let ghostIndex = null;
     let snap = null;
+    let last = null;
+
+    // Individual draggable icons and collapsed-group buttons are both neighbors.
+    const isTarget = b => b._dragItem || b._groupWindows;
+
+    function dropGhost() {
+        ghost?.get_parent()?.remove_child(ghost);
+        ghostIndex = null;
+        last = null;
+        snap = null;
+    }
 
     function takeSnapshot() {
         const src = source._actor ?? source;
         return container.get_children()
-            .filter(b => b !== src && b._dragItem && b.get_stage())
+            .filter(b => b !== src && isTarget(b) && b.get_stage())
             .map(b => {
                 const [x] = b.get_transformed_position();
                 const [w] = b.get_transformed_size();
                 return { item: b, x, width: w, mid: x + w / 2, right: x + w };
             });
+    }
+
+    // The snapshot is ghost-free. Once the ghost is in the container, icons
+    // to its right are displaced by (ghost width + spacing); undo that so the
+    // hit-test doesn't flip-flop as the ghost moves.
+    function toGhostFreeX(px) {
+        if (!ghost || ghost.get_parent() !== container || !ghost.get_stage()) return px;
+        const [gx] = ghost.get_transformed_position();
+        const [gw] = ghost.get_transformed_size();
+        if (![gx, gw].every(Number.isFinite) || gw <= 0) return px;
+        const shift = gw + (container.spacing ?? 0);
+        if (px >= gx + gw) return px - shift;
+        if (px >= gx) return gx;
+        return px;
     }
 
     function place(insertion) {
@@ -3317,20 +3352,17 @@ export function createReorderGhost({ iconSize, giconFor = s => s._dragPayload?.g
     }
 
     function begin(newContainer, newSource) {
-        if (container !== newContainer) {
-            ghost?.get_parent()?.remove_child(ghost);
-            ghostIndex = null;
-            snap = null;
-        }
+        if (container !== newContainer || source !== newSource) dropGhost();
         container = newContainer;
-        if (source !== newSource) { source = newSource; snap = null; }
+        source = newSource;
     }
 
     function update(pointerX) {
         if (!container || !source) return null;
         if (!snap) snap = takeSnapshot();
-        const insertion = UI.computeInsertion(snap, pointerX);
+        const insertion = UI.computeInsertion(snap, toGhostFreeX(pointerX));
         place(insertion);
+        last = insertion;
         return insertion;
     }
 
@@ -3339,6 +3371,7 @@ export function createReorderGhost({ iconSize, giconFor = s => s._dragPayload?.g
         ghost = null;
         ghostIndex = null;
         snap = null;
+        last = null;
         container = null;
         source = null;
         if (!g) return;
@@ -3348,6 +3381,10 @@ export function createReorderGhost({ iconSize, giconFor = s => s._dragPayload?.g
 
     return {
         get index() { return ghostIndex; },
+        // { neighbor: actor|null, insertBefore: bool } of the last placement.
+        get insertion() {
+            return last ? { neighbor: last.neighbor, insertBefore: last.insertBefore } : null;
+        },
         begin, update, clear,
     };
 }
@@ -3405,8 +3442,9 @@ export function createDropStrip({
     function acceptDrop(src, actor) {
         const accepted = acceptSource(src);
         const index = accepted ? ghost.index : null;
+        const insertion = accepted ? ghost.insertion : null;
         cancel();
-        return onDrop(src, index, actor);
+        return onDrop(src, index, actor, insertion);
     }
 
     function cancel() {
@@ -7583,12 +7621,15 @@ const journal = createLogger(import.meta.url);
 
 // ==================== DISCRETE FOCUS STRIP ====================
 function neighborOpacity(x) {
-    if (x <= 1) return 1.00;                                // was 0.92
-    if (x <= 2) return 1.00 - 0.3 * (x - 1);               // 1.00 → 0.85   (was 0.92 → 0.52)
-    return Math.max(0, 0.85 * (1 - (x - 2) / 0.8));         // 0.85 → 0 at 2.8
+    if (x <= 1) return 1.00;
+    if (x <= 2) return 1.00 - 0.3 * (x - 1);
+    return Math.max(0, 0.85 * (1 - (x - 2) / 0.8));
 }
 
 const appColor = name => UI.colorForApp(name);
+
+const MAX_ROWS_EACH_SIDE = 2;
+const rowsEachSideFor = n => Math.min(MAX_ROWS_EACH_SIDE, Math.max(0, n - 1));
 
 // ==================== LAYOUT ====================
 function computeOverlayLayout(monitor) {
@@ -7730,6 +7771,7 @@ export class WindowSearchOverlay extends SearchOverlayBase {
 
         const OV = this._overlayL;
         const BAND = this._bandL;
+        const ROW = this._rowL;
 
         this._container = UI.createFullscreenContainer(monitor, 'window-selector-overlay');
         this._container.add_style_class_name('search-mode');
@@ -7737,6 +7779,16 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         const size = { width: OV.width, height: OV.height };
         this._tint = new St.Widget({ style_class: 'selector-tint', reactive: false, opacity: 255, ...size });
         this._listLayer = new St.Widget(size);
+
+        const initialRows = rowsEachSideFor(this._items.length);
+        this._listBackdrop = new St.Widget({
+            style_class: 'selector-list',
+            reactive: false,
+            x: BAND.x,
+            y: BAND.y - initialRows * ROW.slotH,
+            width: BAND.width,
+            height: BAND.height + 2 * initialRows * ROW.slotH,
+        });
 
         const { band, titleBin } = UI.createSelectionBand(BAND);
         this._bandBin = titleBin;
@@ -7753,7 +7805,7 @@ export class WindowSearchOverlay extends SearchOverlayBase {
             x_expand: true, x_align: Clutter.ActorAlign.CENTER, child: search.actor,
         }));
 
-        for (const actor of [this._tint, this._listLayer, band])
+        for (const actor of [this._tint, this._listBackdrop, this._listLayer, band])
             this._container.add_child(actor);
 
         this._buildRail();
@@ -7766,6 +7818,14 @@ export class WindowSearchOverlay extends SearchOverlayBase {
             if (global.stage.get_key_focus() === this._entry.clutter_text) return;
             this._refocusEntry();
         });
+    }
+
+    _resizeBackdrop(n) {
+        if (!this._listBackdrop) return;
+        const BAND = this._bandL, ROW = this._rowL;
+        const rows = rowsEachSideFor(n);
+        this._listBackdrop.set_position(BAND.x, BAND.y - rows * ROW.slotH);
+        this._listBackdrop.set_size(BAND.width, BAND.height + 2 * rows * ROW.slotH);
     }
 
     // ----- rail widget tree -----
@@ -7962,6 +8022,9 @@ export class WindowSearchOverlay extends SearchOverlayBase {
     }
 
     // ----- rows -----
+    // Rows are inert: no press handlers, not reactive. Clicks pass through to
+    // the reactive fullscreen container, whose _onClick activates the band's
+    // window. The rail keeps its own jump-to-index behavior.
     _renderResults(results) {
         const OV = this._overlayL, ROW = this._rowL;
 
@@ -7969,23 +8032,16 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         this._railDragging = false;
         this._hideRailTip();
 
+        this._resizeBackdrop(results.length);
+
         this._listLayer.destroy_all_children();
-        this._rows = results.map((item, index) => {
+        this._rows = results.map(item => {
             const row = UI.createWindowTitleRow({
                 icon: item.icon, title: item.title, indices: item.indices,
                 width: OV.width, height: ROW.slotH,
                 iconSize: ROW.rowIconSize,
                 labelSize: ROW.rowLabelSize,
                 maxWidth: ROW.rowTextMax,
-            });
-            this._rowsScope.connect(row, 'button-press-event', (a, e) => {
-                if (e.get_button() !== Clutter.BUTTON_PRIMARY) return Clutter.EVENT_PROPAGATE;
-                this._selectIndex(index);
-                return Clutter.EVENT_STOP;
-            });
-            this._rowsScope.connect(row, 'button-release-event', (a, e) => {
-                if (e.get_button() !== Clutter.BUTTON_PRIMARY) return Clutter.EVENT_PROPAGATE;
-                return Clutter.EVENT_STOP;
             });
             this._listLayer.add_child(row);
             return row;
@@ -8024,7 +8080,6 @@ export class WindowSearchOverlay extends SearchOverlayBase {
             row.set_opacity(Math.round(op * 255));
             row.set_pivot_point(0.5, 0.5);
             row.set_scale(1, 1);
-            row.set_reactive(x >= 1);
         });
 
         this._bandBin.opacity = Math.round(255 * ease(1 - Math.abs(this._selectedIndex - pos)));
@@ -8350,28 +8405,29 @@ export function appIdentity(window) {
     return { id: `wm:${wm}`, name: wm };
 }
 
-export function groupKey(workspaceIndex, appId) {
-    return `${workspaceIndex}::${appId}`;
+// Key identifies one *run* of an app on a workspace (anchored by its first window).
+export function groupKey(workspaceIndex, appId, anchorId = '') {
+    return `${workspaceIndex}::${appId}${anchorId !== '' ? `#${anchorId}` : ''}`;
 }
 
+// Groups are contiguous runs in display order. A group is never reordered
+// relative to entry.windows, so display index == model index.
 export function groupWindowsInWorkspace(entry) {
     const out = [];
-    const byId = new Map();
+    let cur = null;
     entry.windows.forEach((w, i) => {
         const { id, name } = appIdentity(w);
-        let g = byId.get(id);
-        if (!g) {
-            g = {
+        if (!cur || cur.appId !== id) {
+            cur = {
                 appId: id, appName: name,
-                key: groupKey(entry.index, id),
+                key: groupKey(entry.index, id, w.get_id()),
                 windows: [], indices: [], count: 0,
             };
-            byId.set(id, g);
-            out.push(g);
+            out.push(cur);
         }
-        g.windows.push(w);
-        g.indices.push(i);
-        g.count++;
+        cur.windows.push(w);
+        cur.indices.push(i);
+        cur.count++;
     });
     return out;
 }
@@ -8414,6 +8470,21 @@ export function placeWindow(window, workspace, index = null) {
 
     list.splice(at, 0, window);
 
+    for (const w of list) ranks.set(w, nextRank++);
+}
+
+// Place `window` next to `neighbor` (before/after). No neighbor => append.
+export function placeWindowNear(window, workspace, neighbor = null, before = true) {
+    if (neighbor === window) return;
+    const list = buildModel().workspaces[workspace.index()].windows
+        .filter(w => w !== window);
+
+    let at = list.length;
+    if (neighbor) {
+        const i = list.indexOf(neighbor);
+        if (i >= 0) at = before ? i : i + 1;
+    }
+    list.splice(at, 0, window);
     for (const w of list) ranks.set(w, nextRank++);
 }
 
@@ -9000,6 +9071,7 @@ import Shell from 'gi://Shell';
 import St from 'gi://St';
 
 import * as Dash from 'resource:///org/gnome/shell/ui/dash.js';
+import * as DND from 'resource:///org/gnome/shell/ui/dnd.js';
 import * as Layout from 'resource:///org/gnome/shell/ui/layout.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as AppFavorites from 'resource:///org/gnome/shell/ui/appFavorites.js';
@@ -9023,6 +9095,9 @@ const PRESSURE_THRESHOLD = 150;
 const PRESSURE_TIMEOUT_MS = 400;
 
 const BASE_ICON_SIZES = [16, 22, 24, 32, 48, 64, 96, 128, 160, 192, 224, 256];
+
+// Shell versions store the app on different properties; try each.
+const appOf = item => item?._app ?? item?.child?.app ?? item?.child?._app ?? null;
 
 // ==================== EdgeDash ====================
 const EdgeDash = GObject.registerClass(
@@ -9257,11 +9332,8 @@ const EdgeDash = GObject.registerClass(
         }
 
         // The shell dash shows favorites PLUS running apps that are not
-        // pinned. Running-but-unpinned apps (e.g. the Extensions settings
-        // window `org.gnome.Shell.Extensions` spawned by Extension Manager)
-        // have no proper icon and render as a blank tile. This dash is
-        // favorites-only, so drop everything that isn't a favorite and
-        // drop the running-apps separator.
+        // pinned. This dash is favorites-only, so drop everything that
+        // isn't a favorite and drop the running-apps separator.
         _hideNonFavoriteApps() {
             const favorites = new Set(
                 AppFavorites.getAppFavorites().getFavorites().map(a => a.get_id()));
@@ -9273,7 +9345,7 @@ const EdgeDash = GObject.registerClass(
                     item.visible = true;
                     continue;
                 }
-                const app = item?._app ?? item?.child?.app ?? item?.child?._app;
+                const app = appOf(item);
                 const id = app?.get_id?.();
                 if (id) {
                     const show = favorites.has(id);
@@ -9381,9 +9453,113 @@ const EdgeDash = GObject.registerClass(
             journal(`[pinnedEdge.dash] menu ${opened ? 'opened' : 'closed'}`);
         }
 
+        // ---------- drag & drop reorder ----------
+        // Visible favorite tiles, top to bottom. Non-favorites are hidden by
+        // _hideNonFavoriteApps, so index here == index in the favorites list.
+        _favoriteItems() {
+            return (this._box?.get_children() ?? []).filter(i =>
+                i.visible && i !== this._showAppsIcon && appOf(i));
+        }
+
+        // Insertion slot (0..n) for pointer y: count tiles whose midpoint is above it.
+        _slotAt(y) {
+            const items = this._favoriteItems();
+            let pos = 0;
+            for (const it of items) {
+                const [, iy] = it.get_transformed_position();
+                const [, ih] = it.get_transformed_size();
+                if (y > iy + ih / 2) pos++;
+            }
+            return { items, pos };
+        }
+
+        _ensureDropLine() {
+            if (this._dropLine) return this._dropLine;
+            this._dropLine = new St.Widget({
+                style_class: 'dash-drop-line', reactive: false, visible: false,
+            });
+            Main.layoutManager.addTopChrome(this._dropLine,
+                { affectsInputRegion: false, trackFullscreen: false });
+            return this._dropLine;
+        }
+
+        _showDropLine(items, pos) {
+            if (!items.length) { this._hideDropLine(); return; }
+            const line = this._ensureDropLine();
+            const ref = items[Math.min(pos, items.length - 1)];
+            const [rx, ry] = ref.get_transformed_position();
+            const [rw, rh] = ref.get_transformed_size();
+            const y = pos < items.length ? ry : ry + rh;
+            line.set_size(Math.round(rw), 6);
+            line.set_position(Math.round(rx), Math.round(y - 3));
+            line.show();
+            Main.layoutManager.uiGroup.set_child_above_sibling(line, null);
+        }
+
+        _hideDropLine() { this._dropLine?.hide(); }
+
+        // Called by the shell on drag end and when the pointer leaves the box.
+        _clearDragPlaceholder() {
+            this._hideDropLine();
+            super._clearDragPlaceholder();
+        }
+
+        // Keep the dash open for the whole drag, even if the poll sees the
+        // pointer momentarily outside it.
+        _onItemDragBegin(...args) {
+            this._keepDashShown = true;
+            super._onItemDragBegin(...args);
+        }
+        _onItemDragEnd(...args) {
+            this._keepDashShown = false;
+            this._hideDropLine();
+            super._onItemDragEnd(...args);
+        }
+        _onItemDragCancelled(...args) {
+            this._keepDashShown = false;
+            this._hideDropLine();
+            super._onItemDragCancelled(...args);
+        }
+
+        handleDragOver(source, _actor, _x, _y, _time) {
+            const app = source?.app;
+            if (!app || app.is_window_backed()) return DND.DragMotionResult.NO_DROP;
+            const [, py] = global.get_pointer();
+            const { items, pos } = this._slotAt(py);
+            this._showDropLine(items, pos);
+            return DND.DragMotionResult.MOVE_DROP;
+        }
+
+        acceptDrop(source, _actor, _x, _y, _time) {
+            const app = source?.app;
+            if (!app || app.is_window_backed()) return false;
+
+            const [, py] = global.get_pointer();
+            const { pos } = this._slotAt(py);
+            this._hideDropLine();
+
+            const favs = AppFavorites.getAppFavorites();
+            const id = app.get_id();
+            const cur = favs.getFavorites().map(a => a.get_id()).indexOf(id);
+
+            if (cur >= 0) {
+                // moveFavoriteToPos removes first, so slots below the source shift up by one.
+                const to = cur < pos ? pos - 1 : pos;
+                if (to !== cur) favs.moveFavoriteToPos(id, to);
+            } else {
+                favs.addFavoriteAtPos(id, pos);
+            }
+            return true;
+        }
+
         destroy() {
             this._destroying = true;
             Interactions.getTooltip().hideNow();
+            if (this._dropLine) {
+                try { Main.layoutManager.removeChrome(this._dropLine); } catch (e) { /* gone */ }
+                try { this._dropLine.destroy(); } catch (e) { /* gone */ }
+                this._dropLine = null;
+            }
             if (this._setGeometryTimeout) {
                 GLib.Source.remove(this._setGeometryTimeout);
                 this._setGeometryTimeout = 0;
@@ -9461,8 +9637,6 @@ export class PinnedEdgeFlyout {
             && other.y + other.height > monitor.y);
     }
 
-    // The trigger strip: left edge, exactly as tall as the dash and
-    // vertically centred the same way EdgeDash._setGeometry centres it.
     _zone() {
         const m = Main.layoutManager.primaryMonitor;
         if (!m || !this._dash || this._hasLeftNeighbor(m)) return null;
@@ -9505,8 +9679,6 @@ export class PinnedEdgeFlyout {
             this._dash.opacity = 0;
             this._dash.set_scale(0, 1);
 
-            // Close the moment the pointer leaves the dash (and isn't on the
-            // trigger strip), without waiting for the next poll.
             this._scope.connect(this._dash, 'leave-event', () => {
                 if (!this._open || this._dash?._keepDashShown)
                     return Clutter.EVENT_PROPAGATE;
@@ -9548,7 +9720,6 @@ export class PinnedEdgeFlyout {
     _installBarrier() {
         if (!this._ensureDash()) return;
         const zone = this._zone();
-        // Record the key even when skipping so _syncBarrier doesn't loop.
         this._barrierKey = this._zoneKey(zone);
         if (!zone) {
             journal('[pinnedEdge.barrier] no zone — SKIP');
@@ -9608,7 +9779,6 @@ export class PinnedEdgeFlyout {
         }
     }
 
-    // Rebuild the barrier when the dash height (hence the zone) changes.
     _syncBarrier(zone) {
         if (this._open || this._barrierIdleId) return;
         const key = this._zoneKey(zone);
@@ -9642,8 +9812,6 @@ export class PinnedEdgeFlyout {
             return;
         }
 
-        // Open: stay only while over the dash, on the trigger strip, or a
-        // context menu is up. Otherwise close immediately.
         if (this._dash?._keepDashShown) return;
         if (this._dash?.hover || this._pointerOverDash(x, y) || atEdge) return;
 
@@ -9728,7 +9896,6 @@ export class PinnedEdgeFlyout {
         journal('[pinnedEdge] destroy:exit');
     }
 }
-
 // ===== FILE: ./logger.js =====
 import GLib from 'gi://GLib';
 import Gio from 'gi://Gio';

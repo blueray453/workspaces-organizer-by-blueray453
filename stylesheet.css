@@ -32,15 +32,7 @@
 }
 
 .ws-contents {
-    spacing: 6px;
-}
-
-.workspace-indicator-class.grouped-layout .workspace-thumbnail {
-    padding: 8px 6px 6px 6px;
-}
-
-.workspace-indicator-class.grouped-layout .ws-contents {
-    spacing: 3px;
+    spacing: 10px;
 }
 
 .window-preview-icon {
