@@ -32,13 +32,6 @@
       <default>false</default>
     </key>
 
-    <!-- ===================== Grouping ===================== -->
-    <key name="direct-mode-max-windows" type="i">
-      <default>5</default>
-      <range min="1" max="20"/>
-      <summary>Auto-group above N windows per workspace</summary>
-    </key>
-
     <!-- ===================== Timing ===================== -->
     <key name="flyout-dwell-ms" type="i">
       <default>400</default>

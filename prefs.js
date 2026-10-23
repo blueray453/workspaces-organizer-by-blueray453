@@ -9,7 +9,6 @@ const NUMERIC_KEYS = [
     { key: 'base-size', label: 'UI base size', min: 16, max: 96, step: 2 },
     { key: 'glass-strength', label: 'Transparency strength (%)', min: 0, max: 150, step: 5 },
     { key: 'thumbnail-min-width', label: 'Thumbnail minimum width', min: 20, max: 200, step: 2 },
-    { key: 'direct-mode-max-windows', label: 'Auto-group above N windows', min: 1, max: 20, step: 1 },
     { key: 'flyout-dwell-ms', label: 'Flyout dwell', min: 50, max: 1500, step: 10 },
     { key: 'ext-ws-dwell-ms', label: 'External-drag workspace dwell', min: 100, max: 2000, step: 50 },
 ];
@@ -78,14 +77,6 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
             row.set_activatable_widget(toggle);
             panelGroup.add(row);
         }
-
-        // Grouping
-        const groupingGroup = new Adw.PreferencesGroup({
-            title: 'Grouping',
-            description: 'When multiple windows of the same app collapse',
-        });
-        page.add(groupingGroup);
-        this._addSpinRow(groupingGroup, byKey('direct-mode-max-windows'), settings);
 
         // Timing
         const timingGroup = new Adw.PreferencesGroup({

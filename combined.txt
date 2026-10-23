@@ -9018,13 +9018,9 @@ journal('[pinnedEdge] MODULE LOADED');
 // ---- trigger tuning ----
 const EDGE_PX = 8;
 const DWELL_MS = 250;
-const POLL_MS = 80;
-const MISS_LIMIT = 10;
+const POLL_MS = 30;
 const PRESSURE_THRESHOLD = 150;
 const PRESSURE_TIMEOUT_MS = 400;
-const BARRIER_TOP_PAD = 8;
-const BARRIER_BOTTOM_PAD = 8;
-const GRACE_MS = 700;
 
 const BASE_ICON_SIZES = [16, 22, 24, 32, 48, 64, 96, 128, 160, 192, 224, 256];
 
@@ -9409,23 +9405,34 @@ export class PinnedEdgeFlyout {
 
         this._dash = null;
         this._open = false;
-        this._openTime = 0;
         this._edgeSince = 0;
-        this._lastAtEdge = false;
+
+        // Suppression: window grab in flight, or pointer still parked on the
+        // edge after a grab ended (must leave the zone once to re-arm).
+        this._grabActive = false;
+        this._needLeave = false;
 
         this._poll = new Poller(this._scope, {
             interval: POLL_MS,
             name: 'pinnedEdge',
             tick: () => this._tick(),
         });
-        this._missCount = new Misses(MISS_LIMIT, () => {
-            journal('[pinnedEdge.poll] miss limit -> close');
-            this._close('poll-miss');
-        });
 
         this._pressureBarrier = null;
         this._barrier = null;
+        this._barrierKey = null;
         this._barrierIdleId = 0;
+
+        this._scope.connect(global.display, 'grab-op-begin', () => {
+            this._grabActive = true;
+            this._edgeSince = 0;
+            this._close('grab');
+        });
+        this._scope.connect(global.display, 'grab-op-end', () => {
+            this._grabActive = false;
+            this._edgeSince = 0;
+            this._needLeave = true;
+        });
 
         this._installBarrierDeferred();
         this._poll.start();
@@ -9438,10 +9445,48 @@ export class PinnedEdgeFlyout {
             }
             this._open = false;
             this._removeBarrier();
+            this._barrierKey = null;
             this._installBarrierDeferred();
         });
 
         journal('[pinnedEdge] constructor:exit');
+    }
+
+    // ---------- geometry ----------
+    _hasLeftNeighbor(monitor) {
+        return Main.layoutManager.monitors.some(other =>
+            other !== monitor
+            && other.x + other.width <= monitor.x
+            && other.y < monitor.y + monitor.height
+            && other.y + other.height > monitor.y);
+    }
+
+    // The trigger strip: left edge, exactly as tall as the dash and
+    // vertically centred the same way EdgeDash._setGeometry centres it.
+    _zone() {
+        const m = Main.layoutManager.primaryMonitor;
+        if (!m || !this._dash || this._hasLeftNeighbor(m)) return null;
+
+        let h = 0;
+        try {
+            h = (this._dash.visible && this._dash.height > 0)
+                ? this._dash.height
+                : this._dash.get_preferred_height(-1)[1];
+        } catch (e) { h = 0; }
+
+        h = Math.min(Math.round(h), Math.round(m.height * 0.90));
+        if (!Number.isFinite(h) || h <= 0) return null;
+
+        const y1 = m.y + Math.round((m.height - h) / 2);
+        return { x1: m.x, x2: m.x + EDGE_PX, y1, y2: y1 + h };
+    }
+
+    _inZone(zone, x, y) {
+        return !!zone && x >= zone.x1 && x <= zone.x2 && y >= zone.y1 && y < zone.y2;
+    }
+
+    _zoneKey(zone) {
+        return zone ? `${zone.x1},${zone.y1},${zone.y2}` : '';
     }
 
     _ensureDash() {
@@ -9459,6 +9504,18 @@ export class PinnedEdgeFlyout {
             this._dash.hide();
             this._dash.opacity = 0;
             this._dash.set_scale(0, 1);
+
+            // Close the moment the pointer leaves the dash (and isn't on the
+            // trigger strip), without waiting for the next poll.
+            this._scope.connect(this._dash, 'leave-event', () => {
+                if (!this._open || this._dash?._keepDashShown)
+                    return Clutter.EVENT_PROPAGATE;
+                const [x, y] = global.get_pointer();
+                if (!this._pointerOverDash(x, y) && !this._inZone(this._zone(), x, y))
+                    this._close('leave');
+                return Clutter.EVENT_PROPAGATE;
+            });
+
             journal('[pinnedEdge] _ensureDash: created');
             return true;
         } catch (e) {
@@ -9477,12 +9534,11 @@ export class PinnedEdgeFlyout {
         });
     }
 
+    // ---------- barrier ----------
     _installBarrierDeferred() {
         if (this._barrierIdleId) return;
-        journal('[pinnedEdge.barrier] scheduling in 200ms');
         this._barrierIdleId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
             this._barrierIdleId = 0;
-            journal('[pinnedEdge.barrier] firing now');
             try { this._installBarrier(); }
             catch (e) { journal(`[pinnedEdge.barrier] THREW: ${e.message}\n${e.stack}`); }
             return GLib.SOURCE_REMOVE;
@@ -9490,30 +9546,19 @@ export class PinnedEdgeFlyout {
     }
 
     _installBarrier() {
-        const monitor = Main.layoutManager.primaryMonitor;
-        if (!monitor) {
-            journal('[pinnedEdge.barrier] no primary monitor — SKIP');
+        if (!this._ensureDash()) return;
+        const zone = this._zone();
+        // Record the key even when skipping so _syncBarrier doesn't loop.
+        this._barrierKey = this._zoneKey(zone);
+        if (!zone) {
+            journal('[pinnedEdge.barrier] no zone — SKIP');
             return;
         }
 
-        const leftNeighborExists = Main.layoutManager.monitors.some(other =>
-            other !== monitor
-            && other.x + other.width <= monitor.x
-            && other.y < monitor.y + monitor.height
-            && other.y + other.height > monitor.y);
-        if (leftNeighborExists) {
-            journal('[pinnedEdge.barrier] left neighbour exists — SKIP');
-            return;
-        }
-
-        const panelH = Main.panel?.height ?? 0;
-        const y1 = monitor.y + panelH + BARRIER_TOP_PAD + 1;
-        const y2 = monitor.y + monitor.height - BARRIER_BOTTOM_PAD - 1;
-        const xBarrier = monitor.x + 1;
-        if (y2 <= y1) {
-            journal('[pinnedEdge.barrier] y2<=y1 — SKIP');
-            return;
-        }
+        const y1 = zone.y1 + 1;
+        const y2 = zone.y2 - 1;
+        const xBarrier = zone.x1 + 1;
+        if (y2 <= y1) return;
 
         try {
             this._pressureBarrier = new Layout.PressureBarrier(
@@ -9542,12 +9587,13 @@ export class PinnedEdgeFlyout {
         catch (e) { journal(`[pinnedEdge.barrier] addBarrier THREW: ${e.message}`); }
 
         this._scope.connect(this._pressureBarrier, 'trigger', () => {
-            journal(`[pinnedEdge.barrier] *** TRIGGER *** (open=${this._open})`);
-            if (this._open) return;
+            if (this._open || this._grabActive || this._needLeave) return;
+            const [, , mods] = global.get_pointer();
+            if (mods & Clutter.ModifierType.BUTTON1_MASK) return;
             this._show('barrier');
         });
 
-        journal(`[pinnedEdge.barrier] installed x=${xBarrier} y=[${y1},${y2}] dir=POSITIVE_X`);
+        journal(`[pinnedEdge.barrier] installed x=${xBarrier} y=[${y1},${y2}]`);
     }
 
     _removeBarrier() {
@@ -9562,29 +9608,33 @@ export class PinnedEdgeFlyout {
         }
     }
 
-    _tick() {
-        const [x, y] = global.get_pointer();
-        const panelH = Main.panel?.height ?? 0;
-        const monitor = Main.layoutManager.primaryMonitor;
-        const inPrimary = monitor
-            && y >= monitor.y
-            && y < monitor.y + monitor.height;
-        const atEdge = x <= EDGE_PX && y > panelH + 4 && inPrimary;
+    // Rebuild the barrier when the dash height (hence the zone) changes.
+    _syncBarrier(zone) {
+        if (this._open || this._barrierIdleId) return;
+        const key = this._zoneKey(zone);
+        if (key === this._barrierKey) return;
+        this._removeBarrier();
+        this._installBarrierDeferred();
+    }
 
-        if (atEdge !== this._lastAtEdge) {
-            journal(`[pinnedEdge.poll] atEdge ${this._lastAtEdge}->${atEdge} ` +
-                `x=${x} y=${y} panelH=${panelH}`);
-            this._lastAtEdge = atEdge;
-        }
+    // ---------- poll ----------
+    _tick() {
+        if (!this._dash && !this._ensureDash()) return;
+
+        const [x, y, mods] = global.get_pointer();
+        const zone = this._zone();
+        this._syncBarrier(zone);
+
+        const atEdge = this._inZone(zone, x, y);
+        if (!atEdge) this._needLeave = false;
 
         if (!this._open) {
-            if (!atEdge) { this._edgeSince = 0; return; }
+            const blocked = this._grabActive || this._needLeave ||
+                (mods & Clutter.ModifierType.BUTTON1_MASK) !== 0;
+            if (!atEdge || blocked) { this._edgeSince = 0; return; }
+
             const now = GLib.get_monotonic_time() / 1000;
-            if (!this._edgeSince) {
-                this._edgeSince = now;
-                journal('[pinnedEdge.poll] dwell started');
-                return;
-            }
+            if (!this._edgeSince) { this._edgeSince = now; return; }
             if (now - this._edgeSince >= DWELL_MS) {
                 this._edgeSince = 0;
                 this._show('dwell');
@@ -9592,29 +9642,12 @@ export class PinnedEdgeFlyout {
             return;
         }
 
-        const now = GLib.get_monotonic_time() / 1000;
-        const inGrace = now - this._openTime < GRACE_MS;
+        // Open: stay only while over the dash, on the trigger strip, or a
+        // context menu is up. Otherwise close immediately.
+        if (this._dash?._keepDashShown) return;
+        if (this._dash?.hover || this._pointerOverDash(x, y) || atEdge) return;
 
-        if (this._dash?._keepDashShown) {
-            if (this._missCount.n) journal('[pinnedEdge.poll] menu-open -> reset');
-            this._missCount.reset();
-            return;
-        }
-        if (this._dash?.hover) {
-            if (this._missCount.n) journal(`[pinnedEdge.poll] dash-hover -> reset (${this._missCount.n})`);
-            this._missCount.reset();
-            return;
-        }
-
-        const over = this._pointerOverDash(x, y);
-        if (atEdge || over) {
-            if (this._missCount.n) journal(`[pinnedEdge.poll] reacquired (${this._missCount.n})`);
-            this._missCount.reset();
-            return;
-        }
-        if (inGrace) return;
-
-        this._missCount.miss();
+        this._close('left');
     }
 
     _pointerOverDash(x, y) {
@@ -9625,8 +9658,9 @@ export class PinnedEdgeFlyout {
         return x >= rx && x <= rx + rw && y >= ry && y <= ry + rh;
     }
 
+    // ---------- show / close ----------
     _show(source = '?') {
-        if (this._open) return;
+        if (this._open || this._grabActive) return;
         if (!this._ensureDash()) {
             journal('[pinnedEdge] _show: dash unavailable — ABORT');
             return;
@@ -9647,8 +9681,6 @@ export class PinnedEdgeFlyout {
             { duration: 'dashOpen', mode: Clutter.AnimationMode.EASE_OUT_CUBIC });
 
         this._open = true;
-        this._openTime = GLib.get_monotonic_time() / 1000;
-        this._missCount.reset();
         this._edgeSince = 0;
     }
 
@@ -9656,7 +9688,6 @@ export class PinnedEdgeFlyout {
         if (!this._open) return;
         journal(`[pinnedEdge] _close source=${source}`);
         this._open = false;
-        this._missCount.reset();
         this._edgeSince = 0;
 
         if (!this._dash) return;
@@ -9697,6 +9728,7 @@ export class PinnedEdgeFlyout {
         journal('[pinnedEdge] destroy:exit');
     }
 }
+
 // ===== FILE: ./logger.js =====
 import GLib from 'gi://GLib';
 import Gio from 'gi://Gio';
