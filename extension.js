@@ -81,10 +81,13 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
         this._lastScrollTime = 0;
         Main.panel.connectObject('scroll-event',
             (_actor, event) => this._handleScroll(event), this);
+
+        Main.layoutManager.connectObject('startup-complete', () => Main.overview.hide(), this);
     }
 
     disable() {
         Main.panel.disconnectObject(this);
+        Main.layoutManager.disconnectObject(this);
 
         if (this._panel) {
             this._panel.destroy();
