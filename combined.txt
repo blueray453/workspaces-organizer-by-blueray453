@@ -2692,7 +2692,7 @@ function buildCss() {
 
 /* Filter bar */
 .selector-filter-bar {
-    padding: 0 ${px(0.25)}px;
+    padding: 0;
 }
 
 /* Chip cluster — spacing between chips only. Centering is done in
@@ -2757,8 +2757,8 @@ function buildCss() {
 
 .selector-filter-count {
     color: ${color('textMuted')};
-    padding: 0 ${px(0.50)}px;
-    font-size: ${px(0.60)}px;
+    padding: 0;
+    font-size: ${px(0.90)}px;
     letter-spacing: 0.3px;
 }
 
@@ -6217,15 +6217,16 @@ const RATIOS = {
         rowIcon: 1.80,
         rowSlot: 3.40,
         bandH: 3.50,
+        searchH: 3.50,
         searchH: 2.60,
-        filterH: 2.20,          //  88 — was 2.00 (80)
-        filterChipH: 1.60,      //  64 — was 1.45 (58)
-        filterText: 0.60,       //  24 — was 0.55 (22)
-        filterLabelText: 0.35,  //  14 — was 0.32 (13)
-        filterGap: 0.35,        //  14 — was 0.30 (12)
-        filterRowGap: 0.40,     //  16 — was 0.35 (14)
-        filterPadX: 0.55,       //  22 — was 0.50 (20)
-        filterCountText: 0.60,  //  24 — was 0.50 (20) — NOW matches filterText
+        filterH: 2.60,          // 104 — was 2.20
+        filterChipH: 2.00,      //  80 — was 1.60
+        filterText: 0.90,       //  36 — was 0.60
+        filterLabelText: 0.60,  //  24 — was 0.35
+        filterGap: 0.40,        //  16 — was 0.35
+        filterRowGap: 0.40,
+        filterPadX: 0.70,       //  28 — was 0.55
+        filterCountText: 0.90,  //  36 — was 0.60
         rowTagText: 0.35,
         railMarkerW: 0.80,
         railMarkerH: 0.20,
@@ -7795,8 +7796,8 @@ export function createWindowTitleRow({
 }
 
 export function createBandTitle({
-    icon, title, appName,
-    width, height, iconSize, labelSize, appSize,
+    icon, title,
+    width, height, iconSize, labelSize,
 }) {
     const row = new St.BoxLayout({
         style_class: 'selector-band-title',
@@ -7813,11 +7814,9 @@ export function createBandTitle({
             style_class: 'selector-band-icon', y_align: Clutter.ActorAlign.CENTER,
         }));
     }
-    const text = new St.BoxLayout({ vertical: true, style_class: 'selector-band-text' });
 
     const gap = 18;
     const textMax = Math.max(100, Math.round(width * 0.85) - (iconSize || 0) - gap);
-    text.set_width(textMax);
 
     const titleLabel = new St.Label({
         style_class: 'selector-band-title-label',
@@ -7828,19 +7827,8 @@ export function createBandTitle({
     titleLabel.set_style(`font-size: ${labelSize}px;`);
     titleLabel.clutter_text.set_ellipsize(Pango.EllipsizeMode.START);
     titleLabel.set_text(title);
-    text.add_child(titleLabel);
+    inner.add_child(titleLabel);
 
-    // App name only — no workspace suffix, no ellipsize, natural width.
-    const appLabel = new St.Label({
-        style_class: 'selector-band-app-label',
-        y_align: Clutter.ActorAlign.CENTER,
-        x_align: Clutter.ActorAlign.CENTER,
-    });
-    appLabel.set_style(`font-size: ${appSize}px;`);
-    appLabel.set_text(appName || '');
-    text.add_child(appLabel);
-
-    inner.add_child(text);
     row.add_child(spacer());
     row.add_child(inner);
     row.add_child(spacer());
@@ -7929,15 +7917,14 @@ function computeBandLayout(overlay, rail) {
     const selectedHeight = S.selector.bandH;
     const searchHeight = S.selector.searchH;
     const filterHeight = S.selector.filterH;
-    // 2 child gaps (16 each) + panel padding slack
-    const height = selectedHeight + searchHeight + filterHeight + 72;
+    const height = selectedHeight + searchHeight + filterHeight + 80;
     const width = Math.max(400, overlay.width - rail.gutter * 2);
     return {
         x: Math.round((overlay.width - width) / 2),
         y: Math.round((overlay.height - height) / 2),
         width, height,
         selectedHeight, searchHeight, filterHeight,
-        searchWidth: Math.min(1100, Math.round(width * 0.85)),
+        searchWidth: Math.round(width * 0.90),
     };
 }
 
@@ -8014,6 +8001,7 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         this._filterBar = null;
         this._countLabel = null;
         this._openChipMenu = null;
+        this._chipScale = 1;
 
         this._buildUI();
         this._initialKey = this._focusedWindow ?? null;
@@ -8115,8 +8103,14 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         if (this._filters.recent !== null) {
             results.sort((a, b) => Model.focusRank(b.window) - Model.focusRank(a.window));
             results = results.slice(0, this._filters.recent);
-        } else {
-            this._sortDefault(results);
+        } else if (!query) {
+            // Panel order: first window of first workspace -> last window of last.
+            const order = new Map();
+            Model.getModelWindows(null).forEach((w, i) => {
+                if (!order.has(w)) order.set(w, i);
+            });
+            results.sort((a, b) =>
+                (order.get(a.window) ?? Infinity) - (order.get(b.window) ?? Infinity));
         }
 
         return results;
@@ -8172,14 +8166,19 @@ export class WindowSearchOverlay extends SearchOverlayBase {
             x_expand: true, x_align: Clutter.ActorAlign.CENTER, child: search.actor,
         }));
 
-        // Filter bar
+        // Filter bar — exactly as wide as the search box, so the chips start
+        // at its left edge and the count ends at its right edge.
         this._filterBar = new St.BoxLayout({
             style_class: 'selector-filter-bar',
             height: BAND.filterHeight,
+            width: BAND.searchWidth,
             x_expand: true,
-            x_align: Clutter.ActorAlign.FILL,
+            x_align: Clutter.ActorAlign.CENTER,
         });
         band.add_child(this._filterBar);
+
+        // Chips scale down on narrow screens so they always fit the search box.
+        this._chipScale = clamp(BAND.searchWidth / 1900, 0.6, 1);
         this._refreshFilterBar();
 
         for (const actor of [this._tint, this._listBackdrop, this._listLayer, band])
@@ -8211,15 +8210,10 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         this._filterBar.destroy_all_children();
         this._openChipMenu = null;
 
-        // Left flex spacer — pairs with the right one to keep the chip
-        // cluster centered regardless of the count's width.
-        this._filterBar.add_child(new St.Widget({ x_expand: true }));
-
-        // Chip cluster — natural width, centered by the surrounding
-        // flex spacers.
         const chipBox = new St.BoxLayout({
             style_class: 'selector-filter-chips',
             y_align: Clutter.ActorAlign.CENTER,
+            style: `spacing: ${this._cs(S.selector.filterRowGap)}px;`,
         });
         chipBox.add_child(this._makeResetChip());
         chipBox.add_child(this._makeWorkspaceChip());
@@ -8228,23 +8222,15 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         chipBox.add_child(this._makePinnedChip());
         this._filterBar.add_child(chipBox);
 
-        // Right flex spacer. Count is pinned to the far right edge,
-        // vertically centered to match the chips. Explicit FILL on the
-        // container ensures the count's baseline lands in the middle of
-        // the filter bar regardless of the count text's natural height.
-        const rightBox = new St.BoxLayout({
-            x_expand: true,
-            y_align: Clutter.ActorAlign.FILL,
-        });
-        rightBox.add_child(new St.Widget({ x_expand: true }));
+        // Spacer pushes the count to the right edge of the search box.
+        this._filterBar.add_child(new St.Widget({ x_expand: true }));
 
-        this._countLabel = new St.Label({
+        this._countLabel = this._noEllipsis(new St.Label({
             style_class: 'selector-filter-count',
             y_align: Clutter.ActorAlign.CENTER,
-            y_expand: false,
-        });
-        rightBox.add_child(this._countLabel);
-        this._filterBar.add_child(rightBox);
+        }));
+        this._countLabel.set_style(`font-size: ${this._cs(S.selector.filterCountText)}px;`);
+        this._filterBar.add_child(this._countLabel);
 
         this._updateCountLabel();
     }
@@ -8255,18 +8241,26 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         this._countLabel.set_text(`${n} window${n === 1 ? '' : 's'}`);
     }
 
+    _cs(v) { return Math.max(10, Math.round(v * (this._chipScale ?? 1))); }
+
+    _noEllipsis(lbl) {
+        lbl.clutter_text.set_ellipsize(Pango.EllipsizeMode.NONE);
+        lbl.clutter_text.set_line_wrap(false);
+        return lbl;
+    }
+
     _makeChipBase(styleClass = '') {
         const btn = new St.Button({
             style_class: `selector-filter-chip ${styleClass}`.trim(),
             reactive: true, track_hover: true,
             y_align: Clutter.ActorAlign.CENTER,
-            height: S.selector.filterChipH,
+            height: this._cs(S.selector.filterChipH),
         });
-        btn.set_style(`padding: 0 ${S.selector.filterPadX}px;`);
+        btn.set_style(`padding: 0 ${this._cs(S.selector.filterPadX)}px;`);
         btn._box = new St.BoxLayout({
             style_class: 'selector-filter-chip-box',
             y_align: Clutter.ActorAlign.CENTER,
-            style: `spacing: ${S.selector.filterGap}px;`,
+            style: `spacing: ${this._cs(S.selector.filterGap)}px;`,
         });
         btn.set_child(btn._box);
         return btn;
@@ -8278,8 +8272,8 @@ export class WindowSearchOverlay extends SearchOverlayBase {
             style_class: styleClass,
             y_align: Clutter.ActorAlign.CENTER,
         });
-        lbl.set_style(`font-size: ${S.selector.filterLabelText}px;`);
-        return lbl;
+        lbl.set_style(`font-size: ${this._cs(S.selector.filterLabelText)}px;`);
+        return this._noEllipsis(lbl);
     }
 
     _chipValue(text) {
@@ -8288,8 +8282,8 @@ export class WindowSearchOverlay extends SearchOverlayBase {
             style_class: 'selector-filter-value',
             y_align: Clutter.ActorAlign.CENTER,
         });
-        lbl.set_style(`font-size: ${S.selector.filterText}px;`);
-        return lbl;
+        lbl.set_style(`font-size: ${this._cs(S.selector.filterText)}px;`);
+        return this._noEllipsis(lbl);
     }
 
     _chipArrow() {
@@ -8298,8 +8292,8 @@ export class WindowSearchOverlay extends SearchOverlayBase {
             style_class: 'selector-filter-arrow',
             y_align: Clutter.ActorAlign.CENTER,
         });
-        lbl.set_style(`font-size: ${S.selector.filterLabelText}px;`);
-        return lbl;
+        lbl.set_style(`font-size: ${this._cs(S.selector.filterLabelText)}px;`);
+        return this._noEllipsis(lbl);
     }
 
     _makeResetChip() {
@@ -8311,15 +8305,15 @@ export class WindowSearchOverlay extends SearchOverlayBase {
             style_class: 'selector-filter-reset-icon',
             y_align: Clutter.ActorAlign.CENTER,
         });
-        icon.set_style(`font-size: ${S.selector.filterText}px;`);
-        btn._box.add_child(icon);
+        icon.set_style(`font-size: ${this._cs(S.selector.filterText)}px;`);
+        btn._box.add_child(this._noEllipsis(icon));
 
         const label = new St.Label({
             text: 'Reset',
             y_align: Clutter.ActorAlign.CENTER,
         });
-        label.set_style(`font-size: ${S.selector.filterText}px;`);
-        btn._box.add_child(label);
+        label.set_style(`font-size: ${this._cs(S.selector.filterText)}px;`);
+        btn._box.add_child(this._noEllipsis(label));
 
         this._scope.connect(btn, 'clicked', () => {
             if (!this._hasActiveFilter()) return;
@@ -8884,12 +8878,10 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         this._bandBin.set_child(UI.createBandTitle({
             icon: item.icon,
             title: item.title,
-            appName: (item.appName || '').toUpperCase(),
             width: BAND.width,
             height: BAND.selectedHeight,
             iconSize: S.selector.bandIcon,
             labelSize: S.selector.center,
-            appSize: S.selector.bandApp,
         }));
 
         if (this._snap || Motion.reduced()) {
