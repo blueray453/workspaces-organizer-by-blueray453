@@ -1119,8 +1119,19 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         this._scope = new Scheduling.Scope();
         this._renderCoalescer = new Scheduling.Coalescer(() => this._render());
         this._focusCoalescer = new Scheduling.Coalescer(() => this._syncFocusStates());
-        this._scope.connect(global.display, 'notify::focus-window',
-            () => this._focusCoalescer.queue());
+
+        // DEBUG: log every focus change and its new id so we can correlate
+        // the signal against _syncFocusStates' match. Remove after diagnosis.
+        this._scope.connect(global.display, 'notify::focus-window', () => {
+            const f = global.display.focus_window;
+            let desc = 'null';
+            try {
+                if (f) desc = `${f.get_id()} "${f.get_title?.() ?? ''}" (${f.get_wm_class?.() ?? ''})`;
+            } catch (e) { /* dead */ }
+            journal(`[DEBUG-FOCUS] notify::focus-window -> ${desc}`);
+            this._focusCoalescer.queue();
+        });
+
         this._leavePollId = 0;
 
         this._groupDwell = new Dwell(this._scope,
@@ -1164,6 +1175,29 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         this._extUnsub = externalDrag.onChanged(state => this._onExternalChanged(state));
 
         this._render();
+
+        // DEBUG: probe the generated CSS to confirm the pill rules reached
+        // disk and the border-* longhand form is present. Remove after
+        // diagnosis.
+        try {
+            const p = GLib.build_filenamev([GLib.get_user_cache_dir(), 'topnotch-theme.css']);
+            const [ok, bytes] = GLib.file_get_contents(p);
+            if (ok) {
+                const css = new TextDecoder().decode(bytes);
+                journal(`[DEBUG-FOCUS] CSS ${p}: ${css.length} bytes, ` +
+                    `.focused=${css.includes('window-preview-icon.focused')}, ` +
+                    `border-bottom-width=${css.includes('border-bottom-width')}`);
+                const idx = css.indexOf('.window-preview-icon.focused');
+                if (idx >= 0) {
+                    const snippet = css.slice(idx, idx + 220).replace(/\s+/g, ' ');
+                    journal(`[DEBUG-FOCUS] CSS snippet: ${snippet}`);
+                }
+            } else {
+                journal(`[DEBUG-FOCUS] CSS not readable at ${p}`);
+            }
+        } catch (e) {
+            journal(`[DEBUG-FOCUS] CSS probe threw: ${e.message}`);
+        }
     }
 
     _dragActive() { return !!Model.intent.drag || externalDrag.active; }
@@ -1207,6 +1241,9 @@ export class WorkspaceIndicator extends PanelMenu.Button {
     }
 
     _render() {
+        journal(`[DEBUG-FOCUS] _render entry menuOpen=${Model.intent.menuOpen} ` +
+            `drag=${!!Model.intent.drag} extDrag=${externalDrag.active}`);
+
         if (Model.intent.menuOpen) return;
         if (Model.intent.drag) return;
         if (externalDrag.active) return;
@@ -1298,16 +1335,41 @@ export class WorkspaceIndicator extends PanelMenu.Button {
 
     _syncFocusStates() {
         const pick = Model.intent.overlayPick;
-        // While the overlay has a pick, it is the only marker. Real focus lags it.
         const focus = pick ? null : Model.focusedWindow();
+        const focusId = focus?.get_id() ?? null;
+        const pickId = pick?.get_id() ?? null;
 
-        const apply = (actor, windows) => UI.setFocusState(actor, {
-            focused: !!focus && windows.includes(focus),
-            pick: !!pick && windows.includes(pick),
-        });
+        journal(`[DEBUG-FOCUS] sync: pick=${pickId} focus=${focusId} ` +
+            `ctrls=${this._controllers.size} groups=${this._groupIcons.size}`);
 
-        for (const ctrl of this._controllers.values()) apply(ctrl.actor, [ctrl.window]);
-        for (const [actor, info] of this._groupIcons) apply(actor, info.group.windows);
+        if (pick && !focus) {
+            try {
+                journal(`[DEBUG-FOCUS] pick active "${pick.get_title?.()}" — focus suppressed`);
+            } catch (e) { /* dead */ }
+        }
+
+        const wid = w => { try { return w?.get_id?.(); } catch (e) { return undefined; } };
+
+        const apply = (actor, windows, label) => {
+            const matchFocus = focusId !== null && windows.some(w => wid(w) === focusId);
+            const matchPick = pickId !== null && windows.some(w => wid(w) === pickId);
+
+            let title = '?';
+            try { title = windows[0]?.get_title?.() ?? '?'; } catch (e) { /* dead */ }
+
+            const hadFocus = actor.has_style_class_name?.('focused') ?? false;
+            const hadPick = actor.has_style_class_name?.('pick') ?? false;
+
+            if (matchFocus !== hadFocus || matchPick !== hadPick) {
+                journal(`[DEBUG-FOCUS] ${label} "${title}": ` +
+                    `focused ${hadFocus}→${matchFocus} pick ${hadPick}→${matchPick}`);
+            }
+
+            UI.setFocusState(actor, { focused: matchFocus, pick: matchPick });
+        };
+
+        for (const ctrl of this._controllers.values()) apply(ctrl.actor, [ctrl.window], 'icon');
+        for (const [actor, info] of this._groupIcons) apply(actor, info.group.windows, 'group');
     }
 
     _buildToolbar(s) {
@@ -2348,10 +2410,13 @@ export function destroyFocusedWindowBorder() {
 }
 // ===== FILE: ./lib/theme.js =====
 // ===== FILE: ./lib/theme.js =====
-// SINGLE SOURCE OF TRUTH for color, transparency, radius, border, shadow.
-// (Motion lives in motion.js; sizes live in sizes.js.)
+import GLib from 'gi://GLib';
+
 import { createCssLoader } from './cssLoader.js';
 import { px } from './sizes.js';
+import { createLogger } from '../logger.js';
+
+const journal = createLogger(import.meta.url);
 
 export const GLASS_DEFAULT = 1.0;
 
@@ -2570,20 +2635,20 @@ function buildCss() {
 
 .workspace-name-label { ${t('workspaceName')} }
 
-/* Reserve the underline slot on every icon so focus moves never shift layout.
-   Square bottom corners render the underline as a flat bar, not a smile. */
-.window-preview-icon,
-.ws-app-group {
-    border-bottom: ${BORDER.frame}px solid transparent;
-    border-radius: ${radius('xs')}px ${radius('xs')}px 0 0;
+/* Focus pill — child actor inside .ws-ico-wrap (see createFocusPill in ui.js) */
+.ws-focus-pill {
+    background-color: ${color('accentBright')};
+    box-shadow: 0 0 6px 1px ${rgba('accentBright', 0.6)};
 }
-.window-preview-icon.focused,
-.ws-app-group.focused { border-bottom-color: ${line('focusPill')}; }
-.window-preview-icon.pick,
-.ws-app-group.pick {
-    border-bottom-color: ${color('accentBright')};
-    background-color: ${rgba('accent', 0.28)};
+.ws-focus-pill.pick {
+    background-color: ${color('accentBright')};
+    box-shadow: 0 0 10px 2px ${rgba('accentBright', 0.9)};
 }
+.ws-focus-pill.selected {
+    background-color: ${color('ok')};
+    box-shadow: 0 0 8px 2px ${rgba('ok', 0.7)};
+}
+
 .ws-app-group:hover, .workspace-toolbar-button:hover { ${bg('groupHover')} }
 .ws-badge { background-color: ${color('badgeBg')}; border: 1px solid ${color('textStrong')}; box-shadow: 0 1px 3px ${rgba('black', 0.65)}; }
 .ws-badge-label { color: ${color(TEXT.badgeLabel)}; }
@@ -2624,6 +2689,78 @@ function buildCss() {
 
 .selector-row-inner { ${rad('md')} }
 .selector-row-label { ${t('selectorRow')} ${halo} }
+
+/* Filter bar */
+.selector-filter-bar {
+    padding: 0 ${px(0.25)}px;
+}
+
+/* Chip cluster — spacing between chips only. Centering is done in
+   _refreshFilterBar() with flex spacers. */
+.selector-filter-chips {
+    spacing: ${px(0.40)}px;
+}
+
+.selector-filter-chip {
+    background-color: ${color('tealDeep')};
+    border: 1px solid ${color('tealSegEdge')};
+    border-radius: ${radius('md')}px;
+    color: ${color('text')};
+    transition-duration: 120ms;
+}
+.selector-filter-chip:hover { background-color: ${color('tealSeg')}; }
+.selector-filter-chip.active {
+    background-color: ${color('tealSeg')};
+    color: ${color('textStrong')};
+}
+.selector-filter-chip.greyed { opacity: 0.35; }
+
+.selector-filter-label {
+    color: ${color('textFaint')};
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    font-weight: 700;
+}
+.selector-filter-chip.active .selector-filter-label { color: ${color('textMuted')}; }
+
+.selector-filter-value {
+    color: ${color('textStrong')};
+    font-weight: 600;
+}
+.selector-filter-arrow { color: ${color('textFaint')}; }
+
+/* Reset chip */
+.selector-filter-reset {
+    background-color: ${rgba('danger', 0.12)};
+    border-color: ${rgba('danger', 0.45)};
+}
+.selector-filter-reset:hover { background-color: ${rgba('danger', 0.3)}; }
+.selector-filter-reset-icon { color: ${color('warn')}; }
+
+/* Pinned chip */
+.selector-filter-pinned {
+    background-color: ${rgba('ok', 0.14)};
+    border-color: ${rgba('ok', 0.5)};
+}
+.selector-filter-pinned:hover { background-color: ${rgba('ok', 0.28)}; }
+.selector-filter-pinned.pinned-mode {
+    background-color: ${rgba('ok', 0.45)};
+    border-color: ${color('ok')};
+    color: ${color('paper')};
+}
+.selector-filter-pinned-dot {
+    width: 10px; height: 10px;
+    border-radius: 5px;
+    background-color: ${color('ok')};
+    box-shadow: 0 0 5px ${rgba('ok', 0.8)};
+}
+
+.selector-filter-count {
+    color: ${color('textMuted')};
+    padding: 0 ${px(0.50)}px;
+    font-size: ${px(0.60)}px;
+    letter-spacing: 0.3px;
+}
 
 .selector-rail { ${bg('selectorRail')} border-radius: ${radius('lg')}px; ${ring('selectorEdgeSoft')} }
 .selector-rail-tip { ${bg('selectorTip')} ${t('selectorTitle')} ${rad('sm')} ${ring('selectorEdge')} ${halo} }
@@ -2711,7 +2848,7 @@ export function onThemeChanged(cb) { _listeners.add(cb); return () => _listeners
 function _refresh() {
     _css.apply();
     for (const cb of [..._listeners]) {
-        try { cb(); } catch (e) { console.error(`[theme] listener: ${e.message}`); }
+        try { cb(); } catch (e) { journal(`[theme] listener: ${e.message}`); }
     }
 }
 
@@ -6071,18 +6208,27 @@ const RATIOS = {
     },
 
     selector: {
-        center: 1.80,           //  72 — band title (large by design)
-        search: 2.00,           //  40 — search field text
-        tip: 1.00,              //  40 — rail tooltip
-        bandIcon: 2.00,         //  96 — band icon
-        bandApp: 1.00,          //  40 — app-name line
-        rowLabel: 1.80,         //  40 — neighbor row text
-        rowIcon: 1.80,          //  96 — neighbor row icon
-        rowSlot: 3.40,          // 136 — row fits 96 icon
-        bandH: 3.50,            // 140 — band height fits 96 icon + 72 title
-        searchH: 2.60,          // 104 — search field height
-        railMarkerW: 0.80,      //  32
-        railMarkerH: 0.20,      //   8
+        center: 1.80,
+        search: 2.00,
+        tip: 1.00,
+        bandIcon: 2.00,
+        bandApp: 1.00,
+        rowLabel: 1.80,
+        rowIcon: 1.80,
+        rowSlot: 3.40,
+        bandH: 3.50,
+        searchH: 2.60,
+        filterH: 2.20,          //  88 — was 2.00 (80)
+        filterChipH: 1.60,      //  64 — was 1.45 (58)
+        filterText: 0.60,       //  24 — was 0.55 (22)
+        filterLabelText: 0.35,  //  14 — was 0.32 (13)
+        filterGap: 0.35,        //  14 — was 0.30 (12)
+        filterRowGap: 0.40,     //  16 — was 0.35 (14)
+        filterPadX: 0.55,       //  22 — was 0.50 (20)
+        filterCountText: 0.60,  //  24 — was 0.50 (20) — NOW matches filterText
+        rowTagText: 0.35,
+        railMarkerW: 0.80,
+        railMarkerH: 0.20,
     },
 
     launcher: {
@@ -6601,16 +6747,12 @@ function _toggle(actor) {
         info.border = null;
         Motion.animate(actor, { scale_x: 1, scale_y: 1 }, { duration: 'selectPopOut' });
     }
+
+    // Notify panel + any open overlay that the pinned set changed.
+    Model.requestRender();
 }
 
 function _isSelected(actor) { return !!state.windowData.get(actor)?.selected; }
-
-function _isWindowSelected(win) {
-    if (!win) return false;
-    const actor = win.get_compositor_private();
-    if (!actor) return false;
-    return _isSelected(actor);
-}
 
 function _onActorUnmanaging(actor) {
     _detach(actor);
@@ -6618,6 +6760,7 @@ function _onActorUnmanaging(actor) {
     const info = state.windowData.get(actor);
     if (info?.border) { info.border.destroy(); info.border = null; }
     state.windowData.delete(actor);
+    Model.requestRender();
 }
 
 function _onActiveWorkspaceChanged() {
@@ -6630,10 +6773,41 @@ function _onRestacked() {
     for (const info of state.windowData.values()) info.border?.restack();
 }
 
+// ═══════════════════════════════════════════════════════════
+// PUBLIC API
+// ═══════════════════════════════════════════════════════════
+
+export function isWindowSelected(win) {
+    if (!win) return false;
+    const actor = win.get_compositor_private();
+    if (!actor) return false;
+    return _isSelected(actor);
+}
+
+export function hasAnySelected() {
+    for (const info of state.windowData.values())
+        if (info.selected) return true;
+    return false;
+}
+
+export function selectedCount() {
+    let n = 0;
+    for (const info of state.windowData.values())
+        if (info.selected) n++;
+    return n;
+}
+
+export function toggleWindow(win) {
+    if (!win) return;
+    const actor = win.get_compositor_private();
+    if (!actor) return;
+    _toggle(actor);
+}
+
 export function toggleSelectedWindow() {
     const win = Model.focusedWindow();
     if (!win || !Model.isNormalWindow(win)) return;
-    _toggle(win.get_compositor_private());
+    toggleWindow(win);
 }
 
 export function closeNotSelectedWindows() {
@@ -6654,7 +6828,7 @@ export function closeNotSelectedWindows() {
     let closed = 0;
     for (const w of victims) {
         if (w.get_wm_class_instance() === 'file_progress') continue;
-        if (_isWindowSelected(w)) continue;
+        if (isWindowSelected(w)) continue;
         w.delete(0);
         closed++;
     }
@@ -6666,7 +6840,7 @@ export function closeNotSelectedWindows() {
 }
 
 export function initSelectedWindows() {
-    setFocusBorderSuppressor(_isWindowSelected);
+    setFocusBorderSuppressor(isWindowSelected);
     state.activeWorkspaceId = WorkspaceManager.connect('active-workspace-changed', _onActiveWorkspaceChanged);
     state.minimizeId = WindowManager.connect('minimize', _onMinimize);
     state.unminimizeId = WindowManager.connect('unminimize', _onUnminimize);
@@ -7058,20 +7232,50 @@ import Shell from 'gi://Shell';
 import St from 'gi://St';
 
 import { S, REL } from './sizes.js';
+import { createLogger } from '../logger.js';
 
-// Re-export theme's hasher as colorForApp so existing callers keep working.
+const journal = createLogger(import.meta.url);
+
 export { appColor as colorForApp } from './theme.js';
 
-// ==================== focus state ====================
-// Single owner of the `focused` / `pick` classes. Opacity is not managed
-// here; the only opacity change left is the drag source (handled in
-// interactions.makeDraggable).
+// ==================== focus pill ====================
+function createFocusPill(size) {
+    const pillH = Math.max(4, Math.round(size * 0.10));
+    const pillW = Math.max(16, Math.round(size * 0.92));
+    const pill = new St.Widget({
+        style_class: 'ws-focus-pill',
+        reactive: false, visible: false,
+        width: pillW, height: pillH,
+    });
+    pill.set_style(`border-radius: ${Math.round(pillH / 2)}px;`);
+    pill.set_position(Math.round((size - pillW) / 2), size - pillH);
+    return pill;
+}
+
 export function setFocusState(actor, { focused = false, pick = false }) {
-    const toggle = (cls, on) => on
-        ? actor.add_style_class_name(cls)
-        : actor.remove_style_class_name(cls);
-    toggle('focused', focused);
-    toggle('pick', pick);
+    const hadFocus = actor.has_style_class_name?.('focused') ?? false;
+    const hadPick = actor.has_style_class_name?.('pick') ?? false;
+
+    const toggle = (target, cls, on) => on
+        ? target.add_style_class_name(cls)
+        : target.remove_style_class_name(cls);
+
+    toggle(actor, 'focused', focused);
+    toggle(actor, 'pick', pick);
+
+    const on = focused || pick;
+    const pill = actor._focusPill;
+    if (pill) {
+        pill.visible = on;
+        toggle(pill, 'pick', pick);
+    }
+
+    if (hadFocus !== focused || hadPick !== pick) {
+        let cls = '';
+        try { cls = actor.get_style_class_name?.() ?? ''; } catch (e) { /* gone */ }
+        journal(`[DEBUG-UI] setFocusState ${actor.constructor?.name} -> ` +
+            `classes="${cls}" pill=${!!pill && pill.visible}`);
+    }
 }
 
 // ==================== app / icon resolution ====================
@@ -7094,7 +7298,6 @@ function createWindowIconTexture(window, iconSize) {
     return St.TextureCache.get_default().load_gicon(null, getWindowAppIcon(window), iconSize);
 }
 
-// ==================== drag visuals ====================
 export function createDragActor(gicon, size) {
     const bin = new St.Bin({ style_class: 'reorder-drag-source', width: size, height: size });
     bin.opacity = 178;
@@ -7102,7 +7305,6 @@ export function createDragActor(gicon, size) {
     return bin;
 }
 
-// ==================== indicator widgets ====================
 export function createToolbarButton(iconName, size, accessibleName) {
     return new St.Button({
         style_class: 'workspace-toolbar-button',
@@ -7166,6 +7368,10 @@ export function createBadgedIcon({ gicon, size, count }) {
         badge.set_position(size - badgeSize, 0);
     }
 
+    const pill = createFocusPill(size);
+    wrap.add_child(pill);
+    wrap._focusPill = pill;
+
     return { actor: wrap, icon };
 }
 
@@ -7176,6 +7382,7 @@ export function createGroupButton({ gicon, count, size }) {
         reactive: true, track_hover: true, can_focus: true,
         child: inner,
     });
+    button._focusPill = inner._focusPill;
     return { actor: button, icon };
 }
 
@@ -7184,12 +7391,23 @@ export function createWindowIconActor(window, iconSize) {
         style_class: 'window-preview-icon',
         reactive: true, track_hover: true,
     });
+    const wrap = new St.Widget({
+        style_class: 'ws-ico-wrap',
+        width: iconSize, height: iconSize,
+    });
+
     const icon = createWindowIconTexture(window, iconSize);
-    actor.set_child(icon);
+    wrap.add_child(icon);
+    icon.set_position(0, 0);
+
+    const pill = createFocusPill(iconSize);
+    wrap.add_child(pill);
+
+    actor.set_child(wrap);
+    actor._focusPill = pill;
     return { actor, icon };
 }
 
-// ==================== flyout row ====================
 export function createFlyoutRow({
     gicon, title, sub, badge = '',
     width, height, iconSize, labelSize,
@@ -7250,7 +7468,6 @@ export function createFlyoutRow({
     return row;
 }
 
-// ==================== flyout cancel zone ====================
 export function createCancelZone(text) {
     const label = new St.Label({
         style_class: 'ws-flyout-cancel-label', text,
@@ -7264,7 +7481,6 @@ export function createCancelZone(text) {
     return { actor, label };
 }
 
-// ==================== flyout rail ====================
 export function createRail() {
     const root = new St.Widget({ style_class: 'ws-flyout-rail', reactive: false });
 
@@ -7297,7 +7513,6 @@ export function createRail() {
     return { root, track, ticks, marker };
 }
 
-// ==================== clone preview ====================
 const PREVIEW = { TITLE_MIN: 40, TITLE_MAX: 100, TITLE_FRACTION: 0.2 };
 
 export function createClonePreview(window, targetHeight, options = {}) {
@@ -7374,8 +7589,6 @@ export function createClonePreview(window, targetHeight, options = {}) {
     return { actor: wrapper, wrapper, inner, overlay, closeButton, width, height: targetHeight };
 }
 
-// ==================== insertion math ====================
-// rects: [{ item, start, end, mid, ... }] along the reorder axis.
 export function computeInsertion(rects, p) {
     if (rects.length === 0) return { index: 0, neighbor: null, insertBefore: true };
 
@@ -7399,7 +7612,6 @@ export function computeInsertion(rects, p) {
     return { index: before ? i : i + 1, neighbor: target.item, insertBefore: before };
 }
 
-// ==================== text helpers ====================
 function escapeMarkup(s) {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
@@ -7419,7 +7631,6 @@ export function highlightMarkup(text, indices) {
 
 const spacer = () => new St.Widget({ x_expand: true });
 
-// ==================== container / field factories ====================
 export function createFullscreenContainer(monitor, styleClass) {
     return new St.Widget({
         style_class: styleClass, reactive: true, can_focus: true, clip_to_allocation: true,
@@ -7447,7 +7658,6 @@ export function createSearchField({ width, hint, keyHint = null, x = 0, y = 0 })
     return { actor, entry };
 }
 
-// ==================== app launcher primitives ====================
 export function createDividerHeading(text) {
     const actor = new St.BoxLayout({ style_class: 'launcher-divider-heading', x_expand: true });
     const line = () => new St.Widget({ style_class: 'launcher-divider', x_expand: true, y_align: Clutter.ActorAlign.CENTER });
@@ -7539,7 +7749,7 @@ export function createAppTile({ icon, name, indices = null, iconSize, width, hei
     return button;
 }
 
-// ==================== window selector primitives ====================
+// ── Window selector primitives ──────────────────────────────
 export function createWindowTitleRow({
     icon, title, indices = null,
     width, height, iconSize, labelSize,
@@ -7584,7 +7794,10 @@ export function createWindowTitleRow({
     return row;
 }
 
-export function createBandTitle({ icon, title, appName, width, height, iconSize, labelSize, appSize }) {
+export function createBandTitle({
+    icon, title, appName,
+    width, height, iconSize, labelSize, appSize,
+}) {
     const row = new St.BoxLayout({
         style_class: 'selector-band-title',
         width, height, x_align: Clutter.ActorAlign.CENTER,
@@ -7617,14 +7830,13 @@ export function createBandTitle({ icon, title, appName, width, height, iconSize,
     titleLabel.set_text(title);
     text.add_child(titleLabel);
 
+    // App name only — no workspace suffix, no ellipsize, natural width.
     const appLabel = new St.Label({
         style_class: 'selector-band-app-label',
         y_align: Clutter.ActorAlign.CENTER,
+        x_align: Clutter.ActorAlign.CENTER,
     });
-    appLabel.set_x_align(Clutter.ActorAlign.CENTER);
-    appLabel.set_width(textMax);
     appLabel.set_style(`font-size: ${appSize}px;`);
-    appLabel.clutter_text.set_ellipsize(Pango.EllipsizeMode.START);
     appLabel.set_text(appName || '');
     text.add_child(appLabel);
 
@@ -7648,6 +7860,7 @@ export function createSelectionBand(bandL) {
 // ===== FILE: ./lib/windowOverlay.js =====
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
+import Meta from 'gi://Meta';
 import Pango from 'gi://Pango';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
@@ -7659,6 +7872,8 @@ import * as Model from './model.js';
 import * as UI from './ui.js';
 import * as WorkspaceActions from './workspaceActions.js';
 import * as Motion from './motion.js';
+import * as Interactions from './interactions.js';
+import * as SelectedWindows from './selectedWindows.js';
 import { Smoother } from './smoother.js';
 import { S } from './sizes.js';
 
@@ -7679,7 +7894,8 @@ const appColor = name => UI.colorForApp(name);
 const MAX_ROWS_EACH_SIDE = 2;
 const rowsEachSideFor = n => Math.min(MAX_ROWS_EACH_SIDE, Math.max(0, n - 1));
 
-// Overlay area = monitor minus the panel strip, wherever the panel sits.
+const RECENT_OPTIONS = [1, 2, 3, 4, 5, 6, 7];
+
 function usableArea(monitor) {
     const pb = Main.layoutManager.panelBox;
     let { x, y, width, height } = monitor;
@@ -7712,13 +7928,15 @@ function computeRailLayout(overlay) {
 function computeBandLayout(overlay, rail) {
     const selectedHeight = S.selector.bandH;
     const searchHeight = S.selector.searchH;
-    const height = selectedHeight + searchHeight + 40;
+    const filterHeight = S.selector.filterH;
+    // 2 child gaps (16 each) + panel padding slack
+    const height = selectedHeight + searchHeight + filterHeight + 72;
     const width = Math.max(400, overlay.width - rail.gutter * 2);
     return {
         x: Math.round((overlay.width - width) / 2),
         y: Math.round((overlay.height - height) / 2),
         width, height,
-        selectedHeight, searchHeight,
+        selectedHeight, searchHeight, filterHeight,
         searchWidth: Math.min(1100, Math.round(width * 0.85)),
     };
 }
@@ -7735,16 +7953,31 @@ function computeRowLayout(overlay, band) {
 
 // ==================== window selector ====================
 export class WindowSearchOverlay extends SearchOverlayBase {
-    constructor(windows, settings, focusedWindow = null) {
+    constructor(windows, settings, focusedWindow = null, initialFilters = null) {
         super(settings);
         this._focusedWindow = focusedWindow ?? Model.Display.focus_window;
 
-        this._items = windows.map(w => ({
-            window: w,
-            title: w.get_title() || 'Untitled Window',
-            appName: this._getAppName(w),
-            icon: UI.getWindowAppIcon(w),
-        }));
+        this._items = windows.map(w => {
+            const app = UI.getWindowApp(w);
+            return {
+                window: w,
+                title: w.get_title() || 'Untitled Window',
+                appName: app?.get_name() || w.get_wm_class() || 'Unknown',
+                appId: app?.get_id() || null,
+                icon: UI.getWindowAppIcon(w),
+            };
+        });
+
+        // Read filters from intent (session persistence). `initialFilters`
+        // lets the DBus/caller override on first open (e.g. workspace filter).
+        const persisted = Model.intent.overlayFilters ?? {};
+        this._filters = {
+            workspace: initialFilters?.workspace ?? persisted.workspace ?? null,
+            app: initialFilters?.app ?? persisted.app ?? null,
+            recent: initialFilters?.recent ?? persisted.recent ?? null,
+            pinnedOnly: initialFilters?.pinnedOnly ?? persisted.pinnedOnly ?? false,
+        };
+        this._persistFilters();
 
         this._rows = [];
         this._scrollAccum = 0;
@@ -7778,6 +8011,10 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         this._railH = 0;
         this._railPad = 0;
 
+        this._filterBar = null;
+        this._countLabel = null;
+        this._openChipMenu = null;
+
         this._buildUI();
         this._initialKey = this._focusedWindow ?? null;
 
@@ -7797,6 +8034,63 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         return this._items.some(item => item.window === window);
     }
 
+    _persistFilters() {
+        Model.setIntent({ overlayFilters: { ...this._filters } });
+    }
+
+    _hasActiveFilter() {
+        return this._filters.workspace !== null
+            || this._filters.app !== null
+            || this._filters.recent !== null
+            || this._filters.pinnedOnly
+            || (this._entry?.get_text?.().length ?? 0) > 0;
+    }
+
+    // ── filtering ─────────────────────────────────────────────
+    _applyFilters(items) {
+        const f = this._filters;
+        let list = items;
+
+        if (f.workspace !== null) {
+            list = list.filter(item => {
+                try { return item.window.get_workspace()?.index() === f.workspace; }
+                catch (e) { return false; }
+            });
+        }
+        if (f.app !== null) {
+            list = list.filter(item => item.appId === f.app);
+        }
+        if (f.pinnedOnly) {
+            list = list.filter(item => SelectedWindows.isWindowSelected(item.window));
+        }
+        return list;
+    }
+
+    _sortDefault(items) {
+        const currentWs = Model.WorkspaceManager.get_active_workspace_index();
+        const wsPresent = new Set();
+        for (const item of items) {
+            try {
+                const idx = item.window.get_workspace()?.index();
+                if (typeof idx === 'number') wsPresent.add(idx);
+            } catch (e) { /* gone */ }
+        }
+        const applyCurrentFirst = wsPresent.size > 1 && wsPresent.has(currentWs);
+
+        items.sort((a, b) => {
+            if (applyCurrentFirst) {
+                let aWs = -1, bWs = -1;
+                try { aWs = a.window.get_workspace()?.index() ?? -1; } catch (e) { /* gone */ }
+                try { bWs = b.window.get_workspace()?.index() ?? -1; } catch (e) { /* gone */ }
+                const aCur = aWs === currentWs ? 0 : 1;
+                const bCur = bWs === currentWs ? 0 : 1;
+                if (aCur !== bCur) return aCur - bCur;
+            }
+            return Model.focusRank(b.window) - Model.focusRank(a.window);
+        });
+        return items;
+    }
+
     _matchItem(query, item) {
         const r = Fuzzy.fuzzyMatch(query, `${item.title} ${item.appName}`);
         if (!r.matched) return r;
@@ -7804,14 +8098,28 @@ export class WindowSearchOverlay extends SearchOverlayBase {
     }
 
     _computeResults(query) {
-        if (!query) return this._items.map(item => ({ ...item, indices: null }));
+        const filtered = this._applyFilters(this._items);
 
-        const scored = [];
-        for (const item of this._items) {
-            const r = this._matchItem(query, item);
-            if (r.matched) scored.push({ ...item, score: r.score, indices: r.indices });
+        let results;
+        if (!query) {
+            results = filtered.map(item => ({ ...item, indices: null }));
+        } else {
+            const scored = [];
+            for (const item of filtered) {
+                const r = this._matchItem(query, item);
+                if (r.matched) scored.push({ ...item, score: r.score, indices: r.indices });
+            }
+            results = scored.sort((a, b) => b.score - a.score);
         }
-        return scored.sort((a, b) => b.score - a.score);
+
+        if (this._filters.recent !== null) {
+            results.sort((a, b) => Model.focusRank(b.window) - Model.focusRank(a.window));
+            results = results.slice(0, this._filters.recent);
+        } else {
+            this._sortDefault(results);
+        }
+
+        return results;
     }
 
     _getAppName(window) {
@@ -7819,6 +8127,7 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         return app ? app.get_name() : (window.get_wm_class() || 'Unknown');
     }
 
+    // ── UI construction ───────────────────────────────────────
     _buildUI() {
         const monitor = Main.layoutManager.primaryMonitor;
         this._monitor = monitor;
@@ -7863,6 +8172,16 @@ export class WindowSearchOverlay extends SearchOverlayBase {
             x_expand: true, x_align: Clutter.ActorAlign.CENTER, child: search.actor,
         }));
 
+        // Filter bar
+        this._filterBar = new St.BoxLayout({
+            style_class: 'selector-filter-bar',
+            height: BAND.filterHeight,
+            x_expand: true,
+            x_align: Clutter.ActorAlign.FILL,
+        });
+        band.add_child(this._filterBar);
+        this._refreshFilterBar();
+
         for (const actor of [this._tint, this._listBackdrop, this._listLayer, band])
             this._container.add_child(actor);
 
@@ -7886,7 +8205,382 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         this._listBackdrop.set_size(BAND.width, BAND.height + 2 * rows * ROW.slotH);
     }
 
-    // ----- rail widget tree -----
+    // ── filter chips ──────────────────────────────────────────
+    _refreshFilterBar() {
+        if (!this._filterBar) return;
+        this._filterBar.destroy_all_children();
+        this._openChipMenu = null;
+
+        // Left flex spacer — pairs with the right one to keep the chip
+        // cluster centered regardless of the count's width.
+        this._filterBar.add_child(new St.Widget({ x_expand: true }));
+
+        // Chip cluster — natural width, centered by the surrounding
+        // flex spacers.
+        const chipBox = new St.BoxLayout({
+            style_class: 'selector-filter-chips',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        chipBox.add_child(this._makeResetChip());
+        chipBox.add_child(this._makeWorkspaceChip());
+        chipBox.add_child(this._makeAppChip());
+        chipBox.add_child(this._makeRecentChip());
+        chipBox.add_child(this._makePinnedChip());
+        this._filterBar.add_child(chipBox);
+
+        // Right flex spacer. Count is pinned to the far right edge,
+        // vertically centered to match the chips. Explicit FILL on the
+        // container ensures the count's baseline lands in the middle of
+        // the filter bar regardless of the count text's natural height.
+        const rightBox = new St.BoxLayout({
+            x_expand: true,
+            y_align: Clutter.ActorAlign.FILL,
+        });
+        rightBox.add_child(new St.Widget({ x_expand: true }));
+
+        this._countLabel = new St.Label({
+            style_class: 'selector-filter-count',
+            y_align: Clutter.ActorAlign.CENTER,
+            y_expand: false,
+        });
+        rightBox.add_child(this._countLabel);
+        this._filterBar.add_child(rightBox);
+
+        this._updateCountLabel();
+    }
+
+    _updateCountLabel() {
+        if (!this._countLabel) return;
+        const n = this._results.length;
+        this._countLabel.set_text(`${n} window${n === 1 ? '' : 's'}`);
+    }
+
+    _makeChipBase(styleClass = '') {
+        const btn = new St.Button({
+            style_class: `selector-filter-chip ${styleClass}`.trim(),
+            reactive: true, track_hover: true,
+            y_align: Clutter.ActorAlign.CENTER,
+            height: S.selector.filterChipH,
+        });
+        btn.set_style(`padding: 0 ${S.selector.filterPadX}px;`);
+        btn._box = new St.BoxLayout({
+            style_class: 'selector-filter-chip-box',
+            y_align: Clutter.ActorAlign.CENTER,
+            style: `spacing: ${S.selector.filterGap}px;`,
+        });
+        btn.set_child(btn._box);
+        return btn;
+    }
+
+    _chipLabel(text, styleClass = 'selector-filter-label') {
+        const lbl = new St.Label({
+            text,
+            style_class: styleClass,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        lbl.set_style(`font-size: ${S.selector.filterLabelText}px;`);
+        return lbl;
+    }
+
+    _chipValue(text) {
+        const lbl = new St.Label({
+            text,
+            style_class: 'selector-filter-value',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        lbl.set_style(`font-size: ${S.selector.filterText}px;`);
+        return lbl;
+    }
+
+    _chipArrow() {
+        const lbl = new St.Label({
+            text: '▾',
+            style_class: 'selector-filter-arrow',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        lbl.set_style(`font-size: ${S.selector.filterLabelText}px;`);
+        return lbl;
+    }
+
+    _makeResetChip() {
+        const btn = this._makeChipBase('selector-filter-reset');
+        if (!this._hasActiveFilter()) btn.add_style_class_name('greyed');
+
+        const icon = new St.Label({
+            text: '↺',
+            style_class: 'selector-filter-reset-icon',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        icon.set_style(`font-size: ${S.selector.filterText}px;`);
+        btn._box.add_child(icon);
+
+        const label = new St.Label({
+            text: 'Reset',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        label.set_style(`font-size: ${S.selector.filterText}px;`);
+        btn._box.add_child(label);
+
+        this._scope.connect(btn, 'clicked', () => {
+            if (!this._hasActiveFilter()) return;
+            this._resetFilters();
+        });
+
+        return btn;
+    }
+
+    _makeWorkspaceChip() {
+        const btn = this._makeChipBase('selector-filter-workspace');
+        if (this._filters.workspace !== null) btn.add_style_class_name('active');
+
+        btn._box.add_child(this._chipLabel('Workspace'));
+        const ws = this._filters.workspace;
+        const valText = ws === null ? 'None' : `${ws + 1} · ${this._workspaceNameForChip(ws)}`;
+        btn._box.add_child(this._chipValue(valText));
+        btn._box.add_child(this._chipArrow());
+
+        this._scope.connect(btn, 'clicked', () => this._cycleWorkspace(1));
+        this._scope.connect(btn, 'button-press-event', (a, e) => {
+            if (e.get_button() === Clutter.BUTTON_SECONDARY) {
+                this._showWorkspaceMenu(btn);
+                return Clutter.EVENT_STOP;
+            }
+            return Clutter.EVENT_PROPAGATE;
+        });
+        this._scope.connect(btn, 'scroll-event', (a, e) => {
+            const d = this._scrollDir(e);
+            if (!d) return Clutter.EVENT_PROPAGATE;
+            this._cycleWorkspace(d);
+            return Clutter.EVENT_STOP;
+        });
+
+        return btn;
+    }
+
+    _makeAppChip() {
+        const btn = this._makeChipBase('selector-filter-app');
+        if (this._filters.app !== null) btn.add_style_class_name('active');
+
+        btn._box.add_child(this._chipLabel('App'));
+        let valText = 'None';
+        if (this._filters.app !== null) {
+            const item = this._items.find(i => i.appId === this._filters.app);
+            valText = item ? item.appName : 'None';
+        }
+        btn._box.add_child(this._chipValue(valText));
+        btn._box.add_child(this._chipArrow());
+
+        this._scope.connect(btn, 'clicked', () => this._cycleApp(1));
+        this._scope.connect(btn, 'button-press-event', (a, e) => {
+            if (e.get_button() === Clutter.BUTTON_SECONDARY) {
+                this._showAppMenu(btn);
+                return Clutter.EVENT_STOP;
+            }
+            return Clutter.EVENT_PROPAGATE;
+        });
+        this._scope.connect(btn, 'scroll-event', (a, e) => {
+            const d = this._scrollDir(e);
+            if (!d) return Clutter.EVENT_PROPAGATE;
+            this._cycleApp(d);
+            return Clutter.EVENT_STOP;
+        });
+
+        return btn;
+    }
+
+    _makeRecentChip() {
+        const btn = this._makeChipBase('selector-filter-recent');
+        if (this._filters.recent !== null) btn.add_style_class_name('active');
+
+        btn._box.add_child(this._chipLabel('Recent'));
+        btn._box.add_child(this._chipValue(
+            this._filters.recent === null ? 'None' : `Last ${this._filters.recent}`));
+        btn._box.add_child(this._chipArrow());
+
+        this._scope.connect(btn, 'clicked', () => this._cycleRecent(1));
+        this._scope.connect(btn, 'button-press-event', (a, e) => {
+            if (e.get_button() === Clutter.BUTTON_SECONDARY) {
+                this._showRecentMenu(btn);
+                return Clutter.EVENT_STOP;
+            }
+            return Clutter.EVENT_PROPAGATE;
+        });
+        this._scope.connect(btn, 'scroll-event', (a, e) => {
+            const d = this._scrollDir(e);
+            if (!d) return Clutter.EVENT_PROPAGATE;
+            this._cycleRecent(d);
+            return Clutter.EVENT_STOP;
+        });
+
+        return btn;
+    }
+
+    _makePinnedChip() {
+        const btn = this._makeChipBase('selector-filter-pinned');
+        const count = SelectedWindows.selectedCount();
+        if (count === 0 && !this._filters.pinnedOnly) btn.add_style_class_name('greyed');
+        if (this._filters.pinnedOnly) btn.add_style_class_name('pinned-mode');
+
+        const dot = new St.Widget({
+            style_class: 'selector-filter-pinned-dot',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        btn._box.add_child(dot);
+
+        btn._box.add_child(this._chipValue(
+            count === 0 ? 'Pinned' : `Pinned (${count})`));
+
+        this._scope.connect(btn, 'clicked', () => {
+            if (this._filters.pinnedOnly) {
+                this._filters.pinnedOnly = false;
+            } else {
+                // Pinned activation resets other filters (per design)
+                this._filters.workspace = null;
+                this._filters.app = null;
+                this._filters.recent = null;
+                this._filters.pinnedOnly = true;
+            }
+            this._applyFiltersAndRefresh();
+        });
+
+        return btn;
+    }
+
+    // ── cycling ──────────────────────────────────────────────
+    _scrollDir(event) {
+        const dir = event.get_scroll_direction();
+        if (dir === Clutter.ScrollDirection.UP) return -1;
+        if (dir === Clutter.ScrollDirection.DOWN) return 1;
+        if (dir === Clutter.ScrollDirection.SMOOTH) {
+            const [, dy] = event.get_scroll_delta();
+            return Math.sign(dy);
+        }
+        return 0;
+    }
+
+    _cycleWorkspace(dir) {
+        const n = Model.WorkspaceManager.n_workspaces;
+        const base = [null];
+        for (let i = 0; i < n; i++) base.push(i);
+        const i = base.indexOf(this._filters.workspace);
+        this._filters.workspace = base[(i + dir + base.length) % base.length];
+        this._applyFiltersAndRefresh();
+    }
+
+    _cycleApp(dir) {
+        const apps = this._filterableApps();
+        if (apps.length === 0) {
+            this._filters.app = null;
+            this._applyFiltersAndRefresh();
+            return;
+        }
+        const values = [null, ...apps.map(a => a.id)];
+        const i = values.indexOf(this._filters.app);
+        this._filters.app = values[(i + dir + values.length) % values.length];
+        this._applyFiltersAndRefresh();
+    }
+
+    _cycleRecent(dir) {
+        const values = [null, ...RECENT_OPTIONS];
+        const i = values.indexOf(this._filters.recent);
+        this._filters.recent = values[(i + dir + values.length) % values.length];
+        this._applyFiltersAndRefresh();
+    }
+
+    _resetFilters() {
+        this._filters.workspace = null;
+        this._filters.app = null;
+        this._filters.recent = null;
+        this._filters.pinnedOnly = false;
+        if (this._entry) this._entry.set_text('');
+        this._applyFiltersAndRefresh();
+    }
+
+    _applyFiltersAndRefresh() {
+        this._persistFilters();
+        this._initialKey = null;
+        this._onSearchChanged();
+    }
+
+    // ── menus (via existing openContextMenu) ─────────────────
+    _workspaceNameForChip(index) {
+        try { return Meta.prefs_get_workspace_name(index) || `Workspace ${index + 1}`; }
+        catch (e) { return `Workspace ${index + 1}`; }
+    }
+
+    _showWorkspaceMenu(anchor) {
+        const n = Model.WorkspaceManager.n_workspaces;
+        const current = this._filters.workspace;
+        Interactions.openContextMenu(anchor, menu => {
+            menu.addAction('None', () => {
+                this._filters.workspace = null;
+                this._applyFiltersAndRefresh();
+            });
+            for (let i = 0; i < n; i++) {
+                const marker = i === current ? ' ●' : '';
+                menu.addAction(`${i + 1} · ${this._workspaceNameForChip(i)}${marker}`, () => {
+                    this._filters.workspace = i;
+                    this._applyFiltersAndRefresh();
+                });
+            }
+        }, { onStateChange: (open) => { if (!open) this._openChipMenu = null; } });
+        this._openChipMenu = 'workspace';
+    }
+
+    _showAppMenu(anchor) {
+        const apps = this._filterableApps();
+        const current = this._filters.app;
+        Interactions.openContextMenu(anchor, menu => {
+            menu.addAction('None', () => {
+                this._filters.app = null;
+                this._applyFiltersAndRefresh();
+            });
+            for (const a of apps) {
+                const marker = a.id === current ? ' ●' : '';
+                menu.addAction(`${a.name} (${a.count})${marker}`, () => {
+                    this._filters.app = a.id;
+                    this._applyFiltersAndRefresh();
+                });
+            }
+        }, { onStateChange: (open) => { if (!open) this._openChipMenu = null; } });
+        this._openChipMenu = 'app';
+    }
+
+    _showRecentMenu(anchor) {
+        const current = this._filters.recent;
+        Interactions.openContextMenu(anchor, menu => {
+            menu.addAction('None', () => {
+                this._filters.recent = null;
+                this._applyFiltersAndRefresh();
+            });
+            for (const n of RECENT_OPTIONS) {
+                const marker = n === current ? ' ●' : '';
+                menu.addAction(`${n} window${n === 1 ? '' : 's'}${marker}`, () => {
+                    this._filters.recent = n;
+                    this._applyFiltersAndRefresh();
+                });
+            }
+        }, { onStateChange: (open) => { if (!open) this._openChipMenu = null; } });
+        this._openChipMenu = 'recent';
+    }
+
+    _filterableApps() {
+        const counts = new Map();
+        for (const item of this._items) {
+            if (!item.appId) continue;
+            counts.set(item.appId, (counts.get(item.appId) || 0) + 1);
+        }
+        const out = [];
+        for (const [id, count] of counts) {
+            if (count < 2) continue;
+            const item = this._items.find(i => i.appId === id);
+            out.push({ id, name: item?.appName || id, count });
+        }
+        out.sort((a, b) => a.name.localeCompare(b.name));
+        return out;
+    }
+
+    // ── rail widget tree ─────────────────────────────────────
     _buildRail() {
         const RL = this._railL;
         const ROW = this._rowL;
@@ -8079,10 +8773,7 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         if (this._railTip) this._railTip.opacity = 0;
     }
 
-    // ----- rows -----
-    // Rows are inert: no press handlers, not reactive. Clicks pass through to
-    // the reactive fullscreen container, whose _onClick activates the band's
-    // window. The rail keeps its own jump-to-index behavior.
+    // ── rows ─────────────────────────────────────────────────
     _renderResults(results) {
         const OV = this._overlayL, ROW = this._rowL;
 
@@ -8091,15 +8782,41 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         this._hideRailTip();
 
         this._resizeBackdrop(results.length);
+        this._updateCountLabel();
+        this._refreshFilterBar();  // update chip states (pinned count, etc.)
 
         this._listLayer.destroy_all_children();
-        this._rows = results.map(item => {
+        this._rows = results.map((item, index) => {
             const row = UI.createWindowTitleRow({
                 icon: item.icon, title: item.title, indices: item.indices,
                 width: OV.width, height: ROW.slotH,
                 iconSize: ROW.rowIconSize,
                 labelSize: ROW.rowLabelSize,
                 maxWidth: ROW.rowTextMax,
+            });
+            this._rowsScope.connect(row, 'button-press-event', (a, e) => {
+                if (e.get_button() !== Clutter.BUTTON_PRIMARY) return Clutter.EVENT_PROPAGATE;
+                const state = e.get_state();
+                if (state & Clutter.ModifierType.CONTROL_MASK) {
+                    // Toggle pin
+                    if (item.window) {
+                        SelectedWindows.toggleWindow(item.window);
+                        // If pinned-only filter is active and the last pin
+                        // disappeared, drop the filter.
+                        if (this._filters.pinnedOnly &&
+                            SelectedWindows.selectedCount() === 0) {
+                            this._filters.pinnedOnly = false;
+                        }
+                        this._applyFiltersAndRefresh();
+                    }
+                    return Clutter.EVENT_STOP;
+                }
+                this._selectIndex(index);
+                return Clutter.EVENT_STOP;
+            });
+            this._rowsScope.connect(row, 'button-release-event', (a, e) => {
+                if (e.get_button() !== Clutter.BUTTON_PRIMARY) return Clutter.EVENT_PROPAGATE;
+                return Clutter.EVENT_STOP;
             });
             this._listLayer.add_child(row);
             return row;
@@ -8108,7 +8825,7 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         this._buildRailTicks();
     }
 
-    // ----- discrete focus strip layout -----
+    // ── discrete focus strip layout ──────────────────────────
     _layoutRows() {
         const BAND = this._bandL, ROW = this._rowL;
         const pos = this._scrollPos;
@@ -8144,14 +8861,14 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         this._updateRailMarker();
     }
 
-    // ----- selection -----
+    // ── selection ────────────────────────────────────────────
     _onSelectionChanged(index) {
         const BAND = this._bandL;
 
         if (index < 0) {
             Model.setIntent({ overlayPick: null });
             const label = new St.Label({
-                text: this._query ? 'No matching windows' : 'No windows here',
+                text: this._query ? 'No matching windows' : 'No windows',
                 x_align: Clutter.ActorAlign.CENTER,
                 y_align: Clutter.ActorAlign.CENTER,
             });
@@ -8327,7 +9044,12 @@ export class WindowSearchOverlay extends SearchOverlayBase {
     _onClick(event) {
         if (event.get_button() !== Clutter.BUTTON_PRIMARY) return Clutter.EVENT_PROPAGATE;
         if (this._closing) return Clutter.EVENT_STOP;
+
+        // Click inside the filter bar or on an open chip menu: don't activate.
         const src = event.get_source();
+        if (this._filterBar && src && this._filterBar.contains(src)) return Clutter.EVENT_STOP;
+        if (this._openChipMenu) { this._openChipMenu = null; return Clutter.EVENT_STOP; }
+
         if (src && this._searchRoot.contains(src)) {
             this._entry.grab_key_focus();
             return Clutter.EVENT_PROPAGATE;
@@ -8394,6 +9116,14 @@ export function applySettings(settings) {
 export const intentStore = new Store({
     drag: null, hintWs: null, menuOpen: false,
     overlayPick: null,
+    // Persisted across overlay opens in the same session.
+    // Reset on extension reload. See windowOverlay.js for shape.
+    overlayFilters: {
+        workspace: null,   // null | workspace index
+        app: null,         // null | app id
+        recent: null,      // null | 1..7
+        pinnedOnly: false, // bool
+    },
 });
 export const intent = intentStore.state;
 export const world = new Emitter();
@@ -8425,6 +9155,18 @@ export function focusedWindow() {
 const ranks = new Map();
 let nextRank = 1;
 
+// ---- focus order tracking (for the Recent filter) ----
+// Monotonic counter, higher = more recently focused. Never reused.
+// Keyed by get_id() so we don't hold Meta.Window references.
+const focusedAtById = new Map();
+let focusSeq = 1;
+
+export function focusRank(win) {
+    if (!win) return 0;
+    try { return focusedAtById.get(win.get_id()) ?? 0; }
+    catch (e) { return 0; }
+}
+
 // ---- last-focused-per-workspace ----
 const lastFocusedByWs = new Map();
 
@@ -8439,6 +9181,7 @@ export function noteFocusedWindow() {
     try {
         const ws = window.get_workspace();
         if (ws) lastFocusedByWs.set(ws.index(), window);
+        focusedAtById.set(window.get_id(), focusSeq++);
     } catch (e) { /* dead window object */ }
 }
 
@@ -8469,12 +9212,10 @@ export function appIdentity(window) {
     return { id: `wm:${wm}`, name: wm };
 }
 
-// Key identifies one *run* of an app on a workspace (anchored by its first window).
 export function groupKey(workspaceIndex, appId, anchorId = '') {
     return `${workspaceIndex}::${appId}${anchorId !== '' ? `#${anchorId}` : ''}`;
 }
 
-// Groups are contiguous runs in display order.
 export function groupWindowsInWorkspace(entry) {
     const out = [];
     let cur = null;
@@ -8508,6 +9249,17 @@ export function buildModel() {
     for (const [idx, win] of lastFocusedByWs)
         if (!liveSet.has(win)) lastFocusedByWs.delete(idx);
 
+    // Prune focus tracking for closed windows.
+    if (focusedAtById.size > live.length) {
+        const liveIds = new Set();
+        for (const w of live) {
+            try { liveIds.add(w.get_id()); } catch (e) { /* gone */ }
+        }
+        for (const id of focusedAtById.keys()) {
+            if (!liveIds.has(id)) focusedAtById.delete(id);
+        }
+    }
+
     const workspaces = [];
     for (let i = 0; i < WorkspaceManager.n_workspaces; i++) {
         const workspace = WorkspaceManager.get_workspace_by_index(i);
@@ -8536,7 +9288,6 @@ export function placeWindow(window, workspace, index = null) {
     for (const w of list) ranks.set(w, nextRank++);
 }
 
-// Place `window` next to `neighbor` (before/after). No neighbor => append.
 export function placeWindowNear(window, workspace, neighbor = null, before = true) {
     if (neighbor === window) return;
     const list = buildModel().workspaces[workspace.index()].windows
@@ -8604,7 +9355,6 @@ export function disconnectModelSignals() {
     _settings = null;
 }
 
-// ---- helpers ----
 export function getModelWindows(workspace = null) {
     const model = buildModel();
     if (workspace === null)
@@ -8652,26 +9402,30 @@ const journal = createLogger(import.meta.url);
 
 // ==================== OVERLAY SERVICE ====================
 // The single place any search overlay is opened or closed.
-// Overlays always list every window.
 //
-// Initial selection resolves through Model.lastFocusedWindow(): the shell
-// reports no focus right after a workspace switch, so the remembered
-// per-workspace focus is used whenever the live focus is missing.
+// showWindowOverlay() passes all candidate windows plus an optional
+// `initialFilters` object to pre-seed the filter bar. When
+// `initialFilters` is null, the overlay uses whatever filters are
+// currently persisted in `Model.intent.overlayFilters` — that's the
+// "remember the filter across opens" behaviour.
+//
+// Filters are single-axis values:
+//   { workspace: null|0..n, app: null|appId, recent: null|1..7, pinnedOnly: bool }
 
 let _settings = null;
 
-export function showWindowOverlay(windows, context = null, focusedWindow = null) {
+export function showWindowOverlay(windows, context = null, focusedWindow = null, initialFilters = null) {
     if (!_settings) {
         journal('[overlayService] showWindowOverlay before init — ignoring');
         return false;
     }
     SearchOverlayBase.closeCurrent();
-    const overlay = new WindowSearchOverlay(windows, _settings, focusedWindow);
+    const overlay = new WindowSearchOverlay(windows, _settings, focusedWindow, initialFilters);
     overlay._overlayContext = context;
     return true;
 }
 
-export function showAllWindows() {
+export function showAllWindows(initialFilters = null) {
     if (!_settings) {
         journal('[overlayService] showAllWindows before init — ignoring');
         return false;
@@ -8683,7 +9437,8 @@ export function showAllWindows() {
     return showWindowOverlay(
         Model.getModelWindows(null),
         { type: 'all-windows' },
-        focusedWindow);
+        focusedWindow,
+        initialFilters);
 }
 
 export function showAllApps() {
@@ -8718,17 +9473,24 @@ export function toggleAllWindows() {
     return showAllWindows();
 }
 
+/**
+ * Show windows for a given workspace. The overlay opens pre-filtered to
+ * that workspace; the user can clear the filter (Reset) to see all windows.
+ */
 export function showWorkspaceWindows(workspaceIndex) {
     const workspace = Model.WorkspaceManager.get_workspace_by_index(workspaceIndex);
     if (!workspace) throw new Error(`Workspace ${workspaceIndex} not found`);
 
-    const windows = Model.buildModel().workspaces[workspaceIndex].windows;
     const focusedWindow = Model.Display.get_tab_list(Meta.TabList.NORMAL, workspace)[0]
         ?? Model.lastFocusedWindow(workspaceIndex)
         ?? null;
 
     workspace.activate(global.get_current_time());
-    return showWindowOverlay(windows, { type: 'workspace', workspaceIndex }, focusedWindow);
+    return showWindowOverlay(
+        Model.getModelWindows(null),
+        { type: 'workspace', workspaceIndex },
+        focusedWindow,
+        { workspace: workspaceIndex });
 }
 
 export function toggleWorkspaceWindows(workspaceIndex) {
@@ -8742,6 +9504,14 @@ export function toggleWorkspaceWindows(workspaceIndex) {
     return showWorkspaceWindows(workspaceIndex);
 }
 
+/**
+ * Show windows for a given (workspace, app) group. Pre-filters to
+ * workspace, but leaves the app filter off so the user can broaden
+ * back to "all windows on this workspace" with one click.
+ * (Different from the old behaviour — pass `null` focusedWindow so
+ * the group's own representative doesn't get lost if the app has more
+ * than one window on this workspace.)
+ */
 export function showGroupWindows(workspaceIndex, appId) {
     const entry = Model.buildModel().workspaces[workspaceIndex];
     if (!entry) return false;
@@ -8750,12 +9520,13 @@ export function showGroupWindows(workspaceIndex, appId) {
     if (!group || !group.windows.length) return false;
 
     const initial = [Model.Display.focus_window, Model.lastFocusedWindow(workspaceIndex)]
-        .find(w => w && group.windows.includes(w)) ?? null;
+        .find(w => w && group.windows.includes(w)) ?? group.windows[0];
 
     const opened = showWindowOverlay(
-        group.windows,
+        Model.getModelWindows(null),
         { type: 'group', workspaceIndex, appId, appName: group.appName },
-        initial);
+        initial,
+        { workspace: workspaceIndex });
     journal(`[overlayService] showGroupWindows ws${workspaceIndex} ${group.appName} (${group.windows.length})`);
     return opened;
 }
