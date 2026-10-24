@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Window Overlay Prototype — v4</title>
+<style>
+:root {
+  --base03:#002b36; --base02:#073642; --base01:#586e75; --base00:#657b83;
+  --base0:#839496; --base1:#93a1a1; --base2:#eee8d5; --base3:#fdf6e3;
+  --cyan:#2aa198; --cyanBright:#4fd1c5;
+  --blue:#268bd2; --orange:#cb4b16; --green:#859900; --magenta:#d33682;
+  --yellow:#b58900; --violet:#6c71c4; --red:#dc322f;
+  --paper:#fffaf0; --ink0:#00121a;
+  --tealDeep:#01252e; --tealSeg:#15515a; --tealSegEdge:#267681;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: radial-gradient(ellipse at 30% 20%, #2d1b3d 0%, #1a1a1a 60%, #0a1a1a 100%);
+  color: var(--base2);
+  display: flex; align-items: center; justify-content: center;
+}
+
+.overlay-wrapper { transform-origin: center center; will-change: transform; }
+.overlay { position: relative; width: 1200px; height: 900px; overflow: hidden; }
+.tint { position: absolute; inset: 0; background: rgba(0, 18, 26, 0.35); }
+
+.rows-layer { position: absolute; inset: 0; pointer-events: none; }
+.row {
+  position: absolute; left: 0; right: 0; height: 136px;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: auto; cursor: pointer;
+  transition: top 200ms cubic-bezier(0.2,0.9,0.3,1),
+              opacity 200ms ease-out;
+}
+.row-inner { display: flex; align-items: center; gap: 24px; max-width: 900px; }
+.row-icon {
+  width: 80px; height: 80px; border-radius: 12px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 34px; font-weight: 700; color: var(--paper);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+.row-label {
+  font-size: 34px; font-weight: 500; color: var(--base3);
+  text-shadow: 0 0 4px rgba(0,18,26,0.95), 0 0 10px rgba(0,18,26,0.7);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 780px;
+}
+.row.selected .row-label::before {
+  content: "◆ "; color: var(--green); font-size: 20px; margin-right: 10px;
+}
+.row-ws-tag {
+  font-size: 14px; color: var(--base1); letter-spacing: 1px;
+  text-transform: uppercase; padding: 2px 8px;
+  background: rgba(0, 20, 26, 0.6); border-radius: 4px;
+  text-shadow: 0 0 4px rgba(0,18,26,0.9);
+}
+
+.band {
+  position: absolute; left: 76px; top: 260px;
+  width: 1048px; height: 380px;
+  background: rgba(0, 43, 54, 0.58);
+  border: 2px solid rgba(147, 161, 161, 0.55);
+  border-radius: 28px;
+  box-shadow: 0 48px 20px 0 rgba(0, 22, 30, 0.55);
+  padding: 20px;
+  display: flex; flex-direction: column; gap: 16px;
+  transition: box-shadow 200ms ease;
+}
+.band.flash { box-shadow: 0 48px 20px 0 rgba(0, 22, 30, 0.55),
+                          0 0 40px 8px rgba(42, 161, 152, 0.4); }
+
+.search {
+  height: 104px;
+  background: rgba(0, 43, 54, 0.97);
+  border: 2px solid var(--base01);
+  border-radius: 20px;
+  display: flex; align-items: center; padding: 0 40px;
+}
+.search input {
+  flex: 1; background: transparent; border: none; outline: none;
+  color: var(--base3); font-size: 40px; text-align: center;
+  font-family: inherit; letter-spacing: 0.5px;
+}
+.search input::placeholder { color: rgba(238, 232, 213, 0.28); }
+
+.filter-bar {
+  height: 64px; display: flex; align-items: center; gap: 10px;
+  padding: 0 8px;
+}
+.chip {
+  position: relative;
+  height: 48px; padding: 0 16px;
+  background: var(--tealDeep);
+  border: 1px solid var(--tealSegEdge);
+  border-radius: 12px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 17px; color: var(--base2);
+  cursor: pointer; user-select: none; font-weight: 500;
+  transition: background-color 120ms ease, border-color 120ms ease, opacity 120ms ease;
+  white-space: nowrap;
+}
+.chip:hover { background: var(--tealSeg); }
+.chip.active { background: var(--tealSeg); color: var(--base3); font-weight: 600; }
+.chip.greyed { opacity: 0.35; cursor: default; pointer-events: none; }
+.chip-label {
+  color: var(--base1); font-size: 12px;
+  text-transform: uppercase; letter-spacing: 1.1px;
+}
+.chip.active .chip-label { color: var(--base2); }
+.chip-value { color: var(--base3); }
+.chip-arrow { color: var(--base01); font-size: 11px; }
+
+.chip-reset {
+  background: rgba(203, 75, 22, 0.12);
+  border-color: rgba(203, 75, 22, 0.45);
+}
+.chip-reset:hover { background: rgba(203, 75, 22, 0.3); }
+.chip-reset-icon { font-size: 16px; color: var(--orange); }
+.chip-reset .chip-label { color: var(--orange); }
+
+.chip-selected {
+  background: rgba(133, 153, 0, 0.14);
+  border-color: rgba(133, 153, 0, 0.5);
+}
+.chip-selected:hover { background: rgba(133, 153, 0, 0.28); }
+.chip-selected.selected-mode {
+  background: rgba(133, 153, 0, 0.45);
+  border-color: var(--green);
+  color: var(--paper);
+}
+.chip-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 4px rgba(133, 153, 0, 0.7);
+}
+
+.result-count {
+  margin-left: auto; color: var(--base1); font-size: 17px;
+  padding-right: 12px; letter-spacing: 0.3px; white-space: nowrap;
+}
+
+.chip-menu {
+  position: absolute; top: calc(100% + 8px); left: 0;
+  background: rgba(0, 43, 54, 0.98);
+  border: 2px solid var(--cyan);
+  border-radius: 16px;
+  box-shadow: 0 12px 36px 10px rgba(0, 22, 30, 0.78);
+  padding: 8px; min-width: 260px;
+  display: none; z-index: 100;
+}
+.chip-menu.open { display: block; }
+.chip-menu-item {
+  padding: 10px 14px; border-radius: 10px;
+  font-size: 17px; color: var(--base2); cursor: pointer;
+  display: flex; align-items: center; gap: 10px;
+}
+.chip-menu-item:hover { background: rgba(42, 161, 152, 0.32); }
+.chip-menu-item.active {
+  color: var(--base3); background: rgba(42, 161, 152, 0.28);
+  font-weight: 600;
+}
+.chip-menu-item.greyed { opacity: 0.4; }
+.chip-menu-item .check { width: 16px; color: var(--cyanBright); font-size: 14px; }
+.chip-menu-item .count {
+  margin-left: auto; font-size: 13px;
+  color: var(--base1); font-weight: 400;
+}
+
+.band-title {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  gap: 28px; padding: 0 20px;
+}
+.band-title.empty { font-size: 32px; color: var(--base1); }
+.band-icon {
+  width: 96px; height: 96px; border-radius: 18px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 44px; font-weight: 700; color: var(--paper);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  transition: box-shadow 150ms ease;
+}
+.band-icon.selected { box-shadow: 0 0 0 4px var(--green); }
+.band-text { display: flex; flex-direction: column; gap: 8px; max-width: 800px; }
+.band-title-text {
+  font-size: 42px; font-weight: 700; color: var(--base3);
+  text-shadow: 0 0 6px rgba(0, 18, 26, 1);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.band-meta {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 18px; font-weight: 700; letter-spacing: 2px;
+  text-shadow: 0 0 6px rgba(0, 18, 26, 1);
+}
+.band-app { color: var(--cyanBright); text-transform: uppercase; }
+.band-meta-sep { color: var(--base01); font-weight: 400; }
+.band-workspace { color: var(--base1); letter-spacing: 1px; text-transform: none; }
+
+.rail {
+  position: absolute; right: 20px; top: 260px;
+  width: 48px; height: 380px;
+  background: rgba(0, 26, 34, 0.72);
+  border-radius: 24px;
+}
+.rail-track {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  top: 16px; bottom: 16px; width: 2px;
+  background: rgba(238, 232, 213, 0.55); border-radius: 1px;
+}
+.rail-tick {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  width: 12px; height: 4px; border-radius: 2px;
+}
+.rail-marker {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  width: 32px; height: 8px; background: var(--paper);
+  border-radius: 4px;
+  box-shadow: 0 0 6px 2px rgba(0, 22, 30, 0.9);
+  transition: top 200ms ease-out;
+}
+
+.bottom-bar {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 20, 26, 0.94);
+  border-top: 1px solid rgba(147, 161, 161, 0.25);
+  padding: 10px 20px;
+  display: flex; flex-direction: column; gap: 8px;
+  font-size: 12px; color: var(--base1);
+  z-index: 1000;
+}
+.bottom-hint { text-align: center; color: var(--base01); }
+.bottom-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.bottom-controls .label {
+  color: var(--base1); text-transform: uppercase; font-size: 10px;
+  letter-spacing: 1px;
+}
+.ws-btn, .clear-btn {
+  background: var(--tealDeep); color: var(--base2);
+  border: 1px solid var(--tealSegEdge); border-radius: 6px;
+  padding: 4px 10px; font-size: 12px; cursor: pointer;
+  font-family: inherit; font-weight: 500;
+}
+.ws-btn:hover, .clear-btn:hover { background: var(--tealSeg); }
+.ws-btn.active { background: var(--tealSeg); color: var(--base3); font-weight: 700; }
+.spacer { flex: 1; }
+.status {
+  color: var(--base01); font-family: ui-monospace, monospace;
+  font-size: 11px; padding: 2px 8px; background: rgba(0,0,0,0.3);
+  border-radius: 4px;
+}
+</style>
+</head>
+<body>
+
+<div class="overlay-wrapper" id="overlayWrapper">
+  <div class="overlay" id="overlay">
+    <div class="tint"></div>
+    <div class="rows-layer" id="rowsLayer"></div>
+    <div class="band" id="band">
+      <div class="search">
+        <input type="text" id="searchInput" placeholder="Search windows…" autocomplete="off" autofocus>
+      </div>
+      <div class="filter-bar" id="filterBar"></div>
+      <div class="band-title" id="bandTitle"></div>
+    </div>
+    <div class="rail" id="rail"></div>
+  </div>
+</div>
+
+<div class="bottom-bar">
+  <div class="bottom-hint">
+    click chip to cycle · right-click chip for menu · scroll on overlay advances pick ·
+    ctrl+click a row to toggle selected · ↑↓ navigate · Esc clears query · / focuses search
+  </div>
+  <div class="bottom-controls">
+    <span class="label">Current WS</span>
+    <button class="ws-btn active" data-ws="1">1 Work</button>
+    <button class="ws-btn" data-ws="2">2 Web</button>
+    <button class="ws-btn" data-ws="3">3 Archive</button>
+    <button class="ws-btn" data-ws="4">4 Media</button>
+    <span style="width:20px"></span>
+    <span id="selectionInfo" style="color:var(--green)">0 selected</span>
+    <button class="clear-btn" id="clearSelectionBtn">Clear selection</button>
+    <span class="spacer"></span>
+    <span class="status" id="statusBar">—</span>
+  </div>
+</div>
+
+<script>
+const WORKSPACES = { 1: 'Work', 2: 'Web', 3: 'Archive', 4: 'Media' };
+
+const APPS = {
+  files:       { name: 'Files',       color: '#859900' },
+  firefox:     { name: 'Firefox',     color: '#cb4b16' },
+  terminal:    { name: 'Terminal',    color: '#2aa198' },
+  vscode:      { name: 'VSCode',      color: '#268bd2' },
+  spotify:     { name: 'Spotify',     color: '#1db954' },
+  slack:       { name: 'Slack',       color: '#d33682' },
+  gimp:        { name: 'GIMP',        color: '#6c71c4' },
+  photos:      { name: 'Photos',      color: '#b58900' },
+  thunderbird: { name: 'Thunderbird', color: '#dc322f' },
+  libreoffice: { name: 'LibreOffice', color: '#cb4b16' },
+  calculator:  { name: 'Calculator',  color: '#268bd2' },
+  settings:    { name: 'Settings',    color: '#6c71c4' },
+};
+
+let CURRENT_WS = 1;
+
+const WINDOWS = [
+  { id: 1,  appKey: 'files',       title: 'Home',                                         workspace: 1, lastFocused: 100, selected: true  },
+  { id: 2,  appKey: 'files',       title: 'Documents',                                    workspace: 1, lastFocused: 90,  selected: false },
+  { id: 3,  appKey: 'files',       title: 'Downloads',                                    workspace: 2, lastFocused: 20,  selected: false },
+  { id: 4,  appKey: 'firefox',     title: 'Extension code review — GitHub',               workspace: 1, lastFocused: 95,  selected: false },
+  { id: 5,  appKey: 'firefox',     title: 'MDN Web Docs',                                 workspace: 2, lastFocused: 30,  selected: false },
+  { id: 6,  appKey: 'terminal',    title: '/home/ismail',                                 workspace: 1, lastFocused: 99,  selected: true  },
+  { id: 7,  appKey: 'terminal',    title: '~/projects/api',                               workspace: 1, lastFocused: 85,  selected: false },
+  { id: 8,  appKey: 'terminal',    title: '/var/log',                                     workspace: 1, lastFocused: 40,  selected: false },
+  { id: 9,  appKey: 'terminal',    title: 'ssh user@server',                              workspace: 4, lastFocused: 10,  selected: false },
+  { id: 10, appKey: 'vscode',      title: 'workspace-indicator.js — extension',           workspace: 1, lastFocused: 97,  selected: true  },
+  { id: 11, appKey: 'vscode',      title: 'theme.js — extension',                         workspace: 1, lastFocused: 88,  selected: false },
+  { id: 12, appKey: 'vscode',      title: 'notes.md',                                     workspace: 2, lastFocused: 45,  selected: false },
+  { id: 23, appKey: 'vscode',      title: 'this-is-an-extremely-long-window-title-that-should-ellipsize-in-the-band-and-in-the-rows.js', workspace: 1, lastFocused: 55, selected: false },
+  { id: 24, appKey: 'vscode',      title: 'notes.txt',                                    workspace: 1, lastFocused: 65,  selected: false },
+  { id: 13, appKey: 'spotify',     title: 'Spotify',                                      workspace: 1, lastFocused: 50,  selected: false },
+  { id: 14, appKey: 'slack',       title: '#engineering',                                 workspace: 1, lastFocused: 92,  selected: false },
+  { id: 15, appKey: 'slack',       title: 'Direct — Sarah',                               workspace: 1, lastFocused: 70,  selected: false },
+  { id: 16, appKey: 'gimp',        title: 'screenshot.png',                               workspace: 4, lastFocused: 25,  selected: false },
+  { id: 17, appKey: 'photos',      title: 'Screenshots',                                  workspace: 2, lastFocused: 15,  selected: false },
+  { id: 18, appKey: 'thunderbird', title: 'Inbox',                                        workspace: 1, lastFocused: 80,  selected: true  },
+  { id: 19, appKey: 'thunderbird', title: 'Compose — Re: Project',                        workspace: 1, lastFocused: 60,  selected: false },
+  { id: 20, appKey: 'libreoffice', title: 'Budget 2024.ods',                              workspace: 2, lastFocused: 35,  selected: false },
+  { id: 21, appKey: 'calculator',  title: 'Calculator',                                   workspace: 1, lastFocused: 5,   selected: false },
+  { id: 22, appKey: 'settings',    title: 'Settings',                                     workspace: 4, lastFocused: 8,   selected: false },
+];
+
+const state = {
+  query: '',
+  workspace: null,
+  app: null,
+  selectedOnly: false,
+  pick: 0,
+};
+
+// ════════════════════════════════════════════════════════════
+// PIPELINE
+// ════════════════════════════════════════════════════════════
+function filterableApps() {
+  const counts = {};
+  for (const w of WINDOWS) counts[w.appKey] = (counts[w.appKey] || 0) + 1;
+  return Object.keys(counts)
+    .filter(k => counts[k] > 1)
+    .map(k => ({ key: k, name: APPS[k].name, count: counts[k] }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function workspaceCounts() {
+  const counts = {};
+  for (let i = 1; i <= 4; i++) counts[i] = 0;
+  for (const w of WINDOWS) counts[w.workspace]++;
+  return counts;
+}
+
+function hasAnySelection() {
+  return WINDOWS.some(w => w.selected);
+}
+function selectionCount() {
+  return WINDOWS.filter(w => w.selected).length;
+}
+
+// Sort: current-WS-first when multiple workspaces are present, then recent.
+// When all results are in one workspace, degrades to pure recent.
+function sortWindows(list) {
+  const workspacesPresent = new Set(list.map(w => w.workspace));
+  const applyCurrentFirst = workspacesPresent.size > 1 && workspacesPresent.has(CURRENT_WS);
+  return list.sort((a, b) => {
+    if (applyCurrentFirst) {
+      const aCur = a.workspace === CURRENT_WS ? 0 : 1;
+      const bCur = b.workspace === CURRENT_WS ? 0 : 1;
+      if (aCur !== bCur) return aCur - bCur;
+    }
+    return b.lastFocused - a.lastFocused;
+  });
+}
+
+function getFilteredWindows() {
+  let result = [...WINDOWS];
+  if (state.workspace !== null) result = result.filter(w => w.workspace === state.workspace);
+  if (state.app !== null) result = result.filter(w => w.appKey === state.app);
+  if (state.selectedOnly) result = result.filter(w => w.selected);
+  if (state.query) {
+    const q = state.query.toLowerCase();
+    result = result.filter(w =>
+      w.title.toLowerCase().includes(q) ||
+      APPS[w.appKey].name.toLowerCase().includes(q) ||
+      WORKSPACES[w.workspace].toLowerCase().includes(q));
+  }
+  return sortWindows(result);
+}
+
+function emptyMessage() {
+  if (state.query) return `No matches for "${state.query}"`;
+  if (state.selectedOnly) return 'No selected windows';
+  if (state.workspace !== null) return `No windows on ${WORKSPACES[state.workspace]}`;
+  if (state.app) return `No ${APPS[state.app].name} windows`;
+  return 'No windows';
+}
+
+function anyFilterActive() {
+  return state.workspace !== null || state.app !== null ||
+         state.selectedOnly || state.query !== '';
+}
+
+// ════════════════════════════════════════════════════════════
+// CHIPS
+// ════════════════════════════════════════════════════════════
+function makeWorkspaceChip() {
+  const chip = document.createElement('div');
+  chip.className = 'chip';
+  if (state.workspace !== null) chip.classList.add('active');
+
+  const lbl = document.createElement('span');
+  lbl.className = 'chip-label';
+  lbl.textContent = 'Workspace';
+  chip.appendChild(lbl);
+
+  const val = document.createElement('span');
+  val.className = 'chip-value';
+  val.textContent = state.workspace === null
+    ? 'None' : `${state.workspace} · ${WORKSPACES[state.workspace]}`;
+  chip.appendChild(val);
+
+  const arrow = document.createElement('span');
+  arrow.className = 'chip-arrow';
+  arrow.textContent = '▾';
+  chip.appendChild(arrow);
+
+  chip.appendChild(buildWorkspaceMenu());
+
+  chip.addEventListener('click', e => {
+    if (e.target.closest('.chip-menu')) return;
+    e.stopPropagation();
+    closeAllMenus();
+    const values = [null, 1, 2, 3, 4];
+    const i = values.indexOf(state.workspace);
+    state.workspace = values[(i + 1) % values.length];
+    state.pick = 0;
+    render();
+  });
+  chip.addEventListener('contextmenu', e => {
+    e.preventDefault(); e.stopPropagation();
+    const menu = chip.querySelector('.chip-menu');
+    const wasOpen = menu.classList.contains('open');
+    closeAllMenus();
+    if (!wasOpen) menu.classList.add('open');
+  });
+  chip.addEventListener('wheel', e => {
+    e.preventDefault(); e.stopPropagation();
+    closeAllMenus();
+    const values = [null, 1, 2, 3, 4];
+    const i = values.indexOf(state.workspace);
+    const dir = e.deltaY > 0 ? 1 : -1;
+    state.workspace = values[(i + dir + values.length) % values.length];
+    state.pick = 0;
+    render();
+  }, { passive: false });
+
+  return chip;
+}
+
+function buildWorkspaceMenu() {
+  const menu = document.createElement('div');
+  menu.className = 'chip-menu';
+  menu.addEventListener('click', e => e.stopPropagation());
+
+  const counts = workspaceCounts();
+  const options = [
+    { label: 'None', value: null, active: state.workspace === null, count: null, greyed: false },
+    ...[1, 2, 3, 4].map(n => ({
+      label: `${n} · ${WORKSPACES[n]}`,
+      value: n,
+      active: state.workspace === n,
+      count: counts[n],
+      greyed: counts[n] === 0,
+    })),
+  ];
+
+  for (const opt of options) {
+    const item = document.createElement('div');
+    item.className = 'chip-menu-item';
+    if (opt.active) item.classList.add('active');
+    if (opt.greyed) item.classList.add('greyed');
+
+    const check = document.createElement('span');
+    check.className = 'check';
+    check.textContent = opt.active ? '✓' : '';
+    item.appendChild(check);
+
+    const label = document.createElement('span');
+    label.textContent = opt.label;
+    item.appendChild(label);
+
+    if (opt.count !== null) {
+      const c = document.createElement('span');
+      c.className = 'count';
+      c.textContent = opt.count;
+      item.appendChild(c);
+    }
+
+    item.addEventListener('click', e => {
+      e.stopPropagation();
+      state.workspace = opt.value;
+      state.pick = 0;
+      closeAllMenus();
+      render();
+    });
+    menu.appendChild(item);
+  }
+
+  return menu;
+}
+
+function makeAppChip() {
+  const chip = document.createElement('div');
+  chip.className = 'chip';
+  if (state.app !== null) chip.classList.add('active');
+
+  const lbl = document.createElement('span');
+  lbl.className = 'chip-label';
+  lbl.textContent = 'App';
+  chip.appendChild(lbl);
+
+  const val = document.createElement('span');
+  val.className = 'chip-value';
+  if (state.app === null) val.textContent = 'None';
+  else {
+    const a = filterableApps().find(x => x.key === state.app);
+    val.textContent = a ? a.name : 'None';
+  }
+  chip.appendChild(val);
+
+  const arrow = document.createElement('span');
+  arrow.className = 'chip-arrow';
+  arrow.textContent = '▾';
+  chip.appendChild(arrow);
+
+  chip.appendChild(buildAppMenu());
+
+  chip.addEventListener('click', e => {
+    if (e.target.closest('.chip-menu')) return;
+    e.stopPropagation();
+    closeAllMenus();
+    const apps = filterableApps();
+    if (apps.length === 0) return;
+    const values = [null, ...apps.map(a => a.key)];
+    const i = values.indexOf(state.app);
+    state.app = values[(i + 1) % values.length];
+    state.pick = 0;
+    render();
+  });
+  chip.addEventListener('contextmenu', e => {
+    e.preventDefault(); e.stopPropagation();
+    const menu = chip.querySelector('.chip-menu');
+    const wasOpen = menu.classList.contains('open');
+    closeAllMenus();
+    if (!wasOpen) menu.classList.add('open');
+  });
+  chip.addEventListener('wheel', e => {
+    e.preventDefault(); e.stopPropagation();
+    closeAllMenus();
+    const apps = filterableApps();
+    if (apps.length === 0) return;
+    const values = [null, ...apps.map(a => a.key)];
+    const i = values.indexOf(state.app);
+    const dir = e.deltaY > 0 ? 1 : -1;
+    state.app = values[(i + dir + values.length) % values.length];
+    state.pick = 0;
+    render();
+  }, { passive: false });
+
+  return chip;
+}
+
+function buildAppMenu() {
+  const menu = document.createElement('div');
+  menu.className = 'chip-menu';
+  menu.addEventListener('click', e => e.stopPropagation());
+
+  const apps = filterableApps();
+  const options = [
+    { label: 'None', value: null, active: state.app === null, count: null, greyed: false },
+    ...apps.map(a => ({
+      label: a.name,
+      value: a.key,
+      active: state.app === a.key,
+      count: a.count,
+      greyed: !WINDOWS.some(w => w.appKey === a.key),
+    })),
+  ];
+
+  for (const opt of options) {
+    const item = document.createElement('div');
+    item.className = 'chip-menu-item';
+    if (opt.active) item.classList.add('active');
+    if (opt.greyed) item.classList.add('greyed');
+
+    const check = document.createElement('span');
+    check.className = 'check';
+    check.textContent = opt.active ? '✓' : '';
+    item.appendChild(check);
+
+    const label = document.createElement('span');
+    label.textContent = opt.label;
+    item.appendChild(label);
+
+    if (opt.count !== null) {
+      const c = document.createElement('span');
+      c.className = 'count';
+      c.textContent = opt.count;
+      item.appendChild(c);
+    }
+
+    item.addEventListener('click', e => {
+      e.stopPropagation();
+      state.app = opt.value;
+      state.pick = 0;
+      closeAllMenus();
+      render();
+    });
+    menu.appendChild(item);
+  }
+
+  return menu;
+}
+
+function makeSelectedChip() {
+  const chip = document.createElement('div');
+  chip.className = 'chip chip-selected';
+
+  const count = selectionCount();
+  // CHANGE #1: Always visible. Greyed when nothing is selected.
+  if (count === 0 && !state.selectedOnly) chip.classList.add('greyed');
+  if (state.selectedOnly) chip.classList.add('selected-mode');
+
+  const dot = document.createElement('span');
+  dot.className = 'chip-dot';
+  chip.appendChild(dot);
+
+  const val = document.createElement('span');
+  val.className = 'chip-value';
+  val.textContent = count === 0 ? 'Selected' : `Selected (${count})`;
+  chip.appendChild(val);
+
+  chip.addEventListener('click', e => {
+    e.stopPropagation();
+    closeAllMenus();
+    if (state.selectedOnly) {
+      state.selectedOnly = false;
+    } else {
+      // Activating Selected resets other filters (per design)
+      state.workspace = null;
+      state.app = null;
+      state.selectedOnly = true;
+    }
+    state.pick = 0;
+    render();
+  });
+
+  return chip;
+}
+
+function makeResetButton() {
+  const btn = document.createElement('div');
+  btn.className = 'chip chip-reset';
+  if (!anyFilterActive()) btn.classList.add('greyed');
+
+  const icon = document.createElement('span');
+  icon.className = 'chip-reset-icon';
+  icon.textContent = '↺';
+  btn.appendChild(icon);
+
+  const label = document.createElement('span');
+  label.textContent = 'Reset';
+  btn.appendChild(label);
+
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    if (!anyFilterActive()) return;
+    state.workspace = null;
+    state.app = null;
+    state.selectedOnly = false;
+    state.query = '';
+    document.getElementById('searchInput').value = '';
+    state.pick = 0;
+    render();
+    // CHANGE #2: sortWindows automatically puts current WS first when
+    // multiple workspaces are present. So Reset already gives "all WS,
+    // current WS on top" with no extra code.
+  });
+
+  return btn;
+}
+
+function closeAllMenus() {
+  document.querySelectorAll('.chip-menu.open').forEach(m => m.classList.remove('open'));
+}
+
+// ════════════════════════════════════════════════════════════
+// RENDER
+// ════════════════════════════════════════════════════════════
+function renderFilterBar(filtered) {
+  const bar = document.getElementById('filterBar');
+  bar.innerHTML = '';
+
+  bar.appendChild(makeResetButton());
+  bar.appendChild(makeWorkspaceChip());
+  bar.appendChild(makeAppChip());
+  bar.appendChild(makeSelectedChip());  // always present
+
+  const count = document.createElement('div');
+  count.className = 'result-count';
+  count.textContent = `${filtered.length} window${filtered.length === 1 ? '' : 's'}`;
+  bar.appendChild(count);
+}
+
+function renderBand(filtered) {
+  const el = document.getElementById('bandTitle');
+  el.innerHTML = '';
+  el.classList.toggle('empty', filtered.length === 0);
+
+  if (filtered.length === 0) {
+    el.textContent = emptyMessage();
+    return;
+  }
+
+  const win = filtered[state.pick];
+  const app = APPS[win.appKey];
+  const wsName = WORKSPACES[win.workspace];
+
+  const icon = document.createElement('div');
+  icon.className = 'band-icon';
+  if (win.selected) icon.classList.add('selected');
+  icon.style.background = app.color;
+  icon.textContent = app.name[0];
+  el.appendChild(icon);
+
+  const text = document.createElement('div');
+  text.className = 'band-text';
+
+  const title = document.createElement('div');
+  title.className = 'band-title-text';
+  title.textContent = win.title;
+  text.appendChild(title);
+
+  const meta = document.createElement('div');
+  meta.className = 'band-meta';
+
+  const appEl = document.createElement('span');
+  appEl.className = 'band-app';
+  appEl.textContent = app.name;
+  meta.appendChild(appEl);
+
+  const sep = document.createElement('span');
+  sep.className = 'band-meta-sep';
+  sep.textContent = '·';
+  meta.appendChild(sep);
+
+  const wsEl = document.createElement('span');
+  wsEl.className = 'band-workspace';
+  wsEl.textContent = wsName;
+  meta.appendChild(wsEl);
+
+  text.appendChild(meta);
+  el.appendChild(text);
+}
+
+function neighborOpacity(x) {
+  if (x <= 1) return 1.00;
+  if (x <= 2) return 1.00 - 0.3 * (x - 1);
+  return Math.max(0, 0.85 * (1 - (x - 2) / 0.8));
+}
+function ease(t) {
+  t = Math.max(0, Math.min(1, t));
+  return t * t * (3 - 2 * t);
+}
+
+function renderRows(filtered) {
+  const layer = document.getElementById('rowsLayer');
+  layer.innerHTML = '';
+  if (filtered.length === 0) return;
+
+  const bandTop = 260, bandH = 380, slotH = 136;
+  const a = bandTop - slotH / 2;
+  const b = bandTop + bandH + slotH / 2;
+  const mid = (a + b) / 2;
+  const half = (b - a) / 2;
+
+  filtered.forEach((win, i) => {
+    const d = i - state.pick;
+    const x = Math.abs(d);
+    if (x >= 2.8) return;
+
+    let c, op;
+    if (x < 1) {
+      c = mid + d * half;
+      op = neighborOpacity(1) * ease((x - 0.2) / 0.8);
+    } else {
+      c = (d > 0 ? b : a) + (x - 1) * slotH * Math.sign(d);
+      op = neighborOpacity(x);
+    }
+    if (op < 0.01) return;
+
+    const row = document.createElement('div');
+    row.className = 'row';
+    if (win.selected) row.classList.add('selected');
+    row.style.top = `${c - slotH / 2}px`;
+    row.style.opacity = op;
+
+    const inner = document.createElement('div');
+    inner.className = 'row-inner';
+
+    const icon = document.createElement('div');
+    icon.className = 'row-icon';
+    icon.style.background = APPS[win.appKey].color;
+    icon.textContent = APPS[win.appKey].name[0];
+    inner.appendChild(icon);
+
+    const label = document.createElement('div');
+    label.className = 'row-label';
+    label.textContent = win.title;
+    inner.appendChild(label);
+
+    // Show workspace tag on rows that AREN'T in the current WS.
+    // This makes the "current WS first" ordering visible.
+    if (win.workspace !== CURRENT_WS) {
+      const tag = document.createElement('div');
+      tag.className = 'row-ws-tag';
+      tag.textContent = WORKSPACES[win.workspace];
+      inner.appendChild(tag);
+    }
+
+    row.appendChild(inner);
+    layer.appendChild(row);
+
+    row.addEventListener('click', e => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        win.selected = !win.selected;
+        if (state.selectedOnly && !hasAnySelection()) state.selectedOnly = false;
+        state.pick = 0;
+        render();
+      } else if (i !== state.pick) {
+        state.pick = i;
+        render();
+      }
+    });
+  });
+}
+
+function renderRail(filtered) {
+  const rail = document.getElementById('rail');
+  rail.innerHTML = '';
+  if (filtered.length === 0) return;
+
+  const railH = 380, pad = 16, span = railH - pad * 2;
+
+  const track = document.createElement('div');
+  track.className = 'rail-track';
+  rail.appendChild(track);
+
+  filtered.forEach((win, i) => {
+    const y = filtered.length <= 1 ? railH / 2 : pad + (i / (filtered.length - 1)) * span;
+    const tick = document.createElement('div');
+    tick.className = 'rail-tick';
+    tick.style.top = `${y - 2}px`;
+    tick.style.background = APPS[win.appKey].color;
+    rail.appendChild(tick);
+  });
+
+  const pickY = filtered.length <= 1 ? railH / 2 : pad + (state.pick / (filtered.length - 1)) * span;
+  const marker = document.createElement('div');
+  marker.className = 'rail-marker';
+  marker.style.top = `${pickY - 4}px`;
+  rail.appendChild(marker);
+}
+
+function render(flash = false) {
+  const filtered = getFilteredWindows();
+  if (state.pick >= filtered.length) state.pick = Math.max(0, filtered.length - 1);
+  if (state.pick < 0) state.pick = 0;
+
+  renderFilterBar(filtered);
+  renderBand(filtered);
+  renderRows(filtered);
+  renderRail(filtered);
+
+  document.getElementById('selectionInfo').textContent = `${selectionCount()} selected`;
+  document.getElementById('statusBar').textContent =
+    `ws=${state.workspace ?? 'none'} app=${state.app ?? 'none'} ` +
+    `sel=${state.selectedOnly} q="${state.query}" pick=${state.pick}/${filtered.length}`;
+
+  if (flash) {
+    const band = document.getElementById('band');
+    band.classList.remove('flash');
+    void band.offsetWidth;
+    band.classList.add('flash');
+    setTimeout(() => band.classList.remove('flash'), 250);
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// INTERACTION
+// ════════════════════════════════════════════════════════════
+document.getElementById('overlay').addEventListener('wheel', e => {
+  if (e.target.closest('.chip')) return;
+  e.preventDefault();
+  const filtered = getFilteredWindows();
+  if (filtered.length === 0) return;
+  const dir = e.deltaY > 0 ? 1 : -1;
+  const next = Math.max(0, Math.min(filtered.length - 1, state.pick + dir));
+  if (next !== state.pick) { state.pick = next; render(true); }
+}, { passive: false });
+
+document.getElementById('searchInput').addEventListener('input', e => {
+  state.query = e.target.value;
+  state.pick = 0;
+  render();
+});
+
+document.addEventListener('keydown', e => {
+  const filtered = getFilteredWindows();
+  const input = document.getElementById('searchInput');
+  const inInput = document.activeElement === input;
+
+  if (e.key === 'Escape') {
+    closeAllMenus();
+    if (state.query) {
+      state.query = ''; input.value = ''; state.pick = 0; render();
+    } else if (inInput) {
+      input.blur();
+    }
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    state.pick = Math.min(filtered.length - 1, state.pick + 1);
+    render(true);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    state.pick = Math.max(0, state.pick - 1);
+    render(true);
+  } else if (e.key === 'Home') {
+    e.preventDefault(); state.pick = 0; render(true);
+  } else if (e.key === 'End') {
+    e.preventDefault(); state.pick = filtered.length - 1; render(true);
+  } else if (e.key === '/' && !inInput) {
+    e.preventDefault(); input.focus();
+  }
+});
+
+document.addEventListener('click', () => closeAllMenus());
+
+document.querySelectorAll('.ws-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    CURRENT_WS = parseInt(btn.dataset.ws, 10);
+    document.querySelectorAll('.ws-btn').forEach(b =>
+      b.classList.toggle('active', b === btn));
+    state.pick = 0;
+    render();  // re-sort so current-WS windows go to top
+  });
+});
+
+document.getElementById('clearSelectionBtn').addEventListener('click', () => {
+  for (const w of WINDOWS) w.selected = false;
+  if (state.selectedOnly) state.selectedOnly = false;
+  state.pick = 0;
+  render();
+});
+
+function fit() {
+  const wrapper = document.getElementById('overlayWrapper');
+  const availH = window.innerHeight - 90;
+  const availW = window.innerWidth - 40;
+  const scale = Math.min(availW / 1200, availH / 900);
+  wrapper.style.transform = `scale(${scale})`;
+}
+window.addEventListener('resize', fit);
+fit();
+
+render();
+</script>
+</body>
+</html>
