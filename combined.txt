@@ -2705,11 +2705,15 @@ function buildCss() {
     border-radius: 0 0 ${radius('lg')}px ${radius('lg')}px;
 }
 
+/* Focus band: cyan border stays as the accent edge; a 1px base2 inset
+   rim at 0.3 alpha sits just inside it for the prototype's light-edge
+   effect. Both shadows (inset rim + drop shadow) are one box-shadow
+   list because St composites them independently. */
 .selector-band {
     ${bg('selectorBand')}
     border: 3px solid ${color('accent')};
     ${rad('lg')}
-    box-shadow: 0 6px 28px 0 ${rgba('base03', 0.5)};
+    box-shadow: inset 0 0 0 1px ${rgba('base2', 0.3)}, 0 6px 28px 0 ${rgba('base03', 0.5)};
 }
 .selector-band-title-label { ${t('selectorTitle')} ${halo} }
 .selector-band-app-label { ${t('selectorApp')} ${halo} }
@@ -2748,7 +2752,9 @@ function buildCss() {
 
 .selector-filter-chip.greyed { opacity: 0.75; }
 
-.selector-filter-count { color: ${color('text')}; font-weight: 600; }
+/* Count sits on the band plate, so it carries the same 8px base03 halo
+   as the title / row labels — the least-protected text in the overlay. */
+.selector-filter-count { color: ${color('text')}; font-weight: 600; ${halo} }
 
 .selector-rail { ${bg('selectorRail')} border-radius: ${radius('lg')}px; ${ring('selectorEdgeSoft')} }
 .selector-rail-tip { ${bg('selectorTip')} ${t('selectorTitle')} ${rad('sm')} ${ring('selectorEdge')} ${halo} }
@@ -7984,7 +7990,6 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         this._railPad = 0;
 
         this._filterBar = null;
-        this._countLabel = null;
         this._openChipMenu = null;
         this._chipL = null;
 
@@ -8080,7 +8085,6 @@ export class WindowSearchOverlay extends SearchOverlayBase {
 
         const OV = this._overlayL;
         const BAND = this._bandL;
-        const ROW = this._rowL;
 
         this._container = UI.createFullscreenContainer(this._overlayL, 'window-selector-overlay');
         this._container.add_style_class_name('search-mode');
@@ -8119,12 +8123,16 @@ export class WindowSearchOverlay extends SearchOverlayBase {
             x_expand: true, x_align: Clutter.ActorAlign.CENTER, child: controls,
         }));
 
-        // Four equal chip slots on the left, count on the right.
+        // Reset carries the window count, so it needs a wider slot than the
+        // three filter chips. Give it 2 units, others 1 each (total 5 units
+        // across 4 chips, 3 inter-chip gaps).
         const gap = S.selector.filterRowGap;
-        const countW = Math.round(BAND.searchWidth * 0.18);
+        const remaining = BAND.searchWidth - gap * 3;
+        const unitW = Math.floor(remaining / 5);
         this._chipL = {
-            gap, countW,
-            slotW: Math.floor((BAND.searchWidth - countW - gap * 4) / 4),
+            gap,
+            resetW: unitW * 2,
+            slotW: unitW,
             chipH: S.selector.filterChipH,
         };
         this._refreshFilterBar();
@@ -8178,7 +8186,7 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         this._filterBar.destroy_all_children();
         this._openChipMenu = null;
 
-        const { gap, countW } = this._chipL;
+        const { gap } = this._chipL;
 
         const chipBox = new St.BoxLayout({
             y_align: Clutter.ActorAlign.CENTER,
@@ -8189,39 +8197,21 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         chipBox.add_child(this._makeAppChip());
         chipBox.add_child(this._makePinnedChip());
         this._filterBar.add_child(chipBox);
-
-        this._filterBar.add_child(new St.Widget({ x_expand: true }));
-
-        this._countLabel = this._noEllipsis(new St.Label({
-            style_class: 'selector-filter-count',
-            y_align: Clutter.ActorAlign.CENTER,
-            width: countW,
-        }));
-        this._countLabel.clutter_text.set_line_alignment(Pango.Alignment.RIGHT);
-        this._filterBar.add_child(this._countLabel);
-
-        this._updateCountLabel();
-    }
-
-    _updateCountLabel() {
-        if (!this._countLabel || !this._chipL) return;
-        const n = this._results.length;
-        const text = `${n} window${n === 1 ? '' : 's'}`;
-        this._countLabel.set_text(text);
-        this._countLabel.set_style(
-            `font-size: ${this._fitSize(text, S.selector.filterCountText, this._chipL.countW)}px;`);
     }
 
     // One generic chip: small uppercase label over a larger value.
+    // `width` overrides the default slot width; `fitFloor` sets how far
+    // the value can shrink before it starts clipping.
     _makeChip({ cls, label = null, value, active = false, greyed = false,
-        onClick, onMenu = null, onScroll = null }) {
+        width = null, fitFloor = 0.6, onClick, onMenu = null, onScroll = null }) {
         const { slotW, chipH } = this._chipL;
+        const w = width ?? slotW;
 
         const btn = new St.Button({
             style_class: `selector-filter-chip ${cls}`,
             reactive: true, track_hover: true, clip_to_allocation: true,
             y_align: Clutter.ActorAlign.CENTER,
-            width: slotW, height: chipH,
+            width: w, height: chipH,
         });
         if (active) btn.add_style_class_name('active');
         if (greyed) btn.add_style_class_name('greyed');
@@ -8246,7 +8236,7 @@ export class WindowSearchOverlay extends SearchOverlayBase {
             style_class: 'selector-filter-value',
             x_align: Clutter.ActorAlign.CENTER,
         });
-        v.set_style(`font-size: ${this._fitSize(value, S.selector.filterText, slotW - 40)}px;`);
+        v.set_style(`font-size: ${this._fitSize(value, S.selector.filterText, w - 40, fitFloor)}px;`);
         col.add_child(this._noEllipsis(v));
 
         btn.set_child(col);
@@ -8274,9 +8264,12 @@ export class WindowSearchOverlay extends SearchOverlayBase {
     }
 
     _makeResetChip() {
+        const n = this._results.length;
         return this._makeChip({
             cls: 'selector-filter-reset',
-            value: '↺ Reset',
+            value: `↺ Reset (${n})`,
+            width: this._chipL.resetW,
+            fitFloor: 0.45,
             greyed: !this._hasActiveFilter(),
             onClick: () => { if (this._hasActiveFilter()) this._resetFilters(); },
         });
@@ -8646,8 +8639,7 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         this._hideRailTip();
 
         this._resizeBackdrop(results.length);
-        this._updateCountLabel();
-        this._refreshFilterBar();  // update chip states (pinned count, etc.)
+        this._refreshFilterBar();  // rebuilds chips (reset count, pinned count)
 
         this._listLayer.destroy_all_children();
         this._rows = results.map((item, index) => {
@@ -11082,7 +11074,7 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
     }
 
     enable() {
-        initLogging(this.uuid, 'file', false);
+        initLogging(this.uuid, 'file', true);
         journal(`Enabled`);
 
         const settings = this.getSettings();
@@ -11123,10 +11115,13 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
         this._lastScrollTime = 0;
         Main.panel.connectObject('scroll-event',
             (_actor, event) => this._handleScroll(event), this);
+
+        Main.layoutManager.connectObject('startup-complete', () => Main.overview.hide(), this);
     }
 
     disable() {
         Main.panel.disconnectObject(this);
+        Main.layoutManager.disconnectObject(this);
 
         if (this._panel) {
             this._panel.destroy();
