@@ -184,6 +184,13 @@
     transition-duration: 220ms;
 }
 
+/* Direction lives here per the file's layout-only rule; the two stop
+   colours come from theme.js via .selector-fade-top / -bottom. */
+.selector-fade-top,
+.selector-fade-bottom {
+    background-gradient-direction: vertical;
+}
+
 .selector-band {
     padding: 24px 0;
     spacing: 16px;
