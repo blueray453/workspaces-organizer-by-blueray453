@@ -1057,7 +1057,6 @@ export class GenericSearchOverlay extends SearchOverlayBase {
     }
 }
 // ===== FILE: ./lib/workspaceIndicator.js =====
-// ===== FILE: ./lib/workspaceIndicator.js =====
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
@@ -1074,12 +1073,12 @@ import * as Model from './model.js';
 import * as Scheduling from './scheduling.js';
 import * as Interactions from './interactions.js';
 import * as UI from './ui.js';
-import * as WorkspaceActions from './workspaceActions.js';
 import * as Motion from './motion.js';
 import { S, REL } from './sizes.js';
 import { Dwell, Poller } from './util.js';
 import { GroupFlyout } from './flyout.js';
 import { externalDrag, buttonHeld } from './externalDrag.js';
+import { getPeek } from './peekController.js';
 
 import { createLogger } from '../logger.js';
 const journal = createLogger(import.meta.url);
@@ -1118,8 +1117,6 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         this._commands = commands;
         _instance = this;
 
-        this._focusRelease = null;
-
         this._controllers = new Map();
         this._lastIconSize = undefined;
         this._lastRenderTime = undefined;
@@ -1136,15 +1133,7 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         this._renderCoalescer = new Scheduling.Coalescer(() => this._render());
         this._focusCoalescer = new Scheduling.Coalescer(() => this._syncFocusStates());
 
-        // DEBUG: log every focus change and its new id so we can correlate
-        // the signal against _syncFocusStates' match. Remove after diagnosis.
         this._scope.connect(global.display, 'notify::focus-window', () => {
-            const f = global.display.focus_window;
-            let desc = 'null';
-            try {
-                if (f) desc = `${f.get_id()} "${f.get_title?.() ?? ''}" (${f.get_wm_class?.() ?? ''})`;
-            } catch (e) { /* dead */ }
-            journal(`[DEBUG-FOCUS] notify::focus-window -> ${desc}`);
             this._focusCoalescer.queue();
         });
 
@@ -1168,6 +1157,7 @@ export class WorkspaceIndicator extends PanelMenu.Button {
 
         this._extSawButton = false;
         this._extGroupKey = null;
+        this._extPeekSource = false;   // pointer was on a peek-triggering surface last tick
         this._geoRelogId = 0;
 
         this._stickyRequest = null;
@@ -1191,29 +1181,6 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         this._extUnsub = externalDrag.onChanged(state => this._onExternalChanged(state));
 
         this._render();
-
-        // DEBUG: probe the generated CSS to confirm the pill rules reached
-        // disk and the border-* longhand form is present. Remove after
-        // diagnosis.
-        try {
-            const p = GLib.build_filenamev([GLib.get_user_cache_dir(), 'topnotch-theme.css']);
-            const [ok, bytes] = GLib.file_get_contents(p);
-            if (ok) {
-                const css = new TextDecoder().decode(bytes);
-                journal(`[DEBUG-FOCUS] CSS ${p}: ${css.length} bytes, ` +
-                    `.focused=${css.includes('window-preview-icon.focused')}, ` +
-                    `border-bottom-width=${css.includes('border-bottom-width')}`);
-                const idx = css.indexOf('.window-preview-icon.focused');
-                if (idx >= 0) {
-                    const snippet = css.slice(idx, idx + 220).replace(/\s+/g, ' ');
-                    journal(`[DEBUG-FOCUS] CSS snippet: ${snippet}`);
-                }
-            } else {
-                journal(`[DEBUG-FOCUS] CSS not readable at ${p}`);
-            }
-        } catch (e) {
-            journal(`[DEBUG-FOCUS] CSS probe threw: ${e.message}`);
-        }
     }
 
     _dragActive() { return !!Model.intent.drag || externalDrag.active; }
@@ -1257,9 +1224,6 @@ export class WorkspaceIndicator extends PanelMenu.Button {
     }
 
     _render() {
-        journal(`[DEBUG-FOCUS] _render entry menuOpen=${Model.intent.menuOpen} ` +
-            `drag=${!!Model.intent.drag} extDrag=${externalDrag.active}`);
-
         if (Model.intent.menuOpen) return;
         if (Model.intent.drag) return;
         if (externalDrag.active) return;
@@ -1267,7 +1231,6 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         const hadFlyout = this._flyout.isOpen;
         const keepKey = hadFlyout ? this._flyout.anchorKey : null;
         if (hadFlyout && !keepKey) {
-            journal('[flyout] re-render -> closing unkeyed flyout');
             this._flyout.close(true);
         }
 
@@ -1337,7 +1300,6 @@ export class WorkspaceIndicator extends PanelMenu.Button {
             if (anchor) {
                 this._flyout.retarget(anchor);
             } else {
-                journal(`[flyout] re-render -> anchor for ${keepKey} gone, closing`);
                 this._flyout.close(true);
             }
         }
@@ -1355,37 +1317,16 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         const focusId = focus?.get_id() ?? null;
         const pickId = pick?.get_id() ?? null;
 
-        journal(`[DEBUG-FOCUS] sync: pick=${pickId} focus=${focusId} ` +
-            `ctrls=${this._controllers.size} groups=${this._groupIcons.size}`);
-
-        if (pick && !focus) {
-            try {
-                journal(`[DEBUG-FOCUS] pick active "${pick.get_title?.()}" — focus suppressed`);
-            } catch (e) { /* dead */ }
-        }
-
         const wid = w => { try { return w?.get_id?.(); } catch (e) { return undefined; } };
 
-        const apply = (actor, windows, label) => {
+        const apply = (actor, windows) => {
             const matchFocus = focusId !== null && windows.some(w => wid(w) === focusId);
             const matchPick = pickId !== null && windows.some(w => wid(w) === pickId);
-
-            let title = '?';
-            try { title = windows[0]?.get_title?.() ?? '?'; } catch (e) { /* dead */ }
-
-            const hadFocus = actor.has_style_class_name?.('focused') ?? false;
-            const hadPick = actor.has_style_class_name?.('pick') ?? false;
-
-            if (matchFocus !== hadFocus || matchPick !== hadPick) {
-                journal(`[DEBUG-FOCUS] ${label} "${title}": ` +
-                    `focused ${hadFocus}→${matchFocus} pick ${hadPick}→${matchPick}`);
-            }
-
             UI.setFocusState(actor, { focused: matchFocus, pick: matchPick });
         };
 
-        for (const ctrl of this._controllers.values()) apply(ctrl.actor, [ctrl.window], 'icon');
-        for (const [actor, info] of this._groupIcons) apply(actor, info.group.windows, 'group');
+        for (const ctrl of this._controllers.values()) apply(ctrl.actor, [ctrl.window]);
+        for (const [actor, info] of this._groupIcons) apply(actor, info.group.windows);
     }
 
     _buildToolbar(s) {
@@ -1729,16 +1670,12 @@ export class WorkspaceIndicator extends PanelMenu.Button {
 
     _dwellGroup(shell, group, anchor) {
         if (!this._dragActive()) return;
-        if (group.count < 2) {
-            journal(`[flyout] dwell skipped: ${group.appName} count=${group.count}`);
-            return;
-        }
+        if (group.count < 2) return;
         if (this._flyout.isOpen && this._flyout.anchor === anchor) return;
-        const armed = this._groupDwell.arm(group.key, () => {
+        this._groupDwell.arm(group.key, () => {
             if (!this._dragActive()) return;
             this._openFlyout(shell, group, anchor);
         });
-        if (armed) journal(`[flyout] dwell armed: ${group.appName} x${group.count} key=${group.key}`);
     }
 
     _cancelDwell() {
@@ -1746,18 +1683,12 @@ export class WorkspaceIndicator extends PanelMenu.Button {
     }
 
     _openFlyout(shell, group, anchor, { sticky = false, anchorKey = null, attempt = 0 } = {}) {
-        if (!sticky && !this._dragActive()) {
-            journal('[flyout] refusing non-sticky open — drag is not active');
-            return;
-        }
+        if (!sticky && !this._dragActive()) return;
 
         try {
             const { entry } = shell;
             let anchorOnStage = false;
             try { anchorOnStage = !!anchor.get_stage(); } catch (e) { anchorOnStage = false; }
-            journal(`[flyout] _openFlyout ${group.appName} ws=${entry.index} ` +
-                `sticky=${sticky} attempt=${attempt} ` +
-                `hasStrip=${!!shell.strip} anchorOnStage=${anchorOnStage}`);
             shell.strip.cancel();
 
             const items = group.windows.map((w, k) => ({
@@ -1768,7 +1699,6 @@ export class WorkspaceIndicator extends PanelMenu.Button {
                 sub: `${group.appName}`.toUpperCase(),
                 color: UI.colorForApp(group.appName),
             }));
-            journal(`[flyout] items=${items.length}`);
 
             const opened = this._flyout.open({
                 anchor,
@@ -1784,19 +1714,14 @@ export class WorkspaceIndicator extends PanelMenu.Button {
                 let anchorAlive = false;
                 try { anchorAlive = !!anchor.get_stage(); } catch (e) { anchorAlive = false; }
                 if (attempt < 5 && anchorAlive) {
-                    journal(`[flyout] deferring open — retry ${attempt + 1}/5 in 60ms`);
                     this._scope.timeout(60, () => {
                         if (!this._flyout.isOpen)
                             this._openFlyout(shell, group, anchor,
                                 { sticky, anchorKey, attempt: attempt + 1 });
                         return GLib.SOURCE_REMOVE;
                     });
-                } else {
-                    journal(`[flyout] giving up after ${attempt + 1} attempt(s)`);
                 }
             }
-
-            journal(`[flyout] open() returned, isOpen=${this._flyout.isOpen}`);
         } catch (e) {
             journal(`[flyout] _openFlyout THREW: ${e.message}\n${e.stack}`);
         }
@@ -1810,10 +1735,7 @@ export class WorkspaceIndicator extends PanelMenu.Button {
 
         const group = entry.groups.find(g =>
             g.count > 1 && g.windows.some(w => w.get_wm_class() === wmClass));
-        if (!group) {
-            journal(`[flyout.dbus] no badged group with wmclass "${wmClass}" on ws ${workspaceIndex}`);
-            return false;
-        }
+        if (!group) return false;
 
         const key = group.key;
         if (this._flyout.isOpen && this._flyout.anchorKey === key) {
@@ -1831,10 +1753,7 @@ export class WorkspaceIndicator extends PanelMenu.Button {
                 shell = this._entries.find(s => s.entry.index === entry.index) ?? null;
             }
         }
-        if (!anchor || !shell) {
-            journal(`[flyout.dbus] no anchor actor for ${group.key}`);
-            return false;
-        }
+        if (!anchor || !shell) return false;
 
         this._openFlyout(shell, group, anchor, { sticky: true, anchorKey: key });
         if (this._flyout.isOpen) {
@@ -1847,7 +1766,6 @@ export class WorkspaceIndicator extends PanelMenu.Button {
     _closeGroupFlyout() {
         this._stickyRequest = null;
         if (!this._flyout.isOpen) return false;
-        journal('[flyout.dbus] close');
         this._flyout.close(true);
         return true;
     }
@@ -1983,17 +1901,16 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         this._extPoll.stop();
         if (this._geoRelogId) { this._scope.cancel(this._geoRelogId); this._geoRelogId = 0; }
 
-        this._focusRelease?.();
-        this._focusRelease = null;
-
         if (!teardown) return;
 
         this._cancelExtRow();
         this._cancelExtWorkspace();
         this._cancelDwell();
         this._flyout?.close(true);
+        getPeek().stop();
 
         this._extGroupKey = null;
+        this._extPeekSource = false;
 
         if (Model.intent.drag) Model.setIntent({ drag: null });
         Model.setIntent({ hintWs: null });
@@ -2004,16 +1921,13 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         this._cancelDwell();
         this._flyout.close(true);
 
-        if (!this._focusRelease) this._focusRelease = Model.holdFocusHistory();
-
         this._extRowDwell.cancel();
         this._extSawButton = false;
         this._extWsDwell.cancel();
         this._extGroupKey = null;
+        this._extPeekSource = false;
         this._extLogAt = 0;
         if (this._geoRelogId) { this._scope.cancel(this._geoRelogId); this._geoRelogId = 0; }
-
-        journal('[ext] poll START');
 
         if (this._extPoll.running) return;
         this._extPoll.start();
@@ -2026,48 +1940,24 @@ export class WorkspaceIndicator extends PanelMenu.Button {
     }
 
     _logGroupIcons(attempt = 0) {
-        journal(`[ext] groupIcons=${this._groupIcons.size}`);
-
-        let pending = false;
         for (const [actor, info] of this._groupIcons) {
             const [x, y] = actor.get_transformed_position();
             const [w, h] = actor.get_transformed_size();
             const ready = [x, y, w, h].every(Number.isFinite);
-            if (!ready) pending = true;
-
-            journal(`[ext]   group ${info.group.appName} x${info.group.count} ` +
+            journal(`[ext] group ${info.group.appName} x${info.group.count} ` +
                 `pos=${fmtNum(x)},${fmtNum(y)} size=${fmtNum(w)}x${fmtNum(h)} ` +
-                `visible=${actor.visible} mapped=${actor.is_mapped()} onStage=${!!actor.get_stage()}`);
-
-            if (!ready) continue;
-
-            let a = actor;
-            let depth = 0;
-            while (a && depth++ < 12) {
-                let line;
-                try {
-                    const [px, py] = a.get_transformed_position();
-                    const [aw, ah] = a.get_size();
-                    line = `[ext]     ${a.constructor.name}` +
-                        `${a.name ? `(${a.name})` : ''} ` +
-                        `pos=${fmtNum(px)},${fmtNum(py)} size=${fmtNum(aw)}x${fmtNum(ah)} ` +
-                        `mapped=${a.is_mapped()} scale=${a.scale_x},${a.scale_y}`;
-                } catch (e) {
-                    line = `[ext]     ${a.constructor?.name} threw: ${e.message}`;
+                `visible=${actor.visible} mapped=${actor.is_mapped()}`);
+            if (!ready) {
+                if (attempt < 3) {
+                    if (this._geoRelogId) this._scope.cancel(this._geoRelogId);
+                    this._geoRelogId = this._scope.timeout(120, () => {
+                        this._geoRelogId = 0;
+                        if (externalDrag.active) this._logGroupIcons(attempt + 1);
+                        return GLib.SOURCE_REMOVE;
+                    });
                 }
-                journal(line);
-                a = a.get_parent();
+                return;
             }
-        }
-
-        if (pending && attempt < 3) {
-            journal(`[ext] geometry pending — re-logging in 120ms (${attempt + 1}/3)`);
-            if (this._geoRelogId) this._scope.cancel(this._geoRelogId);
-            this._geoRelogId = this._scope.timeout(120, () => {
-                this._geoRelogId = 0;
-                if (externalDrag.active) this._logGroupIcons(attempt + 1);
-                return GLib.SOURCE_REMOVE;
-            });
         }
     }
 
@@ -2079,33 +1969,25 @@ export class WorkspaceIndicator extends PanelMenu.Button {
 
         const [x, y, mods] = global.get_pointer();
 
-        if (y < Main.panel.height + 4) {
-            journal(`[ext] PANEL x=${x} y=${y} ` +
-                `overGroup=${!!this._groupIconAt(x, y)} ` +
-                `overWinIcon=${!!this._windowIconAt(x, y)} ` +
-                `overThumb=${!!this._thumbnailAt(x, y)}`);
-        }
-
-        const nowMs = GLib.get_monotonic_time() / 1000;
-        if (nowMs - (this._extLogAt ?? 0) > 500) {
-            this._extLogAt = nowMs;
-            const picked = global.stage.get_actor_at_pos(
-                Clutter.PickMode.REACTIVE, x, y);
-            journal(`[ext] tick x=${x} y=${y} mods=${mods} held=${buttonHeld(mods)} ` +
-                `sawButton=${this._extSawButton} ` +
-                `flyoutOpen=${this._flyout.isOpen} sticky=${this._flyout.sticky} ` +
-                `overGroup=${!!this._groupIconAt(x, y)} ` +
-                `overWinIcon=${!!this._windowIconAt(x, y)} ` +
-                `overThumb=${!!this._thumbnailAt(x, y)} ` +
-                `picked=${picked?.constructor?.name}:${picked?.name ?? ''}`);
-        }
-
         if (buttonHeld(mods)) this._extSawButton = true;
         else if (this._extSawButton) {
-            journal('[ext] button released -> end');
             externalDrag.end('button-released');
             return false;
         }
+
+        // Track whether the pointer is over any peek-triggering surface.
+        // When it leaves, promote the clone to the real window so it can
+        // be dropped on.
+        const flyoutIn = this._flyout.isOpen &&
+            (this._flyout.contains(x, y) || this._flyout.isOverAnchor(x, y));
+        const overPeekSource = !!(this._groupIconAt(x, y)
+            || this._windowIconAt(x, y)
+            || flyoutIn);
+
+        if (this._extPeekSource && !overPeekSource) {
+            getPeek().promoteToReal();
+        }
+        this._extPeekSource = overPeekSource;
 
         if (this._flyout.isOpen) {
             const hit = this._flyout.pointerAt(x, y);
@@ -2116,20 +1998,12 @@ export class WorkspaceIndicator extends PanelMenu.Button {
 
         const group = this._groupIconAt(x, y);
         if (group) {
-            if (this._extGroupKey !== group.group.key) {
-                this._extGroupKey = group.group.key;
-                const [gx, gy] = group.actor.get_transformed_position();
-                journal(`[ext] group hit ${group.group.appName} x${group.group.count} ` +
-                    `key=${group.group.key} anchorPos=${fmtNum(gx)},${fmtNum(gy)}`);
-            }
+            this._extGroupKey = group.group.key;
             this._dwellGroup(group.shell, group.group, group.actor);
             this._cancelExtRow();
             return true;
         }
-        if (this._extGroupKey) {
-            this._extGroupKey = null;
-            journal('[ext] group left');
-        }
+        this._extGroupKey = null;
 
         const ctrl = this._windowIconAt(x, y);
         if (ctrl) {
@@ -2153,9 +2027,13 @@ export class WorkspaceIndicator extends PanelMenu.Button {
     }
 
     _previewExternalWindow(win) {
-        WorkspaceActions.focusWindow(win);
+        // Non-destructive peek; leaving the flyout promotes to real.
+        getPeek().start(win, {
+            mode: 'clone',
+            below: this._flyout.actor,
+        });
         try {
-            journal(`[ext] preview ${win.get_id()} "${win.get_title()}" (kept maximized)`);
+            journal(`[ext] peek ${win.get_id()} "${win.get_title()}"`);
         } catch (e) { /* window may have been destroyed mid-call */ }
     }
 
@@ -2470,7 +2348,11 @@ export const APP_COLORS = ['blue', 'orange', 'green', 'magenta', 'cyan', 'yellow
 
 const TIERS = {
     solid: 0.97, scrim: 0.88, firm: 0.72, glass: 0.58, tint: 0.32, hover: 0.20, wash: 0.15, clear: 0.00,
+    opaque: 1.00,
 };
+// NOTE: 'opaque' is intentionally NOT in SCALABLE. Its alpha stays at 1.00
+// regardless of the glass-strength setting — this is what makes the selector
+// tint a solid solarized backdrop instead of a translucent wash.
 const SCALABLE = new Set(['firm', 'glass', 'tint', 'hover', 'wash']);
 
 export const SURFACES = {
@@ -2488,7 +2370,7 @@ export const SURFACES = {
     flyoutRowBadge: ['accent', 'hover'],
     cancelZone: ['warn', 'hover'],
     cancelZoneActive: ['danger', 'tint'],
-    selectorTint: ['bgDeep', 'tint'],
+    selectorTint: ['bgDeep', 'opaque'],
     selectorTintCancel: ['danger', 'firm'],
     selectorBand: ['bgDeep', 'firm'],
     selectorRail: ['bgRaised', 'solid'],
@@ -3169,7 +3051,6 @@ export class SearchOverlayBase {
     }
 }
 // ===== FILE: ./lib/interactions.js =====
-// ===== FILE: ./lib/interactions.js =====
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import Mtk from 'gi://Mtk';
@@ -3187,6 +3068,9 @@ import * as UI from './ui.js';
 import * as WorkspaceActions from './workspaceActions.js';
 import * as Motion from './motion.js';
 import { S, px } from './sizes.js';
+
+import { externalDrag } from './externalDrag.js';
+import { getPeek } from './peekController.js';
 
 import { createLogger } from '../logger.js';
 const journal = createLogger(import.meta.url);
@@ -3453,7 +3337,6 @@ export function destroyTooltip() {
 }
 
 // ==================== reorder bar ====================
-// One insertion bar for every reorderable strip. Nothing in the layout moves.
 export function createReorderBar({
     axis = 'x',
     isTarget = b => b._dragItem || b._groupWindows,
@@ -3586,7 +3469,6 @@ export function makeDraggable(actor, {
         dragActorOpacity: 178,
     });
     draggable.connect('drag-begin', () => { actor.opacity = 80; onDragBegin?.(); });
-    // Restores the plain full opacity on drag end (no derived state to sync).
     draggable.connect('drag-end', () => {
         try { actor.opacity = 255; } catch (e) { /* source may be gone */ }
         onDragEnd?.();
@@ -3752,8 +3634,11 @@ export class WindowIconController {
         this._onHoverFlyout = onHoverFlyout;
         this._onHoverExit = onHoverExit;
         this._scope = new Scheduling.Scope();
+
+        // External-drag dwell on this icon → peek the window (was: focusWindow,
+        // which maximized + activated destructively). Now non-destructive.
         this._external = createExternalDragAutoActivate(
-            () => WorkspaceActions.focusWindow(window));
+            () => getPeek().start(window, { mode: 'clone' }));
 
         this._preview = null;
         this._previewScope = null;
@@ -3820,8 +3705,11 @@ export class WindowIconController {
                 this._render();
                 return GLib.SOURCE_REMOVE;
             });
-        } else if (this._preview) {
-            this._startCleanup();
+        } else {
+            // Leaving the icon during an external drag is a drop intent:
+            // promote the current peek clone to the real window.
+            if (externalDrag.active) getPeek().promoteToReal();
+            if (this._preview) this._startCleanup();
         }
     }
 
@@ -5231,16 +5119,6 @@ function _removeOneCli(extensionPath, { name, path }) {
     }
 }
 // ===== FILE: ./lib/flyout.js =====
-// ===== FILE: ./lib/flyout.js =====
-// The prototype's #fan.local-anchored: the same strip, detached from the
-// HUD and parked next to a dock icon. Opened by a dwell during an internal
-// window drag (delegate.handleDragOver) or by the external-drag poll
-// (pointerAt) — both drive the same PagedStrip. Also openable without a
-// drag ("sticky", e.g. from DBus; or "hover", from an icon hover).
-//
-// Sizing: every dimension below scales with sizes.js. ROW_SLOT in
-// strip.js is sized so row icons and labels fit without clipping.
-
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import Pango from 'gi://Pango';
@@ -5257,18 +5135,16 @@ import * as Motion from './motion.js';
 import { S } from './sizes.js';
 import { Dwell, Poller, Misses } from './util.js';
 import { PagedStrip, VISIBLE_SLOTS } from './strip.js';
+import { externalDrag } from './externalDrag.js';
+import { getPeek } from './peekController.js';
 
 import { createLogger } from '../logger.js';
 const journal = createLogger(import.meta.url);
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-// Hover-activate velocity gate — dwell only arms while the pointer has been
-// moving slower than HOVER_VELOCITY_MAX for HOVER_VELOCITY_WINDOW_MS.
-// Prevents activation while the pointer is still traveling from the anchor
-// to a target row.
 const HOVER_VELOCITY_WINDOW_MS = 120;
-const HOVER_VELOCITY_MAX = 0.25;   // px / ms
+const HOVER_VELOCITY_MAX = 0.25;
 const HOVER_POLL_MS = 30;
 
 export class GroupFlyout {
@@ -5286,28 +5162,19 @@ export class GroupFlyout {
         this._anchorKey = null;
         this._side = null;
 
-        this._misses = new Misses(2, () => {
-            journal('[flyout.watch] pointer left -> close');
-            this.close();
-        });
+        this._misses = new Misses(2, () => { this.close(); });
         this._hoverDwell = new Dwell(this._scope,
             () => this._settings.get_int('flyout-dwell-ms'));
         this._watch = new Poller(this._scope, {
-            interval: 120,
-            name: 'flyout.watch',
-            tick: () => this._watchTick(),
+            interval: 120, name: 'flyout.watch', tick: () => this._watchTick(),
         });
 
-        // Velocity-gated hover activation (see constants above).
         this._motionSamples = [];
         this._hoverPoll = new Poller(this._scope, {
-            interval: HOVER_POLL_MS,
-            name: 'flyout.hover',
-            tick: () => this._hoverTick(),
+            interval: HOVER_POLL_MS, name: 'flyout.hover', tick: () => this._hoverTick(),
         });
 
         this._wheelAccum = 0;
-
         this._hoverActivate = false;
 
         this._root = new St.Widget({
@@ -5349,8 +5216,7 @@ export class GroupFlyout {
                 this._misses.reset();
                 const [, py] = global.get_pointer();
                 const [, ry] = this._root.get_transformed_position();
-                const y = py - ry;
-                this._strip.over(y);
+                this._strip.over(py - ry);
                 return Interactions.DragMotionResult.MOVE_DROP;
             },
             acceptDrop: source => {
@@ -5390,15 +5256,22 @@ export class GroupFlyout {
             if (type !== Clutter.EventType.MOTION) return Clutter.EVENT_PROPAGATE;
             const [, sy] = event.get_coords();
             const [, ry] = this._root.get_transformed_position();
-            // Edge-scroll + highlight only. Activation is driven by _hoverPoll.
             this._strip.over(sy - ry);
             return Clutter.EVENT_PROPAGATE;
         });
+
         this._scope.connect(this._root, 'leave-event', () => {
             this._hoverDwell.cancel();
             if (this._open) {
                 this._strip.stopEdge();
                 this._strip.clearHover();
+            }
+            // During an external drag, leaving the flyout = intent to drop.
+            // Promote the current clone to the real window.
+            if (externalDrag.active) {
+                getPeek().promoteToReal();
+            } else {
+                getPeek().stop();
             }
             return Clutter.EVENT_PROPAGATE;
         });
@@ -5418,17 +5291,16 @@ export class GroupFlyout {
         }
         this._hoverDwell.arm(idx, () => {
             if (!this._open) return;
-            WorkspaceActions.focusWindow(item.window);
-            journal(`[flyout] hover preview "${item.title}"`);
+            getPeek().start(item.window, {
+                mode: 'clone',
+                below: this._root,
+            });
+            journal(`[flyout] hover peek "${item.title}"`);
         });
     }
 
     _cancelHoverActivate() { this._hoverDwell.cancel(); }
 
-    // Called every HOVER_POLL_MS while a hover-activate flyout is open.
-    // Samples the pointer, gates dwell arming on velocity, and lets
-    // _onHoverRow arm/cancel the dwell exactly as before once the pointer
-    // has settled.
     _hoverTick() {
         if (!this._open || !this._hoverActivate) return false;
 
@@ -5438,13 +5310,11 @@ export class GroupFlyout {
             this._motionSamples.length = 0;
             return true;
         }
-
         this._pushSample(px, py);
         if (this._pointerMoving()) {
             this._hoverDwell.cancel();
             return true;
         }
-
         const [, ry] = this._root.get_transformed_position();
         this._onHoverRow(this._strip.over(py - ry));
         return true;
@@ -5459,7 +5329,7 @@ export class GroupFlyout {
 
     _pointerMoving() {
         const s = this._motionSamples;
-        if (s.length < 2) return true;    // no data yet — be conservative
+        if (s.length < 2) return true;
         const first = s[0], last = s[s.length - 1];
         const dt = last.t - first.t;
         if (dt <= 0) return true;
@@ -5468,33 +5338,14 @@ export class GroupFlyout {
 
     _startWatch() {
         if (this._watch.running) return;
-        journal('[flyout.watch] started');
         this._watchLogAt = 0;
         this._watch.start();
     }
 
     _watchTick() {
-        if (!this._open || this._sticky) {
-            journal('[flyout.watch] stopped');
-            return false;
-        }
+        if (!this._open || this._sticky) return false;
         const [x, y] = global.get_pointer();
         const over = this._isOver(x, y);
-
-        const nowMs = GLib.get_monotonic_time() / 1000;
-        if (nowMs - (this._watchLogAt ?? 0) > 500) {
-            this._watchLogAt = nowMs;
-            let rx = NaN, ry = NaN, rw = NaN, rh = NaN;
-            try {
-                [rx, ry] = this._root.get_transformed_position();
-                [rw, rh] = this._root.get_transformed_size();
-            } catch (e) { /* actor may be mid-destroy */ }
-            journal(`[flyout.watch] ptr=${x},${y} over=${over} ` +
-                `bounds=${Math.round(rx)},${Math.round(ry)} ${Math.round(rw)}x${Math.round(rh)} ` +
-                `opacity=${this._root.opacity} visible=${this._root.visible} ` +
-                `mapped=${this._root.is_mapped()} scale=${this._root.get_scale().join(',')}`);
-        }
-
         if (over) this._misses.reset();
         else this._misses.miss();
         return true;
@@ -5522,7 +5373,7 @@ export class GroupFlyout {
 
     _activateItem(item) {
         if (!item?.window) return;
-        WorkspaceActions.focusWindow(item.window);
+        WorkspaceActions.navigateToWindow(item.window);
         journal(`[flyout] row activate "${item.title}"`);
         this.close(true);
     }
@@ -5546,9 +5397,7 @@ export class GroupFlyout {
             const [ax, ay] = a.get_transformed_position();
             const [aw, ah] = a.get_transformed_size();
             return x >= ax && x <= ax + aw && y >= ay && y <= ay + ah;
-        } catch (e) {
-            return false;
-        }
+        } catch (e) { return false; }
     }
 
     pointerAt(x, y) {
@@ -5601,7 +5450,6 @@ export class GroupFlyout {
 
         if (this._open && this._anchor === anchor) { this._misses.reset(); return true; }
 
-        // Reset any in-flight hover poll from a previous open().
         this._hoverPoll.stop();
         this._motionSamples.length = 0;
 
@@ -5661,7 +5509,7 @@ export class GroupFlyout {
             return false;
         }
         if (![ax, ay, aw, ah].every(Number.isFinite) || aw <= 0 || ah <= 0) {
-            journal(`[flyout.open] anchor not allocated yet: ax=${ax} ay=${ay} aw=${aw} ah=${ah}`);
+            journal(`[flyout.open] anchor not allocated: ${ax},${ay} ${aw}x${ah}`);
             return false;
         }
 
@@ -5686,15 +5534,8 @@ export class GroupFlyout {
 
         this._root.set_position(Math.round(left), Math.round(top));
 
-        try {
-            Main.layoutManager.uiGroup.set_child_above_sibling(this._root, null);
-        } catch (e) {
-            journal(`[flyout.open] set_child_above_sibling failed: ${e.message}`);
-        }
-
-        journal(`[flyout.open] W=${W} H=${H} slots=${slots} ` +
-            `left=${Math.round(left)} top=${Math.round(top)} side=${side} ` +
-            `hoverActivate=${hoverActivate} sticky=${sticky}`);
+        try { Main.layoutManager.uiGroup.set_child_above_sibling(this._root, null); }
+        catch (e) { journal(`[flyout.open] restack failed: ${e.message}`); }
 
         if (side) {
             this._root.set_pivot_point(1, 0.5);
@@ -5719,8 +5560,6 @@ export class GroupFlyout {
         this._anchorKey = anchorKey;
         this._misses.reset();
 
-        // Velocity-gated hover activation only runs for hover-activate
-        // flyouts; every other mode relies on clicks / drags.
         if (hoverActivate) this._hoverPoll.start();
 
         this._root.remove_all_transitions();
@@ -5729,12 +5568,7 @@ export class GroupFlyout {
             dy: side ? 0 : (this._opensDown ? -12 : 12),
         });
 
-        if (sticky) {
-            journal('[flyout.open] sticky — watchdog off, rows are click-to-activate');
-        } else {
-            this._startWatch();
-        }
-
+        if (!sticky) this._startWatch();
         return true;
     }
 
@@ -5752,6 +5586,9 @@ export class GroupFlyout {
         this._strip.clearHover();
         this._onDrop = null;
         this._root.remove_all_transitions();
+
+        // Any pending peek is finished by caller — but safest to stop it.
+        getPeek().stop();
 
         if (instant || Motion.dur('slideOut') === 0) {
             this._root.hide();
@@ -5780,24 +5617,12 @@ export class GroupFlyout {
         this._watch.stop();
         this._strip?.destroy();
         this._scope.dispose();
-        try { Main.layoutManager.removeChrome(this._root); } catch (e) { /* already gone */ }
+        try { Main.layoutManager.removeChrome(this._root); } catch (e) { /* gone */ }
         this._root.destroy();
         this._root = null;
     }
 }
 // ===== FILE: ./lib/edgeHud.js =====
-// ===== FILE: ./lib/edgeHud.js =====
-// Right-edge HUD for external drags (files from Nautilus, Firefox, ...).
-//
-//   edge dwell  -> HUD opens: all active apps, grouped across workspaces
-//   hover app   -> app's window is focused, sub HUD lists its windows
-//   hover window-> that window is focused
-//   leave both  -> everything closes
-//
-// Both lists are GroupFlyout instances. External drags never enter St's
-// DND chain, so everything is driven by a pointer poll via
-// GroupFlyout.pointerAt().
-
 import GLib from 'gi://GLib';
 import St from 'gi://St';
 
@@ -5806,9 +5631,9 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as Model from './model.js';
 import * as Scheduling from './scheduling.js';
 import * as UI from './ui.js';
-import * as WorkspaceActions from './workspaceActions.js';
 import { GroupFlyout } from './flyout.js';
 import { externalDrag } from './externalDrag.js';
+import { getPeek } from './peekController.js';
 import { Dwell, Poller, Misses } from './util.js';
 import { base } from './sizes.js';
 
@@ -5833,32 +5658,25 @@ export class EdgeHud {
 
         this._edge = null;
         this._edgeKey = '';
-
         this._apps = [];
         this._appIdx = -1;
-
         this._edgeSince = 0;
 
         this._appDwell = new Dwell(this._scope, PREVIEW_MS);
         this._winDwell = new Dwell(this._scope, PREVIEW_MS);
 
-        this._poll = new Poller(this._scope, {
-            interval: TICK_MS,
-            name: 'edgeHud',
-            tick: () => this._tick(),
-        });
-        this._missCount = new Misses(MISS_LIMIT, () => {
-            journal('[edgeHud] pointer left -> close');
-            this._closeAll();
-        });
+        this._peekTarget = null;
+        this._promoted = false;
 
-        this._focusRelease = null;
+        this._poll = new Poller(this._scope, {
+            interval: TICK_MS, name: 'edgeHud', tick: () => this._tick(),
+        });
+        this._missCount = new Misses(MISS_LIMIT, () => this._closeAll());
 
         this._unsub = externalDrag.onChanged(state => state ? this._start() : this._stop());
         if (externalDrag.active) this._start();
     }
 
-    // ---------- lifecycle ----------
     _start() {
         if (this._poll.running) return;
         const mon = Main.layoutManager.primaryMonitor;
@@ -5882,11 +5700,11 @@ export class EdgeHud {
         this._appIdx = -1;
         this._edgeSince = 0;
         this._missCount.reset();
-        this._focusRelease?.();
-        this._focusRelease = null;
+        this._peekTarget = null;
+        this._promoted = false;
+        getPeek().stop();
     }
 
-    // ---------- geometry ----------
     _hasRightNeighbor(mon) {
         return Main.layoutManager.monitors.some(o =>
             o !== mon
@@ -5924,7 +5742,6 @@ export class EdgeHud {
         return Math.round(clamp(mon.width * 0.22, 13 * b, 22.5 * b));
     }
 
-    // ---------- data ----------
     _buildApps() {
         const byId = new Map();
         const seen = new Set();
@@ -5967,7 +5784,6 @@ export class EdgeHud {
         }));
     }
 
-    // ---------- poll ----------
     _tick() {
         if (!externalDrag.active) return;
         const mon = Main.layoutManager.primaryMonitor;
@@ -5978,6 +5794,21 @@ export class EdgeHud {
         const atEdge = x >= mon.x + mon.width - EDGE_PX
             && y >= top && y < mon.y + mon.height;
 
+        const subIn = this._sub.isOpen && this._sub.contains(x, y);
+        const hudIn = this._hud.isOpen && this._hud.contains(x, y);
+        const insideHud = subIn || hudIn;
+
+        // (b): leaving both containers during drag = intent to drop.
+        if (this._hud.isOpen && !insideHud && this._peekTarget) {
+            if (!this._promoted) {
+                this._promoted = true;
+                getPeek().promoteToReal();
+            }
+        } else if (insideHud && this._promoted) {
+            // Re-entered; a new row hover will start a fresh clone.
+            this._promoted = false;
+        }
+
         if (!this._hud.isOpen) {
             if (!atEdge) { this._edgeSince = 0; return; }
             const now = GLib.get_monotonic_time() / 1000;
@@ -5986,7 +5817,6 @@ export class EdgeHud {
             return;
         }
 
-        const subIn = this._sub.isOpen && this._sub.contains(x, y);
         if (subIn) {
             this._hud.highlightIndex(this._appIdx);
             this._cancelApp();
@@ -5999,7 +5829,7 @@ export class EdgeHud {
         if (this._sub.isOpen) this._sub.pointerAt(x, y);
         this._cancelWin();
 
-        if (this._hud.contains(x, y)) {
+        if (hudIn) {
             const hit = this._hud.pointerAt(x, y);
             this._trackApp(hit ? hit.index : -1);
             this._missCount.reset();
@@ -6032,11 +5862,11 @@ export class EdgeHud {
         this._edgeSince = 0;
         this._missCount.reset();
         this._appIdx = -1;
-        if (!this._focusRelease) this._focusRelease = Model.holdFocusHistory();
+        this._peekTarget = null;
+        this._promoted = false;
         journal(`[edgeHud] open apps=${this._apps.length}`);
     }
 
-    // ---------- app rows ----------
     _trackApp(idx) {
         if (idx < 0 || idx === this._appIdx) {
             this._appDwell.cancel();
@@ -6050,7 +5880,12 @@ export class EdgeHud {
         if (!app || !this._hud.isOpen) return;
 
         this._appIdx = idx;
-        WorkspaceActions.focusWindow(app.rep);
+        this._peekTarget = app.rep;
+        this._promoted = false;
+        getPeek().start(app.rep, {
+            mode: 'clone',
+            below: this._hud.actor,
+        });
 
         this._sub.close(true);
         if (app.windows.length < 2) return;
@@ -6070,22 +5905,21 @@ export class EdgeHud {
         });
     }
 
-    _cancelApp() {
-        this._appDwell.cancel();
-    }
+    _cancelApp() { this._appDwell.cancel(); }
 
-    // ---------- window rows ----------
     _trackWindow(win) {
-        if (!win) {
-            this._winDwell.cancel();
-            return;
-        }
-        this._winDwell.arm(String(win.get_id()), () => WorkspaceActions.focusWindow(win));
+        if (!win) { this._winDwell.cancel(); return; }
+        this._winDwell.arm(String(win.get_id()), () => {
+            this._peekTarget = win;
+            this._promoted = false;
+            getPeek().start(win, {
+                mode: 'clone',
+                below: this._sub.actor,
+            });
+        });
     }
 
-    _cancelWin() {
-        this._winDwell.cancel();
-    }
+    _cancelWin() { this._winDwell.cancel(); }
 
     destroy() {
         this._unsub?.();
@@ -7835,7 +7669,6 @@ export function createSelectionBand(bandL) {
     return { band, titleBin };
 }
 // ===== FILE: ./lib/windowOverlay.js =====
-// ===== FILE: ./lib/windowOverlay.js =====
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
@@ -7854,16 +7687,16 @@ import * as Interactions from './interactions.js';
 import * as SelectedWindows from './selectedWindows.js';
 import { Smoother } from './smoother.js';
 import { S } from './sizes.js';
+import { getPeek } from './peekController.js';
 
 import { SearchOverlayBase, clamp, ease } from './overlayBase.js';
 
 import { createLogger } from '../logger.js';
 const journal = createLogger(import.meta.url);
 
-// ==================== DISCRETE FOCUS STRIP ====================
 function neighborOpacity(x) {
     if (x <= 1) return 1.00;
-    if (x <= 2) return 1.00 - 0.15 * (x - 1);   // 1.0 -> 0.85, never dimmer while visible
+    if (x <= 2) return 1.00 - 0.15 * (x - 1);
     return Math.max(0, 0.85 * (1 - (x - 2) / 0.8));
 }
 
@@ -7883,15 +7716,10 @@ function usableArea(monitor) {
     return { x, y, width, height };
 }
 
-// ==================== LAYOUT ====================
-function computeOverlayLayout(monitor) {
-    return usableArea(monitor);
-}
+function computeOverlayLayout(monitor) { return usableArea(monitor); }
 
 function computeRailLayout(overlay) {
-    const width = 48;
-    const margin = 14;
-    const pad = 10;
+    const width = 48, margin = 14, pad = 10;
     const height = Math.round(overlay.height * 0.80);
     return {
         x: overlay.width - margin - width,
@@ -7905,7 +7733,6 @@ function computeBandLayout(overlay, rail) {
     const selectedHeight = S.selector.bandH;
     const searchHeight = S.selector.searchH;
     const filterHeight = S.selector.filterH;
-    // padding 48 + border 6 + two 16px gaps (32) + 4 slack
     const height = selectedHeight + searchHeight + filterHeight + 90;
     const width = Math.max(400, overlay.width - rail.gutter * 2);
     return {
@@ -7927,7 +7754,6 @@ function computeRowLayout(overlay, band) {
     };
 }
 
-// ==================== window selector ====================
 export class WindowSearchOverlay extends SearchOverlayBase {
     constructor(windows, settings, focusedWindow = null, initialFilters = null) {
         super(settings);
@@ -7944,8 +7770,6 @@ export class WindowSearchOverlay extends SearchOverlayBase {
             };
         });
 
-        // Read filters from intent (session persistence). `initialFilters`
-        // lets the DBus/caller override on first open (e.g. workspace filter).
         const persisted = Model.intent.overlayFilters ?? {};
         this._filters = {
             workspace: initialFilters?.workspace ?? persisted.workspace ?? null,
@@ -7960,16 +7784,7 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         this._lastScrollStep = 0;
         this._snap = true;
 
-        this._origin = {
-            window: Model.Display.focus_window,
-            workspace: Model.WorkspaceManager.get_active_workspace(),
-        };
-        this._revealed = null;
-        this._revealedAny = false;
-        this._revealTimer = 0;
-        this._guardTimer = 0;
         this._cancelled = false;
-        this._focusRelease = null;
 
         this._overlayL = null;
         this._railL = null;
@@ -7978,6 +7793,7 @@ export class WindowSearchOverlay extends SearchOverlayBase {
 
         this._fadeTop = null;
         this._fadeBottom = null;
+        this._peekHost = null;
 
         this._rail = null;
         this._railTicksBox = null;
@@ -8001,20 +7817,16 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         });
 
         this._onSearchChanged();
-        this._focusRelease = Model.holdFocusHistory();
         this._open();
     }
 
     _trackFullscreen() { return false; }
     _getRestoreKey(item) { return item.window; }
-
     _shouldCloseOnWindowRemoved(window) {
         return this._items.some(item => item.window === window);
     }
 
-    _persistFilters() {
-        Model.setIntent({ overlayFilters: { ...this._filters } });
-    }
+    _persistFilters() { Model.setIntent({ overlayFilters: { ...this._filters } }); }
 
     _hasActiveFilter() {
         return this._filters.workspace !== null
@@ -8023,23 +7835,17 @@ export class WindowSearchOverlay extends SearchOverlayBase {
             || (this._entry?.get_text?.().length ?? 0) > 0;
     }
 
-    // ── filtering ─────────────────────────────────────────────
     _applyFilters(items) {
         const f = this._filters;
         let list = items;
-
         if (f.workspace !== null) {
             list = list.filter(item => {
                 try { return item.window.get_workspace()?.index() === f.workspace; }
                 catch (e) { return false; }
             });
         }
-        if (f.app !== null) {
-            list = list.filter(item => item.appId === f.app);
-        }
-        if (f.pinnedOnly) {
-            list = list.filter(item => SelectedWindows.isWindowSelected(item.window));
-        }
+        if (f.app !== null) list = list.filter(item => item.appId === f.app);
+        if (f.pinnedOnly) list = list.filter(item => SelectedWindows.isWindowSelected(item.window));
         return list;
     }
 
@@ -8061,12 +7867,14 @@ export class WindowSearchOverlay extends SearchOverlayBase {
             return scored.sort((a, b) => b.score - a.score);
         }
 
-        // No query: panel order (first window of first workspace -> last of last).
-        const order = new Map();
-        Model.getModelWindows(null).forEach((w, i) => { if (!order.has(w)) order.set(w, i); });
+        // No query: global MRU order (matches Mutter's Alt-Tab).
+        const mru = Model.Display.get_tab_list(Meta.TabList.NORMAL_ALL, null);
+        const rank = new Map();
+        mru.forEach((w, i) => rank.set(w, i));
         return filtered
             .map(item => ({ ...item, indices: null }))
-            .sort((a, b) => (order.get(a.window) ?? Infinity) - (order.get(b.window) ?? Infinity));
+            .sort((a, b) =>
+                (rank.get(a.window) ?? Infinity) - (rank.get(b.window) ?? Infinity));
     }
 
     _getAppName(window) {
@@ -8074,7 +7882,6 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         return app ? app.get_name() : (window.get_wm_class() || 'Unknown');
     }
 
-    // ── UI construction ───────────────────────────────────────
     _buildUI() {
         const monitor = Main.layoutManager.primaryMonitor;
         this._monitor = monitor;
@@ -8090,7 +7897,24 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         this._container.add_style_class_name('search-mode');
 
         const size = { width: OV.width, height: OV.height };
-        this._tint = new St.Widget({ style_class: 'selector-tint', reactive: false, opacity: 255, ...size });
+
+        // Solid solarized backdrop (selectorTint now uses the 'opaque' tier).
+        this._tint = new St.Widget({
+            style_class: 'selector-tint', reactive: false, opacity: 255, ...size,
+        });
+
+        // Transparent host for the peek clone. Sized to the full monitor and
+        // offset so the clone is centered on the monitor (not on the usable
+        // area). The container's clip_to_allocation keeps it inside the
+        // overlay bounds; the band/rows sit above and the fade scrims sit
+        // above those, so the clone is visible only in the empty margins.
+        this._peekHost = new St.Widget({
+            x: monitor.x - OV.x,
+            y: monitor.y - OV.y,
+            width: monitor.width,
+            height: monitor.height,
+        });
+
         this._listLayer = new St.Widget(size);
 
         this._fadeTop = new St.Widget({ style_class: 'selector-fade-top', reactive: false });
@@ -8101,7 +7925,6 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         this._bandBin = titleBin;
         this._band = band;
 
-        // CONTROLS BOX — invisible; search entry and chip row share one width.
         const controls = new St.BoxLayout({
             vertical: true, width: BAND.searchWidth, style: 'spacing: 16px;',
         });
@@ -8123,22 +7946,22 @@ export class WindowSearchOverlay extends SearchOverlayBase {
             x_expand: true, x_align: Clutter.ActorAlign.CENTER, child: controls,
         }));
 
-        // Reset carries the window count, so it needs a wider slot than the
-        // three filter chips. Give it 2 units, others 1 each (total 5 units
-        // across 4 chips, 3 inter-chip gaps).
         const gap = S.selector.filterRowGap;
         const remaining = BAND.searchWidth - gap * 3;
         const unitW = Math.floor(remaining / 5);
-        this._chipL = {
-            gap,
-            resetW: unitW * 2,
-            slotW: unitW,
-            chipH: S.selector.filterChipH,
-        };
+        this._chipL = { gap, resetW: unitW * 2, slotW: unitW, chipH: S.selector.filterChipH };
         this._refreshFilterBar();
 
-        for (const actor of [this._tint, this._fadeTop, this._fadeBottom, this._listLayer, band])
+        for (const actor of [
+            this._tint,
+            this._peekHost,
+            this._fadeTop,
+            this._fadeBottom,
+            this._listLayer,
+            band,
+        ]) {
             this._container.add_child(actor);
+        }
 
         this._buildRail();
 
@@ -8157,24 +7980,20 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         const BAND = this._bandL, ROW = this._rowL;
         const rows = rowsEachSideFor(n);
         const h = rows * ROW.slotH;
-
         this._fadeTop.visible = this._fadeBottom.visible = rows > 0;
         if (!rows) return;
-
         this._fadeTop.set_position(BAND.x, BAND.y - h);
         this._fadeTop.set_size(BAND.width, h);
         this._fadeBottom.set_position(BAND.x, BAND.y + BAND.height);
         this._fadeBottom.set_size(BAND.width, h);
     }
 
-    // ── filter chips ──────────────────────────────────────────
     _noEllipsis(lbl) {
         lbl.clutter_text.set_ellipsize(Pango.EllipsizeMode.NONE);
         lbl.clutter_text.set_line_wrap(false);
         return lbl;
     }
 
-    // No "…": if text would overflow, shrink the font to fit instead.
     _fitSize(text, size, maxW, floor = 0.6) {
         const est = [...text].length * size * 0.58;
         if (est <= maxW) return size;
@@ -8185,9 +8004,7 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         if (!this._filterBar || !this._chipL) return;
         this._filterBar.destroy_all_children();
         this._openChipMenu = null;
-
         const { gap } = this._chipL;
-
         const chipBox = new St.BoxLayout({
             y_align: Clutter.ActorAlign.CENTER,
             style: `spacing: ${gap}px;`,
@@ -8199,14 +8016,10 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         this._filterBar.add_child(chipBox);
     }
 
-    // One generic chip: small uppercase label over a larger value.
-    // `width` overrides the default slot width; `fitFloor` sets how far
-    // the value can shrink before it starts clipping.
     _makeChip({ cls, label = null, value, active = false, greyed = false,
         width = null, fitFloor = 0.6, onClick, onMenu = null, onScroll = null }) {
         const { slotW, chipH } = this._chipL;
         const w = width ?? slotW;
-
         const btn = new St.Button({
             style_class: `selector-filter-chip ${cls}`,
             reactive: true, track_hover: true, clip_to_allocation: true,
@@ -8220,7 +8033,6 @@ export class WindowSearchOverlay extends SearchOverlayBase {
             style_class: 'selector-filter-chip-box', vertical: true,
             x_expand: true, y_expand: true, y_align: Clutter.ActorAlign.CENTER,
         });
-
         if (label) {
             const l = new St.Label({
                 text: label.toUpperCase(),
@@ -8230,36 +8042,26 @@ export class WindowSearchOverlay extends SearchOverlayBase {
             l.set_style(`font-size: ${S.selector.filterLabelText}px;`);
             col.add_child(this._noEllipsis(l));
         }
-
         const v = new St.Label({
-            text: value,
-            style_class: 'selector-filter-value',
+            text: value, style_class: 'selector-filter-value',
             x_align: Clutter.ActorAlign.CENTER,
         });
         v.set_style(`font-size: ${this._fitSize(value, S.selector.filterText, w - 40, fitFloor)}px;`);
         col.add_child(this._noEllipsis(v));
-
         btn.set_child(col);
 
         const scope = this._rowsScope;
         scope.connect(btn, 'clicked', onClick);
-        if (onMenu) {
-            scope.connect(btn, 'button-press-event', (a, e) => {
-                if (e.get_button() === Clutter.BUTTON_SECONDARY) {
-                    onMenu(btn);
-                    return Clutter.EVENT_STOP;
-                }
-                return Clutter.EVENT_PROPAGATE;
-            });
-        }
-        if (onScroll) {
-            scope.connect(btn, 'scroll-event', (a, e) => {
-                const d = this._scrollDir(e);
-                if (!d) return Clutter.EVENT_PROPAGATE;
-                onScroll(d);
-                return Clutter.EVENT_STOP;
-            });
-        }
+        if (onMenu) scope.connect(btn, 'button-press-event', (a, e) => {
+            if (e.get_button() === Clutter.BUTTON_SECONDARY) { onMenu(btn); return Clutter.EVENT_STOP; }
+            return Clutter.EVENT_PROPAGATE;
+        });
+        if (onScroll) scope.connect(btn, 'scroll-event', (a, e) => {
+            const d = this._scrollDir(e);
+            if (!d) return Clutter.EVENT_PROPAGATE;
+            onScroll(d);
+            return Clutter.EVENT_STOP;
+        });
         return btn;
     }
 
@@ -8317,7 +8119,6 @@ export class WindowSearchOverlay extends SearchOverlayBase {
                 if (this._filters.pinnedOnly) {
                     this._filters.pinnedOnly = false;
                 } else {
-                    // Pinned activation resets other filters (per design)
                     this._filters.workspace = null;
                     this._filters.app = null;
                     this._filters.pinnedOnly = true;
@@ -8329,7 +8130,6 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         return chip;
     }
 
-    // ── cycling ──────────────────────────────────────────────
     _scrollDir(event) {
         const dir = event.get_scroll_direction();
         if (dir === Clutter.ScrollDirection.UP) return -1;
@@ -8377,7 +8177,6 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         this._onSearchChanged();
     }
 
-    // ── menus (via existing openContextMenu) ─────────────────
     _workspaceNameForChip(index) {
         try { return Meta.prefs_get_workspace_name(index) || `Workspace ${index + 1}`; }
         catch (e) { return `Workspace ${index + 1}`; }
@@ -8437,19 +8236,16 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         return out;
     }
 
-    // ── rail widget tree ─────────────────────────────────────
     _buildRail() {
         const RL = this._railL;
         const ROW = this._rowL;
-
         this._railH = RL.height;
         this._railPad = RL.pad;
 
         this._rail = new St.Widget({
             style_class: 'selector-rail',
             reactive: true, track_hover: true,
-            x: RL.x, y: RL.y,
-            width: RL.width, height: RL.height,
+            x: RL.x, y: RL.y, width: RL.width, height: RL.height,
         });
 
         const track = new St.Widget({
@@ -8497,10 +8293,7 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         });
 
         scope.connect(rail, 'motion-event', (a, e) => {
-            if (this._railDragging) {
-                this._railPointerFromEvent(e);
-                return Clutter.EVENT_STOP;
-            }
+            if (this._railDragging) { this._railPointerFromEvent(e); return Clutter.EVENT_STOP; }
             const [, y] = e.get_coords();
             const [, ry] = rail.get_transformed_position();
             const idx = this._railIndexFromY(y - ry);
@@ -8527,14 +8320,12 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         try {
             const grab = global.stage.grab(this._rail);
             if (grab) { this._railGrab = { dismiss: () => grab.dismiss() }; return; }
-        } catch (e) {
-            journal(`[rail] stage.grab failed: ${e.message}`);
-        }
+        } catch (e) { journal(`[rail] stage.grab failed: ${e.message}`); }
         try {
             const modal = Main.pushModal(this._rail, { actionMode: Shell.ActionMode.NORMAL });
             this._railGrab = { modal };
         } catch (e) {
-            journal(`[rail] pushModal fallback failed: ${e.message}`);
+            journal(`[rail] pushModal failed: ${e.message}`);
             this._railGrab = null;
             this._railDragging = false;
         }
@@ -8544,8 +8335,8 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         const g = this._railGrab;
         this._railGrab = null;
         if (!g) return;
-        if (g.modal) { try { Main.popModal(g.modal); } catch (e) { /* already popped */ } }
-        else { try { g.dismiss(); } catch (e) { /* already dismissed */ } }
+        if (g.modal) { try { Main.popModal(g.modal); } catch (e) { /* gone */ } }
+        else { try { g.dismiss(); } catch (e) { /* gone */ } }
     }
 
     _railY(i) {
@@ -8609,19 +8400,15 @@ export class WindowSearchOverlay extends SearchOverlayBase {
     _showRailTip(idx, item) {
         if (!this._railTip) return;
         const RL = this._railL, OV = this._overlayL, BAND = this._bandL;
-        const text = `${item.appName} — ${item.title}`;
-        this._railTip.set_text(text);
-
+        this._railTip.set_text(`${item.appName} — ${item.title}`);
         const h = this._railTip.height > 0 ? this._railTip.height : 58;
         const tipX = Math.max(8, RL.x - this._railTip.width - 8);
         let tipY = RL.y + this._railY(idx) - Math.round(h / 2);
-
         if (tipY + h > BAND.y && tipY < BAND.y + BAND.height) {
             const above = BAND.y - h - 8;
             tipY = above >= 8 ? above : Math.min(BAND.y + BAND.height + 8, OV.height - h - 8);
         }
         tipY = clamp(tipY, 8, OV.height - h - 8);
-
         this._railTip.set_position(tipX, tipY);
         this._railTip.opacity = 255;
     }
@@ -8630,16 +8417,13 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         if (this._railTip) this._railTip.opacity = 0;
     }
 
-    // ── rows ─────────────────────────────────────────────────
     _renderResults(results) {
         const OV = this._overlayL, ROW = this._rowL;
-
         this._releaseRailGrab();
         this._railDragging = false;
         this._hideRailTip();
-
         this._resizeBackdrop(results.length);
-        this._refreshFilterBar();  // rebuilds chips (reset count, pinned count)
+        this._refreshFilterBar();
 
         this._listLayer.destroy_all_children();
         this._rows = results.map((item, index) => {
@@ -8654,11 +8438,8 @@ export class WindowSearchOverlay extends SearchOverlayBase {
                 if (e.get_button() !== Clutter.BUTTON_PRIMARY) return Clutter.EVENT_PROPAGATE;
                 const state = e.get_state();
                 if (state & Clutter.ModifierType.CONTROL_MASK) {
-                    // Toggle pin
                     if (item.window) {
                         SelectedWindows.toggleWindow(item.window);
-                        // If pinned-only filter is active and the last pin
-                        // disappeared, drop the filter.
                         if (this._filters.pinnedOnly &&
                             SelectedWindows.selectedCount() === 0) {
                             this._filters.pinnedOnly = false;
@@ -8681,7 +8462,6 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         this._buildRailTicks();
     }
 
-    // ── discrete focus strip layout ──────────────────────────
     _layoutRows() {
         const BAND = this._bandL, ROW = this._rowL;
         const pos = this._scrollPos;
@@ -8693,9 +8473,7 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         this._rows.forEach((row, i) => {
             const d = i - pos;
             const x = Math.abs(d);
-
             if (x >= 2.8) { row.hide(); return; }
-
             let c, op;
             if (x < 1) {
                 c = mid + d * half;
@@ -8705,7 +8483,6 @@ export class WindowSearchOverlay extends SearchOverlayBase {
                 op = neighborOpacity(x);
             }
             if (op < 0.01) { row.hide(); return; }
-
             row.show();
             row.set_position(0, Math.round(c - ROW.slotH / 2));
             row.set_opacity(Math.round(op * 255));
@@ -8717,7 +8494,21 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         this._updateRailMarker();
     }
 
-    // ── selection ────────────────────────────────────────────
+    _peekStart(item) {
+        // Defer one idle tick so `_peekHost` is in the actor tree and
+        // allocated on the very first selection (which happens during
+        // construction, before the modal grab settles).
+        this._scope.idle(() => {
+            if (this._closed || this._closing) return GLib.SOURCE_REMOVE;
+            getPeek().start(item.window, {
+                mode: 'clone',
+                parent: this._peekHost,
+                index: 0,
+            });
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
     _onSelectionChanged(index) {
         const BAND = this._bandL;
 
@@ -8730,7 +8521,6 @@ export class WindowSearchOverlay extends SearchOverlayBase {
             });
             label.set_style(`font-size: ${S.selector.search}px;`);
             this._bandBin.set_child(label);
-            this._cancelReveal();
             return;
         }
 
@@ -8753,7 +8543,9 @@ export class WindowSearchOverlay extends SearchOverlayBase {
             this._smooth.to(index);
         }
 
-        this._scheduleReveal(item);
+        // Live clone of the selected window, sitting behind the solid tint
+        // in the empty margins around the band/rows.
+        this._peekStart(item);
     }
 
     _onScroll(event) {
@@ -8770,47 +8562,11 @@ export class WindowSearchOverlay extends SearchOverlayBase {
             }
         }
         if (!step) return Clutter.EVENT_STOP;
-
         const now = GLib.get_monotonic_time() / 1000;
         if (now - this._lastScrollStep < 50) return Clutter.EVENT_STOP;
         this._lastScrollStep = now;
-
         this._selectIndex(clamp(this._selectedIndex + step, 0, this._results.length - 1));
         return Clutter.EVENT_STOP;
-    }
-
-    _guardFocus(ms = 1200) {
-        this._focusGuard = true;
-        if (this._guardTimer) this._scope.cancel(this._guardTimer);
-        this._guardTimer = this._scope.timeout(ms, () => {
-            this._guardTimer = 0;
-            this._focusGuard = false;
-            return GLib.SOURCE_REMOVE;
-        });
-    }
-
-    _scheduleReveal(item) {
-        this._cancelReveal();
-        this._revealTimer = this._scope.timeout(120, () => {
-            this._revealTimer = 0;
-            this._revealWindow(item.window);
-            return GLib.SOURCE_REMOVE;
-        });
-    }
-
-    _cancelReveal() {
-        if (!this._revealTimer) return;
-        this._scope.cancel(this._revealTimer);
-        this._revealTimer = 0;
-    }
-
-    _revealWindow(win) {
-        if (this._closed || this._closing || win === this._revealed) return;
-        this._guardFocus();
-        this._revealed = win;
-        this._revealedAny = true;
-        WorkspaceActions.focusWindow(win);
-        this._refocusEntry();
     }
 
     _refocusEntry() {
@@ -8819,19 +8575,6 @@ export class WindowSearchOverlay extends SearchOverlayBase {
             this._entry.grab_key_focus();
             return GLib.SOURCE_REMOVE;
         });
-    }
-
-    _restoreOrigin() {
-        if (!this._revealedAny) return;
-        this._revealedAny = false;
-        this._guardFocus();
-        const { window: win, workspace } = this._origin;
-        const time = global.get_current_time();
-        try {
-            const ws = win?.get_workspace();
-            if (ws) ws.activate_with_focus(win, time);
-            else workspace?.activate(time);
-        } catch (e) { /* window gone */ }
     }
 
     _handleEscape() {
@@ -8851,9 +8594,8 @@ export class WindowSearchOverlay extends SearchOverlayBase {
     _onBeforeClose() {
         this._releaseRailGrab();
         this._railDragging = false;
-        this._cancelReveal();
         Model.setIntent({ overlayPick: null });
-        if (this._cancelled) this._restoreOrigin();
+        getPeek().stop(true);
     }
 
     _handleExtraKeys(event, symbol) {
@@ -8898,12 +8640,9 @@ export class WindowSearchOverlay extends SearchOverlayBase {
     _onClick(event) {
         if (event.get_button() !== Clutter.BUTTON_PRIMARY) return Clutter.EVENT_PROPAGATE;
         if (this._closing) return Clutter.EVENT_STOP;
-
-        // Click inside the filter bar or on an open chip menu: don't activate.
         const src = event.get_source();
         if (this._filterBar && src && this._filterBar.contains(src)) return Clutter.EVENT_STOP;
         if (this._openChipMenu) { this._openChipMenu = null; return Clutter.EVENT_STOP; }
-
         if (src && this._searchRoot.contains(src)) {
             this._entry.grab_key_focus();
             return Clutter.EVENT_PROPAGATE;
@@ -8916,14 +8655,12 @@ export class WindowSearchOverlay extends SearchOverlayBase {
         if (this._closed || this._closing) return;
         const item = this._results[index];
         if (!item) return;
-        const window = item.window;
 
         this._closing = true;
-        this._cancelReveal();
-        this._focusRelease?.();
-        this._focusRelease = null;
-
-        WorkspaceActions.focusWindow(window);
+        // Remove the clone instantly so the real window is unobstructed
+        // as the overlay fades out.
+        getPeek().stop(true);
+        WorkspaceActions.navigateToWindow(item.window);
 
         Motion.fadeOut(this._container, { duration: 'overlayFade' });
         this._scope.timeout(Motion.dur('overlayFade') + 30, () => {
@@ -8934,23 +8671,18 @@ export class WindowSearchOverlay extends SearchOverlayBase {
 
     _close() {
         if (this._closed) return;
-        this._focusRelease?.();
-        this._focusRelease = null;
         journal('[WindowSearchOverlay] Closing');
         super._close();
         this._items = [];
         this._rows = [];
-        this._revealed = null;
-        this._origin = null;
     }
 }
-// ===== FILE: ./lib/model.js =====
 // ===== FILE: ./lib/model.js =====
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import { Store, Emitter, Hold } from './util.js';
+import { Store, Emitter } from './util.js';
 import { configureMotion } from './motion.js';
 
 import { createLogger } from '../logger.js';
@@ -8958,7 +8690,6 @@ const journal = createLogger(import.meta.url);
 
 export const WorkspaceManager = global.get_workspace_manager();
 export const Display = global.get_display();
-
 export const TimeoutDelay = 200;
 
 export function applySettings(settings) {
@@ -8970,12 +8701,10 @@ export function applySettings(settings) {
 export const intentStore = new Store({
     drag: null, hintWs: null, menuOpen: false,
     overlayPick: null,
-    // Persisted across overlay opens in the same session.
-    // Reset on extension reload. See windowOverlay.js for shape.
     overlayFilters: {
-        workspace: null,   // null | workspace index
-        app: null,         // null | app id
-        pinnedOnly: false, // bool
+        workspace: null,
+        app: null,
+        pinnedOnly: false,
     },
 });
 export const intent = intentStore.state;
@@ -9002,43 +8731,6 @@ export function isNormalWindow(win) {
 
 export function focusedWindow() {
     return isEligible(Display.focus_window) ? Display.focus_window : null;
-}
-
-// ---- ordering ----
-const ranks = new Map();
-let nextRank = 1;
-
-// ---- last-focused-per-workspace ----
-const lastFocusedByWs = new Map();
-
-// ---- focus history suppression ----
-const focusHold = new Hold();
-export function holdFocusHistory() { return focusHold.acquire(); }
-
-export function noteFocusedWindow() {
-    if (focusHold.active) return;
-    const window = focusedWindow();
-    if (!window) return;
-    try {
-        const ws = window.get_workspace();
-        if (ws) lastFocusedByWs.set(ws.index(), window);
-    } catch (e) { /* dead window object */ }
-}
-
-export function lastFocusedWindow(workspaceIndex) {
-    const win = lastFocusedByWs.get(workspaceIndex);
-    if (!win) return null;
-    try {
-        const ws = win.get_workspace();
-        if (!ws || ws.index() !== workspaceIndex) {
-            lastFocusedByWs.delete(workspaceIndex);
-            return null;
-        }
-    } catch (e) {
-        lastFocusedByWs.delete(workspaceIndex);
-        return null;
-    }
-    return win;
 }
 
 // ---- app identity / grouping ----
@@ -9076,59 +8768,76 @@ export function groupWindowsInWorkspace(entry) {
     return out;
 }
 
+// ---- manual-order overlay ----
+// wsIndex -> ordered Meta.Window[] snapshot. Written ONLY on explicit
+// drag-drops (placeWindow / placeWindowNear). Windows not in the snapshot
+// fall back to MRU position.
+const manualOrder = new Map();
+
+export function setManualOrder(workspaceIndex, orderedWindows) {
+    if (!orderedWindows?.length) manualOrder.delete(workspaceIndex);
+    else manualOrder.set(workspaceIndex, [...orderedWindows]);
+}
+
+export function clearManualOrder(workspaceIndex) {
+    manualOrder.delete(workspaceIndex);
+}
+
+// ---- ordering ----
+function mruListFor(workspace) {
+    const list = Display.get_tab_list(Meta.TabList.NORMAL_ALL, workspace ?? null);
+    return workspace ? list.filter(w => w.located_on_workspace(workspace)) : list;
+}
+
+function applyManual(wsIndex, mru) {
+    const manual = manualOrder.get(wsIndex);
+    if (!manual || !manual.length) return mru;
+
+    const live = new Set(mru);
+    const surviving = manual.filter(w => live.has(w));
+    const inOrder = new Set(surviving);
+    const newOnes = mru.filter(w => !inOrder.has(w));
+
+    // D1 = (i): manual positions stay put; new windows flow in after them.
+    // For D1 = (ii), change to: return [...newOnes, ...surviving];
+    return [...surviving, ...newOnes];
+}
+
 // ---- build ----
 export function buildModel() {
-    const live = Display.list_all_windows().filter(isEligible);
-
-    const liveSet = new Set(live);
-    for (const w of [...ranks.keys()])
-        if (!liveSet.has(w)) ranks.delete(w);
-    for (const w of live)
-        if (!ranks.has(w)) ranks.set(w, nextRank++);
-
-    for (const [idx, win] of lastFocusedByWs)
-        if (!liveSet.has(win)) lastFocusedByWs.delete(idx);
-
     const workspaces = [];
     for (let i = 0; i < WorkspaceManager.n_workspaces; i++) {
         const workspace = WorkspaceManager.get_workspace_by_index(i);
-        const windows = live
-            .filter(w => w.located_on_workspace(workspace))
-            .sort((a, b) => ranks.get(a) - ranks.get(b));
-
-        const entry = {
-            workspace, index: i, windows,
-        };
+        const mru = mruListFor(workspace).filter(isEligible);
+        const ordered = applyManual(i, mru);
+        const entry = { workspace, index: i, windows: ordered };
         entry.groups = groupWindowsInWorkspace(entry);
         workspaces.push(entry);
     }
     return { workspaces, drag: intent.drag, hintWs: intent.hintWs };
 }
 
+// ---- drops (write manual overlay) ----
 export function placeWindow(window, workspace, index = null) {
-    const fullList = buildModel().workspaces[workspace.index()].windows;
-    const list = fullList.filter(w => w !== window);
-
-    let at = index === null ? list.length : index;
-    at = Math.max(0, Math.min(at, list.length));
-
+    const wsIndex = workspace.index();
+    const current = buildModel().workspaces[wsIndex].windows;
+    const list = current.filter(w => w !== window);
+    const at = index === null ? list.length : Math.max(0, Math.min(index, list.length));
     list.splice(at, 0, window);
-
-    for (const w of list) ranks.set(w, nextRank++);
+    setManualOrder(wsIndex, list);
 }
 
 export function placeWindowNear(window, workspace, neighbor = null, before = true) {
     if (neighbor === window) return;
-    const list = buildModel().workspaces[workspace.index()].windows
-        .filter(w => w !== window);
-
-    let at = list.length;
+    const wsIndex = workspace.index();
+    const current = buildModel().workspaces[wsIndex].windows.filter(w => w !== window);
+    let at = current.length;
     if (neighbor) {
-        const i = list.indexOf(neighbor);
+        const i = current.indexOf(neighbor);
         if (i >= 0) at = before ? i : i + 1;
     }
-    list.splice(at, 0, window);
-    for (const w of list) ranks.set(w, nextRank++);
+    current.splice(at, 0, window);
+    setManualOrder(wsIndex, current);
 }
 
 // ---- signals ----
@@ -9140,7 +8849,7 @@ function _listen(obj, signal, cb) { _signals.push([obj, obj.connect(signal, cb)]
 
 function _watchWorkspaces() {
     for (const [obj, id] of _wsSignals) {
-        try { obj.disconnect(id); } catch (e) { /* already gone */ }
+        try { obj.disconnect(id); } catch (e) { /* gone */ }
     }
     _wsSignals = [];
     for (let i = 0; i < WorkspaceManager.n_workspaces; i++) {
@@ -9153,13 +8862,11 @@ function _watchWorkspaces() {
 export function connectModelSignals(settings = null) {
     disconnectModelSignals();
     _settings = settings;
-
     if (settings) applySettings(settings);
 
     _listen(WorkspaceManager, 'notify::n-workspaces', () => { _watchWorkspaces(); requestRender(); });
     _listen(WorkspaceManager, 'workspace-switched', () => requestRender());
     _listen(Display, 'window-created', () => requestRender());
-    _listen(Display, 'notify::focus-window', () => noteFocusedWindow());
     _listen(Main.sessionMode, 'updated', () => requestRender());
     if (settings) {
         _listen(settings, 'changed', () => {
@@ -9169,16 +8876,11 @@ export function connectModelSignals(settings = null) {
     }
 
     _watchWorkspaces();
-    noteFocusedWindow();
 }
 
 export function disconnectModelSignals() {
-    for (const [obj, id] of _wsSignals) {
-        try { obj.disconnect(id); } catch (e) { /* already gone */ }
-    }
-    for (const [obj, id] of _signals) {
-        try { obj.disconnect(id); } catch (e) { /* already gone */ }
-    }
+    for (const [obj, id] of _wsSignals) { try { obj.disconnect(id); } catch (e) { /* gone */ } }
+    for (const [obj, id] of _signals) { try { obj.disconnect(id); } catch (e) { /* gone */ } }
     _wsSignals = [];
     _signals = [];
     _settings = null;
@@ -9217,7 +8919,6 @@ export function logModel(model) {
     journal('[Model Snapshot]\n' + JSON.stringify(getModelSnapshot(model), null, 2));
 }
 // ===== FILE: ./lib/overlayService.js =====
-// ===== FILE: ./lib/overlayService.js =====
 import Meta from 'gi://Meta';
 
 import { SearchOverlayBase } from './overlayBase.js';
@@ -9229,25 +8930,10 @@ import * as Model from './model.js';
 import { createLogger } from '../logger.js';
 const journal = createLogger(import.meta.url);
 
-// ==================== OVERLAY SERVICE ====================
-// The single place any search overlay is opened or closed.
-//
-// showWindowOverlay() passes all candidate windows plus an optional
-// `initialFilters` object to pre-seed the filter bar. When
-// `initialFilters` is null, the overlay uses whatever filters are
-// currently persisted in `Model.intent.overlayFilters` — that's the
-// "remember the filter across opens" behaviour.
-//
-// Filters are single-axis values:
-//   { workspace: null|0..n, app: null|appId, recent: null|1..7, pinnedOnly: bool }
-
 let _settings = null;
 
 export function showWindowOverlay(windows, context = null, focusedWindow = null, initialFilters = null) {
-    if (!_settings) {
-        journal('[overlayService] showWindowOverlay before init — ignoring');
-        return false;
-    }
+    if (!_settings) return false;
     SearchOverlayBase.closeCurrent();
     const overlay = new WindowSearchOverlay(windows, _settings, focusedWindow, initialFilters);
     overlay._overlayContext = context;
@@ -9255,13 +8941,12 @@ export function showWindowOverlay(windows, context = null, focusedWindow = null,
 }
 
 export function showAllWindows(initialFilters = null) {
-    if (!_settings) {
-        journal('[overlayService] showAllWindows before init — ignoring');
-        return false;
-    }
+    if (!_settings) return false;
     const activeIdx = Model.WorkspaceManager.get_active_workspace_index();
-    const focusedWindow = Model.Display.focus_window
-        ?? Model.lastFocusedWindow(activeIdx)
+    const activeWs = Model.WorkspaceManager.get_workspace_by_index(activeIdx);
+    const focusedWindow =
+        Model.Display.get_tab_current(Meta.TabList.NORMAL_ALL, activeWs)
+        ?? Model.Display.focus_window
         ?? null;
     return showWindowOverlay(
         Model.getModelWindows(null),
@@ -9271,10 +8956,7 @@ export function showAllWindows(initialFilters = null) {
 }
 
 export function showAllApps() {
-    if (!_settings) {
-        journal('[overlayService] showAllApps before init — ignoring');
-        return false;
-    }
+    if (!_settings) return false;
     SearchOverlayBase.closeCurrent();
     new AppSearchOverlay(_settings);
     return true;
@@ -9288,10 +8970,6 @@ export function toggleAllApps() {
     return showAllApps();
 }
 
-/**
- * Toggle the all-windows overlay. Press once to open, again to close.
- * The app overlay is reached through ToggleAllApps, not by cycling.
- */
 export function toggleAllWindows() {
     const current = SearchOverlayBase.current;
     if (current instanceof WindowSearchOverlay &&
@@ -9302,16 +8980,13 @@ export function toggleAllWindows() {
     return showAllWindows();
 }
 
-/**
- * Show windows for a given workspace. The overlay opens pre-filtered to
- * that workspace; the user can clear the filter (Reset) to see all windows.
- */
 export function showWorkspaceWindows(workspaceIndex) {
     const workspace = Model.WorkspaceManager.get_workspace_by_index(workspaceIndex);
     if (!workspace) throw new Error(`Workspace ${workspaceIndex} not found`);
 
-    const focusedWindow = Model.Display.get_tab_list(Meta.TabList.NORMAL, workspace)[0]
-        ?? Model.lastFocusedWindow(workspaceIndex)
+    const focusedWindow =
+        Model.Display.get_tab_current(Meta.TabList.NORMAL_ALL, workspace)
+        ?? Model.Display.focus_window
         ?? null;
 
     workspace.activate(global.get_current_time());
@@ -9333,14 +9008,6 @@ export function toggleWorkspaceWindows(workspaceIndex) {
     return showWorkspaceWindows(workspaceIndex);
 }
 
-/**
- * Show windows for a given (workspace, app) group. Pre-filters to
- * workspace, but leaves the app filter off so the user can broaden
- * back to "all windows on this workspace" with one click.
- * (Different from the old behaviour — pass `null` focusedWindow so
- * the group's own representative doesn't get lost if the app has more
- * than one window on this workspace.)
- */
 export function showGroupWindows(workspaceIndex, appId) {
     const entry = Model.buildModel().workspaces[workspaceIndex];
     if (!entry) return false;
@@ -9348,8 +9015,11 @@ export function showGroupWindows(workspaceIndex, appId) {
     const group = entry.groups.find(g => g.appId === appId);
     if (!group || !group.windows.length) return false;
 
-    const initial = [Model.Display.focus_window, Model.lastFocusedWindow(workspaceIndex)]
-        .find(w => w && group.windows.includes(w)) ?? group.windows[0];
+    const workspace = Model.WorkspaceManager.get_workspace_by_index(workspaceIndex);
+    const initial = [
+        Model.Display.focus_window,
+        workspace ? Model.Display.get_tab_current(Meta.TabList.NORMAL_ALL, workspace) : null,
+    ].find(w => w && group.windows.includes(w)) ?? group.windows[0];
 
     const opened = showWindowOverlay(
         Model.getModelWindows(null),
@@ -9374,15 +9044,8 @@ export function toggleGroupWindows(workspaceIndex, appId) {
 
 export function closeOverlay() { return SearchOverlayBase.closeCurrent(); }
 
-// -------------------- Dmenu-style picker --------------------
-// `Show(items)` reports its result through the Selected / Cancelled
-// D-Bus signals (see dbusService.js). `onResult` fires exactly once per
-// invocation: an array of labels, or `null` on cancellation.
 export function showDmenuItems(items, opts = {}, onResult = null) {
-    if (!_settings) {
-        journal('[overlayService] showDmenuItems before init — ignoring');
-        return false;
-    }
+    if (!_settings) return false;
     SearchOverlayBase.closeCurrent();
     new GenericSearchOverlay(items, _settings, {
         multi: !!opts.multi,
@@ -9393,7 +9056,6 @@ export function showDmenuItems(items, opts = {}, onResult = null) {
     return true;
 }
 
-// -------------------- Lifecycle --------------------
 export function initOverlayService(settings) { _settings = settings; }
 
 export function destroyOverlayService() {
@@ -9401,10 +9063,7 @@ export function destroyOverlayService() {
     _settings = null;
 }
 // ===== FILE: ./lib/workspaceActions.js =====
-// ===== FILE: ./lib/workspaceActions.js =====
 // Window/workspace actions that are neither model state nor overlay logic.
-// Shared by the DBus adapter, the top-bar scroll handler, the flyout,
-// and every preview/activation path in the indicator and overlays.
 
 import Meta from 'gi://Meta';
 
@@ -9414,74 +9073,64 @@ import { createLogger } from '../logger.js';
 const journal = createLogger(import.meta.url);
 
 /**
- * Bring `win` to the foreground on its own workspace. Maximizes only
- * NORMAL windows — a dialog or utility palette forced full-screen is
- * the wrong outcome. Window eligibility (which windows this extension
- * works with at all) is decided by Model, not here.
- *
- * Exceptions (dead window object, race during close) are swallowed
- * and logged — callers treat this as fire-and-forget.
- *
- * Note: the previous version had an inverted branch here that called
- * activate_with_workspace() with a null workspace whenever
- * get_workspace() returned null. Mutter switches workspace on its own
- * when activate() is called on a window on another workspace, so the
- * plain activate() call is sufficient.
+ * Navigate to a window: unminimize + activate_with_focus on its own
+ * workspace. No maximize. Only call from an explicit user gesture
+ * (Enter, click, DBus cycle) — never from hover, scroll, or filter.
  */
-export function focusWindow(win) {
+export function navigateToWindow(win) {
     if (!win) return;
     try {
         if (win.minimized) win.unminimize();
-        if (Model.isNormalWindow(win)) win.maximize(Meta.MaximizeFlags.BOTH);
-        win.activate(global.get_current_time());
+        const ws = win.get_workspace();
+        if (ws) ws.activate_with_focus(win, global.get_current_time());
+        else win.activate(global.get_current_time());
     } catch (e) {
-        journal(`[focusWindow] failed: ${e.message}`);
+        journal(`[navigateToWindow] failed: ${e.message}`);
     }
 }
 
+/**
+ * Cycle through windows in global MRU (Alt-Tab order, includes minimized).
+ * Uses Meta.Display.get_tab_next directly; wraps manually since get_tab_next
+ * returns null at the ends.
+ */
 export function scrollModelWindows(direction = 1) {
-    const model = Model.buildModel();
+    const cur = Model.Display.focus_window;
+    const backward = direction < 0;
+    let next = Model.Display.get_tab_next(
+        Meta.TabList.NORMAL_ALL, null, cur ?? null, backward);
 
-    const windows = [];
-    const seen = new Set();
-    for (const entry of model.workspaces) {
-        for (const w of entry.windows) {
-            const id = w.get_id();
-            if (seen.has(id)) continue;
-            seen.add(id);
-            windows.push(w);
-        }
+    if (!next) {
+        const list = Model.Display.get_tab_list(Meta.TabList.NORMAL_ALL, null);
+        if (!list.length) return false;
+        next = backward ? list[list.length - 1] : list[0];
     }
-    if (windows.length === 0) return false;
-
-    const n = windows.length;
-    const idx = windows.indexOf(Model.Display.focus_window);
-    const nextIdx = idx === -1
-        ? (direction > 0 ? 0 : n - 1)
-        : ((idx + direction) % n + n) % n;
-    const target = windows[nextIdx];
-
-    if (target.minimized) target.unminimize();
-    const ws = target.get_workspace();
-    if (ws) ws.activate_with_focus(target, global.get_current_time());
-    else target.activate(global.get_current_time());
+    if (!next || next === cur) return false;
+    navigateToWindow(next);
     return true;
 }
 
+/**
+ * Cycle windows on ONE workspace (MRU within that workspace).
+ * Uses an explicit filter, since get_tab_list(NORMAL_ALL, ws) includes
+ * demand-attention windows from other workspaces.
+ */
 export function cycleWindowsOnWorkspace(workspaceIndex, direction = 1) {
-    const entry = Model.buildModel().workspaces[workspaceIndex];
-    if (!entry || entry.windows.length === 0) return false;
+    const ws = Model.WorkspaceManager.get_workspace_by_index(workspaceIndex);
+    if (!ws) return false;
 
-    const windows = entry.windows;
-    const n = windows.length;
-    const idx = windows.indexOf(Model.Display.focus_window);
+    const list = Model.Display.get_tab_list(Meta.TabList.NORMAL_ALL, ws)
+        .filter(w => w.located_on_workspace(ws));
+    if (!list.length) return false;
 
-    const nextIdx = idx === -1
-        ? (direction > 0 ? 0 : n - 1)
-        : ((idx + direction) % n + n) % n;
-    const target = windows[nextIdx];
+    const cur = Model.Display.focus_window;
+    const curIdx = list.indexOf(cur);
+    const dir = direction >= 0 ? 1 : -1;
+    const nextIdx = curIdx < 0
+        ? (dir > 0 ? 0 : list.length - 1)
+        : ((curIdx + dir) % list.length + list.length) % list.length;
 
-    focusWindow(target);
+    navigateToWindow(list[nextIdx]);
     return true;
 }
 // ===== FILE: ./lib/util.js =====
@@ -9723,6 +9372,379 @@ export class WindowBorder {
         this._bin?.destroy();
         this._bin = null;
     }
+}
+// ===== FILE: ./lib/peekController.js =====
+// Centered peek: clone-based "browse" mode, real-window "commit" mode.
+// Never calls activate / unminimize / focus. Zero MRU side effects.
+//
+// Two placement modes for the container:
+//   • uiGroup (default) — below: <sibling> or on top of uiGroup.
+//   • parent=<actor>, index=<n> — inside a specified widget's actor tree,
+//     sized to that parent. Used by the window selector so the clone
+//     sits behind its rows/band, above a solid tint.
+
+import Clutter from 'gi://Clutter';
+import GLib from 'gi://GLib';
+import Meta from 'gi://Meta';
+import St from 'gi://St';
+
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+
+import * as Motion from './motion.js';
+import { createLogger } from '../logger.js';
+const journal = createLogger(import.meta.url);
+
+const HIDE_DEBOUNCE_MS = 80;
+const DIM_OPACITY = 40;
+const PREVIEW_FRACTION = 0.90;
+
+function showActorForPreview(wa) {
+    if (!wa) return;
+    try {
+        if (wa._peekPriorVisible === undefined)
+            wa._peekPriorVisible = wa.visible;
+        if (!wa.visible) wa.show();
+    } catch (e) { /* gone */ }
+}
+
+function restoreActorVisibility(wa) {
+    if (!wa) return;
+    try {
+        if (wa._peekPriorVisible === false) wa.hide();
+        delete wa._peekPriorVisible;
+    } catch (e) { /* gone or frozen */ }
+}
+
+// mutter#836: animate first child rather than WindowActor.opacity.
+function fadeActor(wa, target, duration) {
+    if (!wa) return;
+    try {
+        const node = wa.get_first_child?.() ?? wa;
+        if (duration <= 0) { node.opacity = target; return; }
+        node.ease({
+            opacity: target,
+            duration,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        });
+    } catch (e) { /* gone */ }
+}
+
+class PeekController {
+    constructor() {
+        this._container = new St.Widget({
+            reactive: false,
+            clip_to_allocation: false,
+            visible: false,
+        });
+        // Not added to chrome here — _attach decides based on first start().
+
+        this._clone = null;
+        this._currentWindow = null;
+        this._mode = 'none';       // 'none' | 'clone' | 'real'
+        this._hideTimer = 0;
+        this._realState = null;
+    }
+
+    // ---- public API ----
+
+    start(win, { mode = 'clone', below = null, parent = null, index = -1 } = {}) {
+        if (!win) return;
+
+        if (this._hideTimer) {
+            GLib.Source.remove(this._hideTimer);
+            this._hideTimer = 0;
+        }
+
+        if (this._mode === 'real') {
+            this._teardownReal();
+            this._mode = 'none';
+        }
+
+        if (this._mode === 'clone' && this._currentWindow === win && this._clone) {
+            this._attach({ below, parent, index });
+            return;
+        }
+
+        this._currentWindow = win;
+        this._mode = 'clone';
+        this._attach({ below, parent, index });
+        this._showClone(win);
+    }
+
+    promoteToReal() {
+        if (this._mode !== 'clone' || !this._currentWindow) return;
+        const win = this._currentWindow;
+
+        try {
+            const cur = global.workspace_manager.get_active_workspace();
+            if (win.get_workspace() !== cur) {
+                journal('[peek] cross-workspace target — staying clone');
+                return;
+            }
+        } catch (e) { return; }
+
+        const wa = win.get_compositor_private();
+        if (!wa) return;
+
+        this._teardownClone();
+        this._enterReal(win, wa);
+        this._mode = 'real';
+    }
+
+    stop(immediate = false) {
+        if (this._hideTimer) { GLib.Source.remove(this._hideTimer); this._hideTimer = 0; }
+
+        if (immediate) {
+            this._teardown();
+            this._detach();
+            return;
+        }
+        if (this._mode === 'none') return;
+
+        this._hideTimer = GLib.timeout_add(
+            GLib.PRIORITY_DEFAULT, HIDE_DEBOUNCE_MS, () => {
+                this._hideTimer = 0;
+                this._teardown();
+                this._detach();
+                return GLib.SOURCE_REMOVE;
+            });
+    }
+
+    destroy() {
+        if (this._hideTimer) { GLib.Source.remove(this._hideTimer); this._hideTimer = 0; }
+        this._teardown();
+        this._detach();
+        if (this._container) {
+            try { Main.layoutManager.removeChrome(this._container); } catch (e) { /* not tracked */ }
+            try { this._container.destroy(); } catch (e) { /* gone */ }
+            this._container = null;
+        }
+    }
+
+    // ---- placement ----
+
+    _attach({ below = null, parent = null, index = -1 } = {}) {
+        const c = this._container;
+        if (!c) return;
+
+        const uiGroup = Main.layoutManager.uiGroup;
+        const desiredParent = parent ?? uiGroup;
+        const currentParent = c.get_parent?.() ?? null;
+        const changingParent = currentParent !== desiredParent;
+
+        if (changingParent) {
+            if (currentParent === uiGroup) {
+                try { Main.layoutManager.removeChrome(c); } catch (e) { /* not tracked */ }
+            } else if (currentParent) {
+                try { currentParent.remove_child(c); } catch (e) { /* gone */ }
+            }
+
+            if (parent) {
+                try { parent.add_child(c); } catch (e) { /* gone */ }
+            } else {
+                try {
+                    Main.layoutManager.addChrome(c, {
+                        affectsInputRegion: false,
+                        trackFullscreen: false,
+                    });
+                } catch (e) { /* not ready */ }
+            }
+        }
+
+        if (parent) {
+            if (index >= 0) {
+                try { parent.set_child_at_index(c, index); } catch (e) { /* gone */ }
+            }
+            const mon = Main.layoutManager.primaryMonitor;
+            const pw = parent.width > 0 ? parent.width : (mon?.width ?? 0);
+            const ph = parent.height > 0 ? parent.height : (mon?.height ?? 0);
+            try {
+                c.set_position(0, 0);
+                c.set_size(pw, ph);
+            } catch (e) { /* not allocated */ }
+        } else {
+            try {
+                if (below && below.get_parent() === uiGroup)
+                    uiGroup.set_child_below_sibling(c, below);
+                else
+                    uiGroup.set_child_above_sibling(c, null);
+            } catch (e) { /* uiGroup not ready */ }
+
+            const mon = Main.layoutManager.primaryMonitor;
+            if (mon) {
+                try {
+                    c.set_position(mon.x, mon.y);
+                    c.set_size(mon.width, mon.height);
+                } catch (e) { /* not ready */ }
+            }
+        }
+    }
+
+    _detach() {
+        const c = this._container;
+        if (!c) return;
+        const uiGroup = Main.layoutManager.uiGroup;
+        const currentParent = c.get_parent?.();
+        // Leave chrome-managed container alone; only detach from custom parents.
+        if (!currentParent || currentParent === uiGroup) return;
+        try { currentParent.remove_child(c); } catch (e) { /* gone */ }
+    }
+
+    // ---- clone mode ----
+
+    _showClone(win) {
+        const built = this._buildClone(win);
+        if (!built) return;
+
+        const old = this._clone;
+        this._clone = null;
+        const install = () => this._installClone(built);
+
+        if (old && old.get_stage()) {
+            Motion.fadeOut(old, {
+                duration: 'fadeOut',
+                onComplete: () => {
+                    try { old.destroy(); } catch (e) { /* gone */ }
+                    install();
+                },
+            });
+        } else {
+            install();
+        }
+    }
+
+    _buildClone(win) {
+        const wa = win.get_compositor_private();
+        if (!wa) return null;
+
+        const monitor = Main.layoutManager.primaryMonitor;
+        if (!monitor) return null;
+
+        let rect;
+        try { rect = win.get_frame_rect(); } catch (e) { return null; }
+        const w = Math.max(1, rect.width);
+        const h = Math.max(1, rect.height);
+
+        const maxW = monitor.width * PREVIEW_FRACTION;
+        const maxH = monitor.height * PREVIEW_FRACTION;
+        let pw = w, ph = h;
+        if (pw > maxW) { pw = maxW; ph = (h / w) * pw; }
+        if (ph > maxH) { ph = maxH; pw = (w / h) * ph; }
+
+        showActorForPreview(wa);
+
+        const clone = new Clutter.Clone({ source: wa, reactive: false });
+        clone.set_size(pw, ph);
+
+        const bin = new St.Bin({
+            child: clone,
+            style: 'border-radius: 14px; overflow: hidden;',
+        });
+        bin._peekWin = win;
+        bin._peekW = pw;
+        bin._peekH = ph;
+        bin._peekX = Math.round((monitor.width - pw) / 2);
+        bin._peekY = Math.round((monitor.height - ph) / 2);
+        return bin;
+    }
+
+    _installClone(bin) {
+        if (bin._peekWin !== this._currentWindow) {
+            try { bin.destroy(); } catch (e) { /* gone */ }
+            return;
+        }
+        if (!this._container) return;
+
+        // Note: container position/size is owned by _attach.
+        this._container.opacity = 255;
+        this._container.show();
+
+        this._container.destroy_all_children();
+        this._container.add_child(bin);
+        this._clone = bin;
+        bin.set_size(bin._peekW, bin._peekH);
+        bin.set_position(bin._peekX, bin._peekY);
+        Motion.fadeIn(bin, { duration: 'fadeIn' });
+    }
+
+    _teardownClone() {
+        const win = this._currentWindow;
+        if (this._clone) {
+            try { this._clone.destroy(); } catch (e) { /* gone */ }
+            this._clone = null;
+        }
+        if (this._container) {
+            this._container.remove_all_transitions();
+            this._container.destroy_all_children();
+            this._container.hide();
+            this._container.opacity = 0;
+        }
+        if (win) restoreActorVisibility(win.get_compositor_private());
+    }
+
+    // ---- real mode ----
+
+    _enterReal(win, wa) {
+        const parent = wa.get_parent();
+        if (!parent) return;
+
+        showActorForPreview(wa);
+
+        const priorIndex = parent.get_children().indexOf(wa);
+        try { parent.set_child_above_sibling(wa, null); } catch (e) { return; }
+
+        const dimTargets = new Set();
+        for (const other of global.get_window_actors()) {
+            if (other === wa) continue;
+            const mw = other.get_meta_window?.();
+            if (!mw) continue;
+            try {
+                if (mw.get_window_type() !== Meta.WindowType.NORMAL) continue;
+            } catch (e) { continue; }
+            dimTargets.add(other);
+            fadeActor(other, DIM_OPACITY, Motion.dur('fadeOut'));
+        }
+
+        this._realState = { win, actor: wa, parent, priorIndex, dimTargets };
+    }
+
+    _teardownReal() {
+        const s = this._realState;
+        this._realState = null;
+        if (!s) return;
+
+        for (const other of s.dimTargets) fadeActor(other, 255, Motion.dur('fadeIn'));
+
+        try {
+            if (s.actor?.get_parent() === s.parent && s.priorIndex >= 0) {
+                const len = s.parent.get_children().length;
+                s.parent.set_child_at_index(s.actor, Math.min(s.priorIndex, len - 1));
+            }
+        } catch (e) { /* parent gone */ }
+
+        restoreActorVisibility(s.actor);
+    }
+
+    // ---- common ----
+
+    _teardown() {
+        const win = this._currentWindow;
+        if (this._mode === 'real') this._teardownReal();
+        else if (this._mode === 'clone') this._teardownClone();
+        this._mode = 'none';
+        this._currentWindow = null;
+        if (win) restoreActorVisibility(win.get_compositor_private());
+    }
+}
+
+let _instance = null;
+export function getPeek() {
+    if (!_instance) _instance = new PeekController();
+    return _instance;
+}
+export function destroyPeek() {
+    _instance?.destroy();
+    _instance = null;
 }
 // ===== FILE: ./lib/pinnedEdgeFlyout.js =====
 // ===== FILE: ./lib/pinnedEdgeFlyout.js =====
@@ -11032,7 +11054,6 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
     }
 }
 // ===== FILE: ./extension.js =====
-// ===== FILE: ./extension.js =====
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import * as ExtensionModule from 'resource:///org/gnome/shell/extensions/extension.js';
@@ -11054,6 +11075,7 @@ import * as Theme from './lib/theme.js';
 import { initExternalDrag, destroyExternalDrag } from './lib/externalDrag.js';
 import { initFocusedWindowBorder, destroyFocusedWindowBorder } from './lib/focusedWindowBorder.js';
 import { initSelectedWindows, destroySelectedWindows } from './lib/selectedWindows.js';
+import { destroyPeek } from './lib/peekController.js';
 
 import { initLogging, createLogger } from './logger.js';
 
@@ -11074,7 +11096,7 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
     }
 
     enable() {
-        initLogging(this.uuid, 'file', false);
+        initLogging(this.uuid, 'file', true);
         journal(`Enabled`);
 
         const settings = this.getSettings();
@@ -11118,7 +11140,6 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
 
         this._origHasOverview = null;
         if (Main.layoutManager._startingUp) {
-            // Enabled at login: keep the shell from opening the overview at all.
             this._origHasOverview = Main.sessionMode.hasOverview;
             Main.sessionMode.hasOverview = false;
             Main.layoutManager.connectObject('startup-complete', () => {
@@ -11126,14 +11147,12 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
                 this._origHasOverview = null;
             }, this);
         } else if (Main.overview.visible) {
-            // Enabled after startup: just close it if it happens to be open.
             Main.overview.hide();
         }
     }
 
     disable() {
         Main.panel.disconnectObject(this);
-
         Main.layoutManager.disconnectObject(this);
 
         if (this._origHasOverview !== null) {
@@ -11171,6 +11190,7 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
         destroyFocusedWindowBorder();
         destroyExternalDrag();
         Model.disconnectModelSignals();
+        destroyPeek();
         Interactions.destroyTooltip();
 
         this._unsubSizes?.(); this._unsubSizes = null;
