@@ -1120,6 +1120,7 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         this._controllers = new Map();
         this._lastIconSize = undefined;
         this._lastRenderTime = undefined;
+        this._lastOrderSig = '';
         this._toolbarKey = null;
         this._staticBox = null;
         this._nameLabel = null;
@@ -1131,7 +1132,7 @@ export class WorkspaceIndicator extends PanelMenu.Button {
 
         this._scope = new Scheduling.Scope();
         this._renderCoalescer = new Scheduling.Coalescer(() => this._render());
-        this._focusCoalescer = new Scheduling.Coalescer(() => this._syncFocusStates());
+        this._focusCoalescer = new Scheduling.Coalescer(() => this._onMruMaybeChanged());
 
         this._scope.connect(global.display, 'notify::focus-window', () => {
             this._focusCoalescer.queue();
@@ -1157,7 +1158,7 @@ export class WorkspaceIndicator extends PanelMenu.Button {
 
         this._extSawButton = false;
         this._extGroupKey = null;
-        this._extPeekSource = false;   // pointer was on a peek-triggering surface last tick
+        this._extPeekSource = false;
         this._geoRelogId = 0;
 
         this._stickyRequest = null;
@@ -1167,7 +1168,17 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         this._lastMenuOpen = !!Model.intent.menuOpen;
         this._lastPick = Model.intent.overlayPick;
 
-        this._reorder = Interactions.createReorderBar({ axis: 'x' });
+        // Reorder bar is a no-op stub: with a single global MRU order,
+        // drag-reorder inside a workspace has no meaning. Drops only move
+        // windows between workspaces.
+        this._reorder = {
+            begin() { },
+            update() { return null; },
+            clear() { },
+            destroy() { },
+            index: null,
+            insertion: null,
+        };
 
         this._mainBox = new St.BoxLayout({
             style_class: 'workspace-indicator-main-box',
@@ -1215,6 +1226,15 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         if (pickChanged) this._syncFocusStates();
     }
 
+    // Called (idle-coalesced) on every focus change. Re-renders only when
+    // the global MRU order actually changed; otherwise just updates the
+    // focus pill classes in place.
+    _onMruMaybeChanged() {
+        if (Model.intent.drag || Model.intent.menuOpen || externalDrag.active) return;
+        if (Model.signatureOf(Model.buildModel()) !== this._lastOrderSig) this._queueRender();
+        else this._syncFocusStates();
+    }
+
     _queueRender(delay = 0) {
         const now = GLib.get_monotonic_time() / 1000;
         const since = now - (this._lastRenderTime ?? 0);
@@ -1237,6 +1257,7 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         this._reorder.clear();
 
         const model = Model.buildModel();
+        this._lastOrderSig = Model.signatureOf(model);
         const s = this._settings;
 
         const iconSize = S.indicator.windowIcon;
@@ -1384,11 +1405,10 @@ export class WorkspaceIndicator extends PanelMenu.Button {
                 if (entry.workspace !== Model.WorkspaceManager.get_active_workspace())
                     entry.workspace.activate(global.get_current_time());
             },
-            onDrop: (source, dropIndex, dragActor, insertion) => {
+            onDrop: (source, dropIndex, dragActor) => {
                 this._cancelDwell();
                 this._flyout.close(true);
-                return this._dropOnWorkspace(thumb, entry, source,
-                    this._resolveDrop(insertion), dragActor);
+                return this._dropOnWorkspace(thumb, entry, source, dragActor);
             },
         });
         shell.strip = strip;
@@ -1876,8 +1896,6 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         if (!win) return false;
 
         const sameWs = win.get_workspace() === entry.workspace;
-        Model.placeWindowNear(win, entry.workspace, item?.window ?? null, true);
-
         if (!sameWs) {
             const monitorIndex = Main.layoutManager.findIndexForActor(shell.actor);
             if (monitorIndex !== win.get_monitor()) win.move_to_monitor(monitorIndex);
@@ -2154,39 +2172,25 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         }, { onStateChange: Model.menuIntent });
     }
 
-    _resolveDrop(insertion) {
-        const a = insertion?.neighbor;
-        if (!a) return null;
-        const wins = a._dragPayload?.window ? [a._dragPayload.window] : a._groupWindows;
-        if (!wins?.length) return null;
-        return {
-            neighbor: insertion.insertBefore ? wins[0] : wins[wins.length - 1],
-            before: insertion.insertBefore,
-        };
-    }
-
-    _dropOnWorkspace(thumb, entry, source, target, dragActor) {
+    _dropOnWorkspace(thumb, entry, source, dragActor) {
         Model.setIntent({ hintWs: null });
 
         const win = source?._dragPayload?.window ?? null;
         if (!win) return true;
-
-        const sameWs = win.get_workspace() === entry.workspace;
 
         if (dragActor && dragActor !== source._actor) {
             dragActor.get_parent()?.remove_child(dragActor);
             try { dragActor.destroy(); } catch (e) { /* ignore */ }
         }
 
-        if (sameWs && !target) { Model.setIntent({ drag: null }); return true; }
-
-        Model.placeWindowNear(win, entry.workspace,
-            target?.neighbor ?? null, target?.before ?? true);
-        if (!sameWs) {
-            const monitorIndex = Main.layoutManager.findIndexForActor(thumb);
-            if (monitorIndex !== win.get_monitor()) win.move_to_monitor(monitorIndex);
-            win.change_workspace(entry.workspace);
+        if (win.get_workspace() === entry.workspace) {
+            Model.setIntent({ drag: null });
+            return true;
         }
+
+        const monitorIndex = Main.layoutManager.findIndexForActor(thumb);
+        if (monitorIndex !== win.get_monitor()) win.move_to_monitor(monitorIndex);
+        win.change_workspace(entry.workspace);
         _settleWindow = win;
         Model.setIntent({ drag: null });
         return true;
@@ -4684,7 +4688,6 @@ export class AppSearchOverlay extends SearchOverlayBase {
     }
 }
 // ===== FILE: ./lib/titleBarMoveMonitor.js =====
-
 // ===== FILE: ./lib/titleBarMoveMonitor.js =====
 // Detects a title-bar drag-move and, while it's in flight, tracks the
 // pointer over the indicator's workspace thumbnails. Dropping on a
@@ -4796,7 +4799,6 @@ export class TitleBarMoveMonitor {
         const alreadyThere = window.get_workspace() === ws;
 
         if (!alreadyThere) {
-            Model.placeWindow(window, ws, null);
             settleOnNextRender(window);
         }
         const monitorIndex = Main.layoutManager.findIndexForActor(thumb.actor);
@@ -8677,19 +8679,22 @@ export function appIdentity(window) {
     return { id: `wm:${wm}`, name: wm };
 }
 
-export function groupKey(workspaceIndex, appId, anchorId = '') {
-    return `${workspaceIndex}::${appId}${anchorId !== '' ? `#${anchorId}` : ''}`;
+export function groupKey(workspaceIndex, appId, run = 0) {
+    return `${workspaceIndex}::${appId}${run ? `#${run}` : ''}`;
 }
 
 export function groupWindowsInWorkspace(entry) {
     const out = [];
+    const runs = new Map();
     let cur = null;
     entry.windows.forEach((w, i) => {
         const { id, name } = appIdentity(w);
         if (!cur || cur.appId !== id) {
+            const run = runs.get(id) ?? 0;
+            runs.set(id, run + 1);
             cur = {
                 appId: id, appName: name,
-                key: groupKey(entry.index, id, w.get_id()),
+                key: groupKey(entry.index, id, run),
                 windows: [], indices: [], count: 0,
             };
             out.push(cur);
@@ -8701,76 +8706,30 @@ export function groupWindowsInWorkspace(entry) {
     return out;
 }
 
-// ---- manual-order overlay ----
-// wsIndex -> ordered Meta.Window[] snapshot. Written ONLY on explicit
-// drag-drops (placeWindow / placeWindowNear). Windows not in the snapshot
-// fall back to MRU position.
-const manualOrder = new Map();
-
-export function setManualOrder(workspaceIndex, orderedWindows) {
-    if (!orderedWindows?.length) manualOrder.delete(workspaceIndex);
-    else manualOrder.set(workspaceIndex, [...orderedWindows]);
-}
-
-export function clearManualOrder(workspaceIndex) {
-    manualOrder.delete(workspaceIndex);
-}
-
-// ---- ordering ----
-function mruListFor(workspace) {
-    const list = Display.get_tab_list(Meta.TabList.NORMAL_ALL, workspace ?? null);
-    return workspace ? list.filter(w => w.located_on_workspace(workspace)) : list;
-}
-
-function applyManual(wsIndex, mru) {
-    const manual = manualOrder.get(wsIndex);
-    if (!manual || !manual.length) return mru;
-
-    const live = new Set(mru);
-    const surviving = manual.filter(w => live.has(w));
-    const inOrder = new Set(surviving);
-    const newOnes = mru.filter(w => !inOrder.has(w));
-
-    // D1 = (i): manual positions stay put; new windows flow in after them.
-    // For D1 = (ii), change to: return [...newOnes, ...surviving];
-    return [...surviving, ...newOnes];
+// ---- MRU ----
+// One global list. Every per-workspace list, the overlay, panel scroll
+// and per-workspace cycling all derive from this, so they cannot disagree.
+export function mruWindows() {
+    return Display.get_tab_list(Meta.TabList.NORMAL_ALL, null).filter(isEligible);
 }
 
 // ---- build ----
 export function buildModel() {
+    const mru = mruWindows();
     const workspaces = [];
     for (let i = 0; i < WorkspaceManager.n_workspaces; i++) {
         const workspace = WorkspaceManager.get_workspace_by_index(i);
-        const mru = mruListFor(workspace).filter(isEligible);
-        const ordered = applyManual(i, mru);
-        const entry = { workspace, index: i, windows: ordered };
+        const windows = mru.filter(w => w.located_on_workspace(workspace));
+        const entry = { workspace, index: i, windows };
         entry.groups = groupWindowsInWorkspace(entry);
         workspaces.push(entry);
     }
     return { workspaces, drag: intent.drag, hintWs: intent.hintWs };
 }
 
-// ---- drops (write manual overlay) ----
-export function placeWindow(window, workspace, index = null) {
-    const wsIndex = workspace.index();
-    const current = buildModel().workspaces[wsIndex].windows;
-    const list = current.filter(w => w !== window);
-    const at = index === null ? list.length : Math.max(0, Math.min(index, list.length));
-    list.splice(at, 0, window);
-    setManualOrder(wsIndex, list);
-}
-
-export function placeWindowNear(window, workspace, neighbor = null, before = true) {
-    if (neighbor === window) return;
-    const wsIndex = workspace.index();
-    const current = buildModel().workspaces[wsIndex].windows.filter(w => w !== window);
-    let at = current.length;
-    if (neighbor) {
-        const i = current.indexOf(neighbor);
-        if (i >= 0) at = before ? i : i + 1;
-    }
-    current.splice(at, 0, window);
-    setManualOrder(wsIndex, current);
+// Cheap "did the order change?" check for the indicator.
+export function signatureOf(model) {
+    return model.workspaces.map(ws => ws.windows.map(w => w.get_id()).join(',')).join('|');
 }
 
 // ---- signals ----
@@ -8820,11 +8779,8 @@ export function disconnectModelSignals() {
 }
 
 export function getModelWindows(workspace = null) {
-    const model = buildModel();
-    if (workspace === null)
-        return model.workspaces.flatMap(ws => ws.windows);
-    const entry = model.workspaces.find(ws => ws.workspace === workspace);
-    return entry ? entry.windows : [];
+    const mru = mruWindows();
+    return workspace === null ? mru : mru.filter(w => w.located_on_workspace(workspace));
 }
 
 export function getWorkspaceGroups(workspaceIndex) {

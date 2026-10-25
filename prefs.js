@@ -16,7 +16,6 @@ const NUMERIC_KEYS = [
 const BOOLEAN_KEYS = [
     ['show-window-button', 'Show "all windows" button'],
     ['show-workspace-names', 'Show workspace names'],
-    ['group-apps-always', 'Always group windows by app'],
 ];
 
 const BOXES = [['left', 'Left Box'], ['center', 'Center Box'], ['right', 'Right Box']];
@@ -66,11 +65,6 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
         page.add(panelGroup);
         for (const [key, title] of BOOLEAN_KEYS) {
             const row = new Adw.ActionRow({ title });
-            if (key === 'group-apps-always') {
-                row.set_subtitle(
-                    'Off: group only when the panel runs out of room. ' +
-                    'On: every app with 2+ windows collapses into one badged icon.');
-            }
             const toggle = new Gtk.Switch({ valign: Gtk.Align.CENTER });
             settings.bind(key, toggle, 'active', Gio.SettingsBindFlags.DEFAULT);
             row.add_suffix(toggle);

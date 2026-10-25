@@ -28,9 +28,6 @@
     <key name="show-workspace-names" type="b">
       <default>true</default>
     </key>
-    <key name="group-apps-always" type="b">
-      <default>false</default>
-    </key>
 
     <!-- ===================== Timing ===================== -->
     <key name="flyout-dwell-ms" type="i">
