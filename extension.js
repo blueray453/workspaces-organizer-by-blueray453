@@ -20,6 +20,7 @@ import { initExternalDrag, destroyExternalDrag } from './lib/externalDrag.js';
 import { initFocusedWindowBorder, destroyFocusedWindowBorder } from './lib/focusedWindowBorder.js';
 import { initSelectedWindows, destroySelectedWindows } from './lib/selectedWindows.js';
 import { destroyPeek } from './lib/peekController.js';
+import { resetCycle } from './lib/mruCycle.js';
 
 import { initLogging, createLogger } from './logger.js';
 
@@ -136,6 +137,7 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
         Model.disconnectModelSignals();
         destroyPeek();
         Interactions.destroyTooltip();
+        resetCycle();
 
         this._unsubSizes?.(); this._unsubSizes = null;
         Theme.destroyTheme();

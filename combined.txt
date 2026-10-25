@@ -428,9 +428,6 @@
     <key name="show-workspace-names" type="b">
       <default>true</default>
     </key>
-    <key name="group-apps-always" type="b">
-      <default>false</default>
-    </key>
 
     <!-- ===================== Timing ===================== -->
     <key name="flyout-dwell-ms" type="i">
@@ -1074,7 +1071,8 @@ import * as Scheduling from './scheduling.js';
 import * as Interactions from './interactions.js';
 import * as UI from './ui.js';
 import * as Motion from './motion.js';
-import { S, REL } from './sizes.js';
+import * as WorkspaceActions from './workspaceActions.js';
+import { S } from './sizes.js';
 import { Dwell, Poller } from './util.js';
 import { GroupFlyout } from './flyout.js';
 import { externalDrag, buttonHeld } from './externalDrag.js';
@@ -1091,8 +1089,6 @@ let _settleWindow = null;
 const MIN_RENDER_INTERVAL_MS = 100;
 const EXT_TICK_MS = 40;
 const EXT_PREVIEW_MS = 150;
-const SLACK_PX = 32;
-const MAX_SOLVE_STEPS = 6;
 
 const fmtNum = v => Number.isFinite(v) ? String(Math.round(v)) : 'NaN';
 
@@ -1126,9 +1122,7 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         this._nameLabel = null;
         this._thumbsBox = null;
         this._entries = [];
-
-        this._collapsed = new Set();
-        this._denseStep = 0;
+        this._peekGroupActor = null;
 
         this._scope = new Scheduling.Scope();
         this._renderCoalescer = new Scheduling.Coalescer(() => this._render());
@@ -1137,6 +1131,10 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         this._scope.connect(global.display, 'notify::focus-window', () => {
             this._focusCoalescer.queue();
         });
+
+        // Favorites order drives icon order.
+        this._scope.connect(AppFavorites.getAppFavorites(), 'changed',
+            () => this._queueRender());
 
         this._leavePollId = 0;
 
@@ -1168,17 +1166,9 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         this._lastMenuOpen = !!Model.intent.menuOpen;
         this._lastPick = Model.intent.overlayPick;
 
-        // Reorder bar is a no-op stub: with a single global MRU order,
-        // drag-reorder inside a workspace has no meaning. Drops only move
-        // windows between workspaces.
-        this._reorder = {
-            begin() { },
-            update() { return null; },
-            clear() { },
-            destroy() { },
-            index: null,
-            insertion: null,
-        };
+        // Shared insertion bar. Each workspace strip gates it (see _gatedReorder):
+        // it only shows when reordering pinned apps inside their own box.
+        this._reorder = Interactions.createReorderBar({ axis: 'x' });
 
         this._mainBox = new St.BoxLayout({
             style_class: 'workspace-indicator-main-box',
@@ -1212,7 +1202,9 @@ export class WorkspaceIndicator extends PanelMenu.Button {
 
         if (dragChanged && isDragging) {
             Interactions.getTooltip().hide();
-            if (this._flyout.isOpen) {
+            this._stopGroupPeek();
+            // A drag that starts from a flyout row must keep that flyout alive.
+            if (this._flyout.isOpen && !this._flyout.dragging) {
                 this._cancelDwell();
                 this._flyout.close(true);
             }
@@ -1226,9 +1218,9 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         if (pickChanged) this._syncFocusStates();
     }
 
-    // Called (idle-coalesced) on every focus change. Re-renders only when
-    // the global MRU order actually changed; otherwise just updates the
-    // focus pill classes in place.
+    // Called (idle-coalesced) on every focus change. Icon positions do not
+    // depend on MRU, so this only rebuilds if the layout actually changed;
+    // otherwise it just moves the focus pill.
     _onMruMaybeChanged() {
         if (Model.intent.drag || Model.intent.menuOpen || externalDrag.active) return;
         if (Model.signatureOf(Model.buildModel()) !== this._lastOrderSig) this._queueRender();
@@ -1247,6 +1239,8 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         if (Model.intent.menuOpen) return;
         if (Model.intent.drag) return;
         if (externalDrag.active) return;
+
+        this._stopGroupPeek();
 
         const hadFlyout = this._flyout.isOpen;
         const keepKey = hadFlyout ? this._flyout.anchorKey : null;
@@ -1299,18 +1293,17 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         });
         this._mainBox.add_child(this._thumbsBox);
 
-        const seen = new Set();
         for (const entry of model.workspaces) {
             this._entries.push(this._buildThumbShell(entry));
             this._thumbsBox.add_child(this._entries[this._entries.length - 1].actor);
         }
-        for (const entry of model.workspaces)
-            for (const w of entry.windows) seen.add(`${w.get_id()}:${entry.index}`);
 
-        this._solveGrouping(model);
+        const usedControllers = this._renderContents();
 
+        // Controllers only exist for single-window icons. Drop the rest
+        // (closed windows, or windows that moved into a group).
         for (const [key, ctrl] of this._controllers) {
-            if (!seen.has(key)) {
+            if (!usedControllers.has(key)) {
                 ctrl.destroy();
                 this._controllers.delete(key);
             }
@@ -1374,6 +1367,30 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         }
     }
 
+    // Reordering is only meaningful for pinned apps inside their own box
+    // (position comes from favorites order). Everywhere else the bar stays hidden.
+    _gatedReorder(content) {
+        const bar = this._reorder;
+        let on = false;
+        return {
+            begin: (c, s) => {
+                on = this._canReorder(s, content);
+                if (on) bar.begin(c, s); else bar.clear();
+            },
+            update: p => on ? bar.update(p) : null,
+            clear: () => { on = false; bar.clear(); },
+            get index() { return on ? bar.index : null; },
+            get insertion() { return on ? bar.insertion : null; },
+        };
+    }
+
+    _canReorder(source, content) {
+        const actor = source?._actor;
+        const win = source?._dragPayload?.window;
+        if (!actor || !win || !content.contains(actor)) return false;
+        return AppFavorites.getAppFavorites().isFavorite(Model.appIdentity(win).id);
+    }
+
     _buildThumbShell(entry) {
         const s = this._settings;
 
@@ -1393,7 +1410,7 @@ export class WorkspaceIndicator extends PanelMenu.Button {
 
         const strip = Interactions.createDropStrip({
             container: content,
-            reorder: this._reorder,
+            reorder: this._gatedReorder(content),
             acceptSource: source => source?._dragPayload?.kind === 'window',
             externalResult: Interactions.DragMotionResult.MOVE_DROP,
             onDragOver: () => {
@@ -1405,10 +1422,10 @@ export class WorkspaceIndicator extends PanelMenu.Button {
                 if (entry.workspace !== Model.WorkspaceManager.get_active_workspace())
                     entry.workspace.activate(global.get_current_time());
             },
-            onDrop: (source, dropIndex, dragActor) => {
+            onDrop: (source, dropIndex, dragActor, insertion) => {
                 this._cancelDwell();
                 this._flyout.close(true);
-                return this._dropOnWorkspace(thumb, entry, source, dragActor);
+                return this._dropOnWorkspace(thumb, entry, source, dragActor, insertion);
             },
         });
         shell.strip = strip;
@@ -1424,139 +1441,26 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         return shell;
     }
 
-    _isCollapsed(group) {
-        if (group.count < 2) return false;
-        if (this._settings.get_boolean('group-apps-always')) return true;
-        return this._collapsed.has(group.key);
-    }
-
-    _isGrouped(entry) {
-        return entry.groups.some(g => this._isCollapsed(g));
-    }
-
-    _iconSize() {
-        const base = S.indicator.windowIcon;
-        const dense = this._entries.some(e => this._isGrouped(e.entry));
-        if (!dense) return base;
-        const rung = Math.min(this._denseStep, REL.denseLadder.length - 1);
-        return Math.max(S.indicator.denseFloor, Math.round(base * REL.denseLadder[rung]));
-    }
-
-    _widthBudget() {
-        const panelW = Main.panel.width > 0
-            ? Main.panel.width
-            : Main.layoutManager.primaryMonitor.width;
-        const [x] = this.get_transformed_position();
-        const left = Number.isFinite(x) ? Math.max(0, x) : 0;
-
-        let reserve = 28;
-        const rb = Main.panel._rightBox;
-        if (rb && rb.width > 0) reserve += rb.width + 12;
-        else reserve += Math.round(panelW * 0.30);
-
-        return Math.max(200, Math.min(panelW - left - reserve, Math.round(panelW * 0.62)));
-    }
-
-    _naturalWidth() {
-        try { return this._mainBox.get_preferred_width(-1)[1]; }
-        catch (e) { return 0; }
-    }
-
-    _pruneCollapsed(entries) {
-        const valid = new Set();
-        for (const e of entries)
-            for (const g of e.entry.groups)
-                if (g.count > 1) valid.add(g.key);
-        for (const key of [...this._collapsed])
-            if (!valid.has(key)) this._collapsed.delete(key);
-    }
-
-    _collapseCandidates(entries) {
-        if (this._settings.get_boolean('group-apps-always')) return [];
-
-        const activeIdx = Model.WorkspaceManager.get_active_workspace_index();
-        const out = [];
-        for (const e of entries) {
-            for (const g of e.entry.groups)
-                if (g.count > 1) out.push({ key: g.key, count: g.count, wsIndex: e.entry.index });
-        }
-        out.sort((a, b) =>
-            b.count - a.count ||
-            (Number(b.wsIndex === activeIdx) - Number(a.wsIndex === activeIdx)) ||
-            a.wsIndex - b.wsIndex);
-        return out;
-    }
-
-    _solveGrouping() {
-        const budget = this._widthBudget();
-        this._pruneCollapsed(this._entries);
-        const candidates = this._collapseCandidates(this._entries);
-
-        this._denseStep = 0;
-        this._renderContents();
-
-        let steps = 0;
-
-        if (this._naturalWidth() > budget) {
-            for (const c of candidates) {
-                if (steps++ >= MAX_SOLVE_STEPS) break;
-                if (this._collapsed.has(c.key)) continue;
-                this._collapsed.add(c.key);
-                this._renderContents();
-                if (this._naturalWidth() <= budget) break;
-            }
-        } else {
-            const reverted = [...candidates].reverse();
-            for (const c of reverted) {
-                if (steps++ >= MAX_SOLVE_STEPS) break;
-                if (!this._collapsed.has(c.key)) continue;
-                this._collapsed.delete(c.key);
-                this._renderContents();
-                if (budget - this._naturalWidth() < SLACK_PX) {
-                    this._collapsed.add(c.key);
-                    this._renderContents();
-                    break;
-                }
-            }
-        }
-
-        let rungs = 0;
-        while (this._naturalWidth() > budget &&
-            this._denseStep < REL.denseLadder.length - 1 &&
-            rungs++ < REL.denseLadder.length) {
-            this._denseStep++;
-            this._renderContents();
-        }
-
-        this._thumbsBox.style_class = this._collapsed.size > 0
-            ? 'workspace-indicator-class grouped-layout'
-            : 'workspace-indicator-class';
-    }
-
+    // Builds every icon. Groups of 2+ become one badged group icon;
+    // single windows keep their per-window controller. Returns the set of
+    // controller keys that are in use.
     _renderContents() {
-        for (const ctrl of this._controllers.values()) {
-            const parent = ctrl.actor.get_parent();
-            if (parent) parent.remove_child(ctrl.actor);
-        }
-        this._groupIcons.clear();
-
-        const sz = this._iconSize();
+        const used = new Set();
+        const sz = S.indicator.windowIcon;
 
         for (const shell of this._entries) {
             const { entry, content } = shell;
-            content.destroy_all_children();
-
-            if (!entry.windows.length) continue;
-
             for (const group of entry.groups) {
-                if (this._isCollapsed(group)) {
+                if (group.count >= 2) {
                     content.add_child(this._buildGroupIcon(shell, group, sz));
                     continue;
                 }
-                group.windows.forEach(w =>
-                    content.add_child(this._windowActor(w, entry.index, sz, shell.strip)));
+                const w = group.windows[0];
+                used.add(`${w.get_id()}:${entry.index}`);
+                content.add_child(this._windowActor(w, entry.index, sz, shell.strip));
             }
         }
+        return used;
     }
 
     _windowActor(w, wsIndex, iconSize, strip) {
@@ -1589,6 +1493,12 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         return ctrl.actor;
     }
 
+    // Group membership is captured at render time, but MRU order inside the
+    // group goes stale between renders. Resolve the live group before using it.
+    _liveGroup(entry, group) {
+        return Model.getGroupWindows(entry.index, group.appId) ?? group;
+    }
+
     _buildGroupIcon(shell, group, iconSize) {
         const { entry } = shell;
         const { actor } = UI.createGroupButton({
@@ -1599,11 +1509,43 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         actor.add_style_class_name('window-preview-icon');
         actor.accessible_name = `${group.appName}, ${group.count} windows`;
         actor.set_name(`group-${group.key}`);
+
+        const rep = group.windows[0];
+        Interactions.makeDraggable(actor, {
+            iconSize,
+            payload: {
+                kind: 'window',
+                window: rep,
+                windows: group.windows,
+                appId: group.appId,
+                gicon: UI.getWindowAppIcon(rep),
+            },
+            delegate: {
+                handleDragOver: source => {
+                    if (source === actor._delegate)
+                        return Interactions.DragMotionResult.CONTINUE;
+                    this._dwellGroup(shell, group, actor);
+                    return shell.strip.handleDragOver(source);
+                },
+                acceptDrop: (source, dragActor) => {
+                    this._cancelDwell();
+                    this._flyout.close(true);
+                    return shell.strip.acceptDrop(source, dragActor);
+                },
+            },
+            onDragBegin: () => { this._stopGroupPeek(); Model.setIntent({ drag: true }); },
+            onDragEnd: () => Model.setIntent({ drag: null, hintWs: null }),
+        });
         actor._groupWindows = group.windows;
 
         this._groupIcons.set(actor, { shell, entry, group });
 
-        actor.connect('clicked', () => this._activateGroupWorkspace(entry));
+        if (_settleWindow && group.windows.includes(_settleWindow)) {
+            _settleWindow = null;
+            this._settleActor = actor;
+        }
+
+        actor.connect('clicked', () => this._activateGroup(entry, group));
 
         actor.connect('button-press-event', (a, e) => {
             if (e.get_button() === Clutter.BUTTON_SECONDARY) {
@@ -1615,29 +1557,54 @@ export class WorkspaceIndicator extends PanelMenu.Button {
 
         actor.connect('notify::hover', () => this._onGroupHover(actor, shell, group));
 
-        actor._delegate = {
-            handleDragOver: source => {
-                this._dwellGroup(shell, group, actor);
-                return shell.strip.handleDragOver(source);
-            },
-            acceptDrop: (source, dragActor) => {
-                this._cancelDwell();
-                this._flyout.close(true);
-                return shell.strip.acceptDrop(source, dragActor);
-            },
-        };
+        // Ctrl + movement over the icon peeks its most recent window.
+        actor.connect('motion-event', () => {
+            if (this._dragActive()) return Clutter.EVENT_PROPAGATE;
+            const [, , mods] = global.get_pointer();
+            const ctrl = (mods & Clutter.ModifierType.CONTROL_MASK) !== 0;
+            if (ctrl && this._peekGroupActor !== actor) {
+                this._cancelHoverGroupDwell(group);
+                Interactions.getTooltip().hide();
+                this._closeHoverFlyout();
+                this._peekGroupActor = actor;
+                getPeek().start(this._liveGroup(entry, group).windows[0], { mode: 'clone' });
+            } else if (!ctrl && this._peekGroupActor === actor) {
+                this._stopGroupPeek();
+            }
+            return Clutter.EVENT_PROPAGATE;
+        });
 
         return actor;
     }
 
-    _activateGroupWorkspace(entry) {
+    _stopGroupPeek() {
+        if (!this._peekGroupActor) return;
+        this._peekGroupActor = null;
+        getPeek().stop(true);
+    }
+
+    // Focus the most recent window of the group. If a window of this group is
+    // already focused, step through the group in a stable (creation) order so
+    // repeated clicks reach every window instead of toggling between two.
+    _activateGroup(entry, group) {
         if (this._dragActive()) return;
-        entry.workspace.activate(global.get_current_time());
+        const wins = this._liveGroup(entry, group).windows;
+        if (!wins.length) return;
+
+        this._closeHoverFlyout();
+
+        const roots = wins.filter(w => !w.get_transient_for());
+        const cycle = [...(roots.length ? roots : wins)]
+            .sort((a, b) => a.get_id() - b.get_id());
+        const i = cycle.indexOf(Model.focusedWindow());
+        WorkspaceActions.navigateToWindow(i < 0 ? wins[0] : cycle[(i + 1) % cycle.length]);
     }
 
     _openGroupMenu(anchor, entry, group) {
-        const app = UI.getWindowApp(group.windows[0]);
+        const live = this._liveGroup(entry, group);
+        const app = UI.getWindowApp(live.windows[0]);
         const favorites = AppFavorites.getAppFavorites();
+        const wsNum = entry.index + 1;
 
         Interactions.openContextMenu(anchor, menu => {
             if (app) {
@@ -1660,10 +1627,10 @@ export class WorkspaceIndicator extends PanelMenu.Button {
                 menu.addAction(isFav ? `Unpin ${group.appName}` : `Pin ${group.appName}`,
                     () => isFav ? favorites.removeFavorite(appId)
                         : favorites.addFavorite(appId));
-                menu.addAction(`Close all ${group.appName} windows on workspace ${entry.index}`,
+                menu.addAction(`Close all ${group.appName} windows on workspace ${wsNum}`,
                     () => {
                         const now = global.get_current_time();
-                        for (const w of group.windows) w.delete(now);
+                        for (const w of live.windows) w.delete(now);
                     });
             }
 
@@ -1674,13 +1641,13 @@ export class WorkspaceIndicator extends PanelMenu.Button {
                 for (const w of Model.getModelWindows(null)) w.delete(now);
             });
             if (wsWindows.length > 0) {
-                menu.addAction(`Close all windows except workspace ${entry.index}`, () => {
+                menu.addAction(`Close all windows except workspace ${wsNum}`, () => {
                     const now = global.get_current_time();
                     for (const w of Model.getModelWindows(null)
                         .filter(w => w.get_workspace() !== entry.workspace))
                         w.delete(now);
                 });
-                menu.addAction(`Close all windows on workspace ${entry.index}`, () => {
+                menu.addAction(`Close all windows on workspace ${wsNum}`, () => {
                     const now = global.get_current_time();
                     for (const w of wsWindows) w.delete(now);
                 });
@@ -1691,9 +1658,11 @@ export class WorkspaceIndicator extends PanelMenu.Button {
     _dwellGroup(shell, group, anchor) {
         if (!this._dragActive()) return;
         if (group.count < 2) return;
+        // Never reopen the flyout under a row that is being dragged out of it.
+        if (this._flyout.dragging) return;
         if (this._flyout.isOpen && this._flyout.anchor === anchor) return;
         this._groupDwell.arm(group.key, () => {
-            if (!this._dragActive()) return;
+            if (!this._dragActive() || this._flyout.dragging) return;
             this._openFlyout(shell, group, anchor);
         });
     }
@@ -1702,32 +1671,35 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         this._groupDwell.cancel();
     }
 
+    _groupItems(group) {
+        return group.windows.map((w, k) => ({
+            window: w,
+            index: group.indices[k],
+            icon: UI.getWindowAppIcon(w),
+            title: w.get_title() || 'Untitled Window',
+            sub: group.appName.toUpperCase(),
+            color: UI.colorForApp(group.appName),
+        }));
+    }
+
     _openFlyout(shell, group, anchor, { sticky = false, anchorKey = null, attempt = 0 } = {}) {
         if (!sticky && !this._dragActive()) return;
 
         try {
             const { entry } = shell;
-            let anchorOnStage = false;
-            try { anchorOnStage = !!anchor.get_stage(); } catch (e) { anchorOnStage = false; }
             shell.strip.cancel();
 
-            const items = group.windows.map((w, k) => ({
-                window: w,
-                index: group.indices[k],
-                icon: UI.getWindowAppIcon(w),
-                title: w.get_title() || 'Untitled Window',
-                sub: `${group.appName}`.toUpperCase(),
-                color: UI.colorForApp(group.appName),
-            }));
+            const live = this._liveGroup(entry, group);
 
             const opened = this._flyout.open({
                 anchor,
-                title: `${group.appName.toUpperCase()} · ${group.count} WINDOWS · WS ${entry.index + 1}`,
-                items,
+                title: `${live.appName.toUpperCase()} · ${live.count} WINDOWS · WS ${entry.index + 1}`,
+                items: this._groupItems(live),
                 onDrop: (source, item) => this._dropIntoGroup(shell, source, item),
                 sticky,
                 anchorKey,
                 hoverActivate: sticky,
+                draggableRows: true,
             });
 
             if (!opened) {
@@ -1766,13 +1738,6 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         let anchor = null, shell = null;
         for (const [actor, info] of this._groupIcons)
             if (info.group.key === group.key) { anchor = actor; shell = info.shell; break; }
-        if (!anchor) {
-            const ctrl = this._controllers.get(`${group.windows[0].get_id()}:${entry.index}`);
-            if (ctrl) {
-                anchor = ctrl.actor;
-                shell = this._entries.find(s => s.entry.index === entry.index) ?? null;
-            }
-        }
         if (!anchor || !shell) return false;
 
         this._openFlyout(shell, group, anchor, { sticky: true, anchorKey: key });
@@ -1796,6 +1761,7 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         if (!actor.hover) {
             Interactions.getTooltip().hide();
             this._cancelHoverGroupDwell(group);
+            if (this._peekGroupActor === actor) this._stopGroupPeek();
             return;
         }
 
@@ -1804,7 +1770,7 @@ export class WorkspaceIndicator extends PanelMenu.Button {
             `${group.appName} — ${group.count} windows`);
 
         this._groupDwell.arm(`hover-${group.key}`, () => {
-            if (this._dragActive()) return;
+            if (this._dragActive() || this._peekGroupActor) return;
             Interactions.getTooltip().hide();
             this._openHoverGroupFlyout(shell, group, actor);
         });
@@ -1823,23 +1789,17 @@ export class WorkspaceIndicator extends PanelMenu.Button {
         if (this._flyout.isOpen) this._flyout.close(true);
 
         const { entry } = shell;
-        const items = group.windows.map((w, k) => ({
-            window: w,
-            index: group.indices[k],
-            icon: UI.getWindowAppIcon(w),
-            title: w.get_title() || 'Untitled Window',
-            sub: group.appName.toUpperCase(),
-            color: UI.colorForApp(group.appName),
-        }));
+        const live = this._liveGroup(entry, group);
 
         this._flyout.open({
             anchor,
-            title: `${group.appName.toUpperCase()} · ${group.count} WINDOWS · WS ${entry.index + 1}`,
-            items,
+            title: `${live.appName.toUpperCase()} · ${live.count} WINDOWS · WS ${entry.index + 1}`,
+            items: this._groupItems(live),
             onDrop: null,
             sticky: false,
             anchorKey: key,
             hoverActivate: true,
+            draggableRows: true,
         });
     }
 
@@ -1881,32 +1841,93 @@ export class WorkspaceIndicator extends PanelMenu.Button {
             anchorKey: key,
             hoverActivate: true,
             selectedWindow: win,
+            draggableRows: true,
         });
     }
 
     _closeHoverFlyout() {
         if (!this._flyout?.isOpen) return;
+        if (this._flyout.dragging) return;
         if (!this._flyout.anchorKey?.startsWith('hover-')) return;
         this._flyout.close(true);
     }
 
+    // ---------- drops ----------
+    _payloadWindows(source) {
+        const p = source?._dragPayload;
+        if (!p) return [];
+        const list = p.windows?.length ? p.windows : (p.window ? [p.window] : []);
+        return list.filter(Boolean);
+    }
+
+    _moveWindowsTo(thumbActor, workspace, wins) {
+        const monitorIndex = Main.layoutManager.findIndexForActor(thumbActor);
+        for (const w of wins) {
+            if (monitorIndex !== w.get_monitor()) w.move_to_monitor(monitorIndex);
+            w.change_workspace(workspace);
+        }
+        _settleWindow = wins[0];
+    }
+
+    // Drop on a group icon's flyout: move the dragged window(s) to that workspace.
     _dropIntoGroup(shell, source, item) {
         const { entry } = shell;
-        const win = source?._dragPayload?.window;
-        if (!win) return false;
+        const wins = this._payloadWindows(source);
+        if (!wins.length) return false;
 
-        const sameWs = win.get_workspace() === entry.workspace;
-        if (!sameWs) {
-            const monitorIndex = Main.layoutManager.findIndexForActor(shell.actor);
-            if (monitorIndex !== win.get_monitor()) win.move_to_monitor(monitorIndex);
-            win.change_workspace(entry.workspace);
-        }
+        const moving = wins.filter(w => w.get_workspace() !== entry.workspace);
+        if (moving.length) this._moveWindowsTo(shell.actor, entry.workspace, moving);
 
-        _settleWindow = win;
         Model.setIntent({ drag: null, hintWs: null });
         return true;
     }
 
+    // Drop on a workspace box. Another workspace: move the window(s).
+    // Same workspace: position comes from favorites order, so the only thing
+    // a drop can do is reorder favorites.
+    _dropOnWorkspace(thumb, entry, source, dragActor, insertion) {
+        Model.setIntent({ hintWs: null });
+
+        const wins = this._payloadWindows(source);
+        if (!wins.length) return true;
+
+        if (dragActor && dragActor !== source._actor) {
+            dragActor.get_parent()?.remove_child(dragActor);
+            try { dragActor.destroy(); } catch (e) { /* ignore */ }
+        }
+
+        const moving = wins.filter(w => w.get_workspace() !== entry.workspace);
+        if (!moving.length) {
+            this._reorderFavorite(wins[0], insertion);
+            Model.setIntent({ drag: null });
+            return true;
+        }
+
+        this._moveWindowsTo(thumb, entry.workspace, moving);
+        Model.setIntent({ drag: null });
+        return true;
+    }
+
+    _reorderFavorite(win, insertion) {
+        const nb = insertion?.neighbor;
+        const nbWin = nb?._dragPayload?.window ?? nb?._groupWindows?.[0];
+        if (!win || !nbWin) return;
+
+        const favs = AppFavorites.getAppFavorites();
+        const dragId = Model.appIdentity(win).id;
+        const nbId = Model.appIdentity(nbWin).id;
+        const ids = favs.getFavorites().map(a => a.get_id());
+        if (!ids.includes(dragId) || dragId === nbId) return;
+
+        const rest = ids.filter(id => id !== dragId);
+        const nbIdx = rest.indexOf(nbId);
+        // A non-pinned neighbour sits after every favorite, so "next to it"
+        // means the end of the favorites list.
+        const pos = nbIdx >= 0 ? nbIdx + (insertion.insertBefore ? 0 : 1) : rest.length;
+        favs.moveFavoriteToPos(dragId, pos);
+    }
+
+    // ---------- external drag ----------
     _onExternalChanged(state) {
         if (state) {
             if (!this._extPoll.running) this._startExternalPoll();
@@ -1940,6 +1961,7 @@ export class WorkspaceIndicator extends PanelMenu.Button {
 
     _startExternalPoll() {
         this._cancelDwell();
+        this._stopGroupPeek();
         this._flyout.close(true);
 
         this._extRowDwell.cancel();
@@ -2153,47 +2175,24 @@ export class WorkspaceIndicator extends PanelMenu.Button {
 
     _openThumbnailMenu(anchor, workspace) {
         const windows = Model.getModelWindows(workspace);
+        const wsNum = workspace.index() + 1;
         Interactions.openContextMenu(anchor, menu => {
             menu.addAction('Close all windows on all workspaces', () => {
                 const now = global.get_current_time();
                 for (const w of Model.getModelWindows(null)) w.delete(now);
             });
             if (windows.length > 0) {
-                menu.addAction(`Close all windows except workspace ${workspace.index()}`, () => {
+                menu.addAction(`Close all windows except workspace ${wsNum}`, () => {
                     const now = global.get_current_time();
                     for (const w of Model.getModelWindows(null).filter(w => w.get_workspace() !== workspace))
                         w.delete(now);
                 });
-                menu.addAction(`Close all windows on workspace ${workspace.index()}`, () => {
+                menu.addAction(`Close all windows on workspace ${wsNum}`, () => {
                     const now = global.get_current_time();
                     for (const w of windows) w.delete(now);
                 });
             }
         }, { onStateChange: Model.menuIntent });
-    }
-
-    _dropOnWorkspace(thumb, entry, source, dragActor) {
-        Model.setIntent({ hintWs: null });
-
-        const win = source?._dragPayload?.window ?? null;
-        if (!win) return true;
-
-        if (dragActor && dragActor !== source._actor) {
-            dragActor.get_parent()?.remove_child(dragActor);
-            try { dragActor.destroy(); } catch (e) { /* ignore */ }
-        }
-
-        if (win.get_workspace() === entry.workspace) {
-            Model.setIntent({ drag: null });
-            return true;
-        }
-
-        const monitorIndex = Main.layoutManager.findIndexForActor(thumb);
-        if (monitorIndex !== win.get_monitor()) win.move_to_monitor(monitorIndex);
-        win.change_workspace(entry.workspace);
-        _settleWindow = win;
-        Model.setIntent({ drag: null });
-        return true;
     }
 
     _ensureLeavePoll() {
@@ -2228,6 +2227,7 @@ export class WorkspaceIndicator extends PanelMenu.Button {
 
     destroy() {
         this._cancelDwell();
+        this._stopGroupPeek();
         this._stopExternalPoll(true);
         this._extUnsub?.();
         this._extUnsub = null;
@@ -5109,6 +5109,8 @@ export class GroupFlyout {
 
         this._wheelAccum = 0;
         this._hoverActivate = false;
+        this._dragging = false;
+        this._draggableRows = false;
 
         this._root = new St.Widget({
             style_class: 'ws-flyout',
@@ -5147,6 +5149,8 @@ export class GroupFlyout {
         this._root._delegate = {
             handleDragOver: () => {
                 this._misses.reset();
+                if (this._dragging || !this._onDrop)
+                    return Interactions.DragMotionResult.NO_DROP;
                 const [, py] = global.get_pointer();
                 const [, ry] = this._root.get_transformed_position();
                 this._strip.over(py - ry);
@@ -5215,6 +5219,7 @@ export class GroupFlyout {
     get items() { return this._items; }
     get sticky() { return this._sticky; }
     get anchorKey() { return this._anchorKey; }
+    get dragging() { return this._dragging; }
 
     _onHoverRow(idx) {
         const item = idx >= 0 ? this._items[idx] : null;
@@ -5236,6 +5241,11 @@ export class GroupFlyout {
 
     _hoverTick() {
         if (!this._open || !this._hoverActivate) return false;
+        if (this._dragging || Model.intent.drag) {
+            this._hoverDwell.cancel();
+            this._motionSamples.length = 0;
+            return true;
+        }
 
         const [px, py] = global.get_pointer();
         if (!this.contains(px, py)) {
@@ -5277,6 +5287,7 @@ export class GroupFlyout {
 
     _watchTick() {
         if (!this._open || this._sticky) return false;
+        if (this._dragging) { this._misses.reset(); return true; }
         const [x, y] = global.get_pointer();
         const over = this._isOver(x, y);
         if (over) this._misses.reset();
@@ -5295,6 +5306,31 @@ export class GroupFlyout {
             iconSize: S.flyout.rowIcon,
             labelSize: S.flyout.rowLabel,
         });
+
+        if (this._draggableRows && item.window) {
+            // makeDraggable connects its press handler first; activation moves to
+            // release so a press can still turn into a drag.
+            Interactions.makeDraggable(row, {
+                iconSize: S.flyout.rowIcon,
+                payload: { kind: 'window', window: item.window, gicon: item.icon },
+                onDragBegin: () => {
+                    this._dragging = true;
+                    this._hoverDwell.cancel();
+                    getPeek().stop(true);
+                    Model.setIntent({ drag: true });
+                },
+                onDragEnd: () => {
+                    this._dragging = false;
+                    Model.setIntent({ drag: null, hintWs: null });
+                },
+            });
+            row.connect('button-release-event', (a, e) => {
+                if (e.get_button() !== Clutter.BUTTON_PRIMARY) return Clutter.EVENT_PROPAGATE;
+                this._activateItem(item);
+                return Clutter.EVENT_STOP;
+            });
+            return row;
+        }
 
         row.connect('button-press-event', (a, e) => {
             if (e.get_button() !== Clutter.BUTTON_PRIMARY) return Clutter.EVENT_PROPAGATE;
@@ -5373,6 +5409,7 @@ export class GroupFlyout {
         sticky = false, anchorKey = null, hoverActivate = false,
         selectedWindow = null,
         side = null, sideGap = 8, width = null,
+        draggableRows = false,
     }) {
         let onStage = false;
         try { onStage = !!anchor?.get_stage(); } catch (e) { onStage = false; }
@@ -5393,6 +5430,7 @@ export class GroupFlyout {
         this._items = items;
         this._onDrop = onDrop;
         this._hoverActivate = hoverActivate;
+        this._draggableRows = draggableRows;
         this._wheelAccum = 0;
         this._hoverDwell.cancel();
 
@@ -5511,6 +5549,7 @@ export class GroupFlyout {
         this._open = false;
         this._sticky = false;
         this._anchorKey = null;
+        this._dragging = false;
         this._hoverDwell.cancel();
         this._hoverPoll.stop();
         this._motionSamples.length = 0;
@@ -5544,6 +5583,7 @@ export class GroupFlyout {
         this._sticky = false;
         this._anchorKey = null;
         this._side = null;
+        this._dragging = false;
         this._hoverDwell.cancel();
         this._hoverPoll.stop();
         this._motionSamples.length = 0;
@@ -8616,6 +8656,7 @@ export class WindowSearchOverlay extends SearchOverlayBase {
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as AppFavorites from 'resource:///org/gnome/shell/ui/appFavorites.js';
 
 import { Store, Emitter } from './util.js';
 import { configureMotion } from './motion.js';
@@ -8679,31 +8720,40 @@ export function appIdentity(window) {
     return { id: `wm:${wm}`, name: wm };
 }
 
-export function groupKey(workspaceIndex, appId, run = 0) {
-    return `${workspaceIndex}::${appId}${run ? `#${run}` : ''}`;
+export function groupKey(workspaceIndex, appId) {
+    return `${workspaceIndex}::${appId}`;
 }
 
+// One group per app per workspace. Windows inside a group stay in MRU order
+// (entry.windows is MRU). Groups are ordered by favorites, then oldest window id.
 export function groupWindowsInWorkspace(entry) {
-    const out = [];
-    const runs = new Map();
-    let cur = null;
+    const favIds = AppFavorites.getAppFavorites().getFavorites().map(a => a.get_id());
+    const byApp = new Map();
+
     entry.windows.forEach((w, i) => {
-        const { id, name } = appIdentity(w);
-        if (!cur || cur.appId !== id) {
-            const run = runs.get(id) ?? 0;
-            runs.set(id, run + 1);
-            cur = {
-                appId: id, appName: name,
-                key: groupKey(entry.index, id, run),
+        // Dialogs ride with their parent's app.
+        const { id, name } = appIdentity(w.get_transient_for() ?? w);
+        let g = byApp.get(id);
+        if (!g) {
+            g = {
+                appId: id, appName: name, key: groupKey(entry.index, id),
                 windows: [], indices: [], count: 0,
             };
-            out.push(cur);
+            byApp.set(id, g);
         }
-        cur.windows.push(w);
-        cur.indices.push(i);
-        cur.count++;
+        g.windows.push(w);
+        g.indices.push(i);
+        g.count++;
     });
-    return out;
+
+    const oldest = g => Math.min(...g.windows.map(w => w.get_id()));
+    const rank = g => { const f = favIds.indexOf(g.appId); return f < 0 ? Infinity : f; };
+
+    return [...byApp.values()].sort((a, b) => {
+        const ra = rank(a), rb = rank(b);
+        if (ra !== rb) return ra < rb ? -1 : 1;
+        return oldest(a) - oldest(b);
+    });
 }
 
 // ---- MRU ----
@@ -8727,9 +8777,13 @@ export function buildModel() {
     return { workspaces, drag: intent.drag, hintWs: intent.hintWs };
 }
 
-// Cheap "did the order change?" check for the indicator.
+// Layout signature: which windows are in which group, in group order.
+// Deliberately independent of MRU order.
 export function signatureOf(model) {
-    return model.workspaces.map(ws => ws.windows.map(w => w.get_id()).join(',')).join('|');
+    return model.workspaces.map(ws =>
+        ws.groups.map(g =>
+            `${g.key}:${g.windows.map(w => w.get_id()).sort((a, b) => a - b).join('.')}`
+        ).join(',')).join('|');
 }
 
 // ---- signals ----
@@ -10683,7 +10737,6 @@ const NUMERIC_KEYS = [
 const BOOLEAN_KEYS = [
     ['show-window-button', 'Show "all windows" button'],
     ['show-workspace-names', 'Show workspace names'],
-    ['group-apps-always', 'Always group windows by app'],
 ];
 
 const BOXES = [['left', 'Left Box'], ['center', 'Center Box'], ['right', 'Right Box']];
@@ -10733,11 +10786,6 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
         page.add(panelGroup);
         for (const [key, title] of BOOLEAN_KEYS) {
             const row = new Adw.ActionRow({ title });
-            if (key === 'group-apps-always') {
-                row.set_subtitle(
-                    'Off: group only when the panel runs out of room. ' +
-                    'On: every app with 2+ windows collapses into one badged icon.');
-            }
             const toggle = new Gtk.Switch({ valign: Gtk.Align.CENTER });
             settings.bind(key, toggle, 'active', Gio.SettingsBindFlags.DEFAULT);
             row.add_suffix(toggle);
