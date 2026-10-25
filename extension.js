@@ -1,4 +1,3 @@
-// ===== FILE: ./extension.js =====
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import * as ExtensionModule from 'resource:///org/gnome/shell/extensions/extension.js';
@@ -20,6 +19,7 @@ import * as Theme from './lib/theme.js';
 import { initExternalDrag, destroyExternalDrag } from './lib/externalDrag.js';
 import { initFocusedWindowBorder, destroyFocusedWindowBorder } from './lib/focusedWindowBorder.js';
 import { initSelectedWindows, destroySelectedWindows } from './lib/selectedWindows.js';
+import { destroyPeek } from './lib/peekController.js';
 
 import { initLogging, createLogger } from './logger.js';
 
@@ -40,7 +40,7 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
     }
 
     enable() {
-        initLogging(this.uuid, 'file', false);
+        initLogging(this.uuid, 'file', true);
         journal(`Enabled`);
 
         const settings = this.getSettings();
@@ -84,7 +84,6 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
 
         this._origHasOverview = null;
         if (Main.layoutManager._startingUp) {
-            // Enabled at login: keep the shell from opening the overview at all.
             this._origHasOverview = Main.sessionMode.hasOverview;
             Main.sessionMode.hasOverview = false;
             Main.layoutManager.connectObject('startup-complete', () => {
@@ -92,14 +91,12 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
                 this._origHasOverview = null;
             }, this);
         } else if (Main.overview.visible) {
-            // Enabled after startup: just close it if it happens to be open.
             Main.overview.hide();
         }
     }
 
     disable() {
         Main.panel.disconnectObject(this);
-
         Main.layoutManager.disconnectObject(this);
 
         if (this._origHasOverview !== null) {
@@ -137,6 +134,7 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
         destroyFocusedWindowBorder();
         destroyExternalDrag();
         Model.disconnectModelSignals();
+        destroyPeek();
         Interactions.destroyTooltip();
 
         this._unsubSizes?.(); this._unsubSizes = null;

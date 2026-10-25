@@ -11074,7 +11074,7 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
     }
 
     enable() {
-        initLogging(this.uuid, 'file', true);
+        initLogging(this.uuid, 'file', false);
         journal(`Enabled`);
 
         const settings = this.getSettings();
@@ -11116,12 +11116,30 @@ export default class TopNotchWorkspaces extends ExtensionModule.Extension {
         Main.panel.connectObject('scroll-event',
             (_actor, event) => this._handleScroll(event), this);
 
-        Main.layoutManager.connectObject('startup-complete', () => Main.overview.hide(), this);
+        this._origHasOverview = null;
+        if (Main.layoutManager._startingUp) {
+            // Enabled at login: keep the shell from opening the overview at all.
+            this._origHasOverview = Main.sessionMode.hasOverview;
+            Main.sessionMode.hasOverview = false;
+            Main.layoutManager.connectObject('startup-complete', () => {
+                Main.sessionMode.hasOverview = this._origHasOverview;
+                this._origHasOverview = null;
+            }, this);
+        } else if (Main.overview.visible) {
+            // Enabled after startup: just close it if it happens to be open.
+            Main.overview.hide();
+        }
     }
 
     disable() {
         Main.panel.disconnectObject(this);
+
         Main.layoutManager.disconnectObject(this);
+
+        if (this._origHasOverview !== null) {
+            Main.sessionMode.hasOverview = this._origHasOverview;
+            this._origHasOverview = null;
+        }
 
         if (this._panel) {
             this._panel.destroy();
