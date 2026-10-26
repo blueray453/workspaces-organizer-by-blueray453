@@ -1,89 +1,75 @@
 #!/usr/bin/env gjs
 
+// ===== FILE: ./cli/topnotch-call =====
+//
+// Method-call client for the TopNotchWorkspaces GNOME Shell extension.
+// Interface is inferred from the method name — no `-i` flag.
+//
+// Methods that answer via signals (currently only `Show`) are rejected;
+// use the `gdmenu` client for those.
+
 imports.gi.versions.Gio = '2.0';
 const { Gio, GLib } = imports.gi;
 const System = imports.system;
 
-const BUS_NAME = 'io.github.blueray453.TopNotchWorkspaces';
-const OBJECT_PATH = '/io/github/blueray453/TopNotchWorkspaces/Overlay';
+const SPEC_CACHE_FILE = GLib.build_filenamev([
+    GLib.get_home_dir(), '.cache', 'gnome-dbus-spec', 'topnotch.json'
+]);
 
-// Interface spec — mirrors lib/dbusService.js MR_DBUS_IFACE but omits
-//   • Show               (needs a pre-subscribed Selected/Cancelled channel)
-//   • Selected, Cancelled (signals)
-// The excluded picker flow is served by the separate `gdmenu` client.
-const IFACE_XML = `
-<node>
-   <interface name="io.github.blueray453.TopNotchWorkspaces.Overlay">
-      <method name="ShowAllWindows"/>
-      <method name="ShowAllApps"/>
-      <method name="ShowWorkspaceWindows">
-         <arg type="u" direction="in" name="workspace_num"/>
-      </method>
-      <method name="ToggleAllWindows"/>
-      <method name="ToggleAllApps"/>
-      <method name="ToggleWorkspaceWindows">
-         <arg type="u" direction="in" name="workspace_num"/>
-      </method>
-      <method name="CloseOverlay"/>
-      <method name="CycleWindowsOnWorkspace">
-         <arg type="u" direction="in" name="workspace_num"/>
-      </method>
-      <method name="ToggleGroupFlyout">
-         <arg type="u" direction="in" name="workspace_num"/>
-         <arg type="s" direction="in" name="wm_class"/>
-         <arg type="b" direction="out" name="opened"/>
-      </method>
-      <method name="CloseFlyout">
-         <arg type="b" direction="out" name="was_open"/>
-      </method>
-      <method name="ToggleSelectedWindow"/>
-      <method name="CloseNotSelectedWindows"/>
-   </interface>
-</node>`;
+// Methods that answer via signals — cannot be served by a sync proxy.
+const ASYNC_ONLY = new Set(['Show']);
 
 function usage() {
     const prog = System.programInvocationName || 'topnotch-call';
     printerr(`Usage: ${prog} METHOD [PARAMETER...]`);
-    printerr('');
-    printerr('Methods:');
-    printerr('  ShowAllWindows');
-    printerr('  ShowAllApps');
-    printerr('  ShowWorkspaceWindows <workspace_num>');
-    printerr('  ToggleAllWindows');
-    printerr('  ToggleAllApps');
-    printerr('  ToggleWorkspaceWindows <workspace_num>');
-    printerr('  CloseOverlay');
-    printerr('  CycleWindowsOnWorkspace <workspace_num>');
-    printerr('  ToggleGroupFlyout <workspace_num> <wm_class>');
-    printerr('  CloseFlyout');
-    printerr('  ToggleSelectedWindow');
-    printerr('  CloseNotSelectedWindows');
-    printerr('');
     printerr('  -h, --help             Show this');
     System.exit(1);
 }
 
-// Parse the in-args of `methodName` from the embedded spec. Uses GLib's
-// XML parser so the signature is derived from the same document the proxy
-// is built from — no drift between usage and dispatch.
-function getMethodSignature(methodName) {
-    let nodeInfo;
+function loadSpec() {
+    const file = Gio.File.new_for_path(SPEC_CACHE_FILE);
+    if (!file.query_exists(null)) return null;
     try {
-        nodeInfo = Gio.DBusNodeInfo.new_for_xml(IFACE_XML);
+        const [ok, contents] = file.load_contents(null);
+        if (!ok) return null;
+        return JSON.parse(new TextDecoder().decode(contents));
     } catch (e) {
         return null;
     }
-    if (!nodeInfo.interfaces || nodeInfo.interfaces.length === 0) return null;
-    const ifaceInfo = nodeInfo.interfaces[0];
-    const methodInfo = ifaceInfo.methods.find(m => m.name === methodName);
+}
+
+// Build method-name → ifaceData from every interface in the spec.
+function buildMethodMap(spec) {
+    const map = new Map();
+    const ambiguous = new Set();
+    for (const [, ifaceData] of Object.entries(spec.interfaces)) {
+        let nodeInfo;
+        try { nodeInfo = Gio.DBusNodeInfo.new_for_xml(ifaceData.xml); }
+        catch (e) { continue; }
+        if (!nodeInfo.interfaces?.length) continue;
+        for (const m of nodeInfo.interfaces[0].methods) {
+            if (map.has(m.name)) ambiguous.add(m.name);
+            else map.set(m.name, ifaceData);
+        }
+    }
+    return { map, ambiguous };
+}
+
+function getMethodSignature(xml, methodName) {
+    let nodeInfo;
+    try { nodeInfo = Gio.DBusNodeInfo.new_for_xml(xml); }
+    catch (e) { return null; }
+    if (!nodeInfo.interfaces?.length) return null;
+    const methodInfo = nodeInfo.interfaces[0].methods.find(m => m.name === methodName);
     if (!methodInfo) return null;
-    return methodInfo.in_args.map(arg => arg.signature);
+    return methodInfo.in_args.map(a => a.signature);
 }
 
 function convertToJS(raw, expectedType) {
     const trimmed = raw.trim();
     switch (expectedType) {
-        case 's': return trimmed.startsWith('"') && trimmed.endsWith('"') ? trimmed.slice(1, -1) : trimmed;
+        case 's': return trimmed.startsWith('"') && trimmed.endsWith('"')
+            ? trimmed.slice(1, -1) : trimmed;
         case 'u': case 'i': case 'd': case 'x': case 't': return Number(trimmed);
         case 'b': return trimmed === 'true' || trimmed === '1';
         case 'as': return trimmed.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
@@ -101,13 +87,32 @@ function main() {
     const methodName = args[0];
     const params = args.slice(1);
 
-    // Build the proxy. A missing bus name / object path surfaces here as a
-    // proxy-construction failure, which we report with exit 2 like the
-    // reference script.
+    if (ASYNC_ONLY.has(methodName)) {
+        printerr(`"${methodName}" is signal-based — use gdmenu`);
+        System.exit(4);
+    }
+
+    const spec = loadSpec();
+    if (!spec) {
+        printerr('topnotch-call: TopNotchWorkspaces extension is not enabled');
+        System.exit(2);
+    }
+
+    const { map, ambiguous } = buildMethodMap(spec);
+    if (ambiguous.has(methodName)) {
+        printerr(`Method "${methodName}" is defined on multiple interfaces`);
+        System.exit(4);
+    }
+    const ifaceData = map.get(methodName);
+    if (!ifaceData) {
+        printerr(`Method "${methodName}" not found`);
+        System.exit(4);
+    }
+
     let proxy;
     try {
-        const ProxyClass = Gio.DBusProxy.makeProxyWrapper(IFACE_XML);
-        proxy = new ProxyClass(Gio.DBus.session, BUS_NAME, OBJECT_PATH);
+        const ProxyClass = Gio.DBusProxy.makeProxyWrapper(ifaceData.xml);
+        proxy = new ProxyClass(Gio.DBus.session, spec.bus_name, ifaceData.object_path);
     } catch (e) {
         printerr(`topnotch-call: could not build proxy: ${e.message}`);
         System.exit(2);
@@ -119,7 +124,7 @@ function main() {
         System.exit(4);
     }
 
-    const argTypes = getMethodSignature(methodName);
+    const argTypes = getMethodSignature(ifaceData.xml, methodName);
     if (!argTypes) {
         printerr(`Could not parse signature for "${methodName}"`);
         System.exit(4);
@@ -134,7 +139,6 @@ function main() {
 
     try {
         const result = proxy[syncMethodName](...jsArgs);
-        // Void methods yield []; methods with an `out b` yield [true|false].
         if (result && result.length > 0 && result[0] !== undefined)
             print(typeof result[0] === 'string' ? result[0] : String(result[0]));
         System.exit(0);
