@@ -1,0 +1,3 @@
+only Window.focus(), Window.activate() and Window.activate_with_workspace(), Window.raise_and_make_recent_on_workspace(), Window.stick() affect MRU
+
+set_child_above_sibling does not affect MRU
