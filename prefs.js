@@ -9,6 +9,7 @@ const NUMERIC_KEYS = [
     { key: 'base-size', label: 'UI base size', min: 16, max: 96, step: 2 },
     { key: 'glass-strength', label: 'Transparency strength (%)', min: 0, max: 150, step: 5 },
     { key: 'thumbnail-min-width', label: 'Thumbnail minimum width', min: 20, max: 200, step: 2 },
+    { key: 'overlay-max-aspect', label: 'Window selector max aspect ratio (16:9 ≈ 1.78)', min: 1.0, max: 3.0, step: 0.05 },
     { key: 'flyout-dwell-ms', label: 'Flyout dwell (ms)', min: 0, max: 1500, step: 10 },
     { key: 'ext-ws-dwell-ms', label: 'External-drag workspace dwell (ms)', min: 0, max: 2000, step: 50 },
 ];
@@ -46,7 +47,7 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
             description: 'Every text and icon size scales from the base value',
         });
         page.add(sizeGroup);
-        ['base-size', 'thumbnail-min-width'].forEach(k =>
+        ['base-size', 'thumbnail-min-width', 'overlay-max-aspect'].forEach(k =>
             this._addSpinRow(sizeGroup, byKey(k), settings));
 
         // Appearance

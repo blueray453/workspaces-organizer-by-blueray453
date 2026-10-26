@@ -20,6 +20,12 @@
       <range min="20" max="200"/>
       <summary>Minimum workspace thumbnail width</summary>
     </key>
+    <key name="overlay-max-aspect" type="d">
+      <default>1.7777777778</default>
+      <range min="1.0" max="3.0"/>
+      <summary>Window selector max content aspect ratio</summary>
+      <description>Maximum width/height ratio of the window selector's interactive content column (search field, filter chips, context rows, scrub rail). The dim backdrop still spans the full monitor. 16:9 (approx 1.778) is the default; lower it (for example 1.4) on ultrawide displays.</description>
+    </key>
 
     <!-- ===================== Panel elements ===================== -->
     <key name="show-window-button" type="b">
