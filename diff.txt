@@ -1,0 +1,436 @@
+diff --git a/lib/dbusService.js b/lib/dbusService.js
+index a5f3849..1054868 100644
+--- a/lib/dbusService.js
++++ b/lib/dbusService.js
+@@ -97,35 +97,35 @@ function _emitOverlayResult(result) {
+ const OVERLAY_HANDLERS = {
+     // dbus-send --print-reply=literal --session --dest=io.github.blueray453.TopNotchWorkspaces /io/github/blueray453/TopNotchWorkspaces/Overlay io.github.blueray453.TopNotchWorkspaces.Overlay.CloseOverlay
+     // topnotch-call CloseOverlay
+-    CloseOverlay: () => OverlayService.closeOverlay(),
++    CloseOverlay: () => { OverlayService.closeOverlay(); },
+ 
+     // dbus-send --print-reply=literal --session --dest=io.github.blueray453.TopNotchWorkspaces /io/github/blueray453/TopNotchWorkspaces/Overlay io.github.blueray453.TopNotchWorkspaces.Overlay.ShowAllApps
+     // topnotch-call ShowAllApps
+-    ShowAllApps: () => OverlayService.showAllApps(),
++    ShowAllApps: () => { OverlayService.showAllApps(); },
+ 
+     // dbus-send --print-reply=literal --session --dest=io.github.blueray453.TopNotchWorkspaces /io/github/blueray453/TopNotchWorkspaces/Overlay io.github.blueray453.TopNotchWorkspaces.Overlay.ShowAllWindows
+     // topnotch-call ShowAllWindows
+-    ShowAllWindows: () => OverlayService.showAllWindows(),
++    ShowAllWindows: () => { OverlayService.showAllWindows(); },
+ 
+     // dbus-send --print-reply=literal --session --dest=io.github.blueray453.TopNotchWorkspaces /io/github/blueray453/TopNotchWorkspaces/Overlay io.github.blueray453.TopNotchWorkspaces.Overlay.ShowWorkspaceWindows uint32:3
+     // topnotch-call ShowWorkspaceWindows 3
+-    ShowWorkspaceWindows: (n) => OverlayService.showWorkspaceWindows(n),
++    ShowWorkspaceWindows: (n) => { OverlayService.showWorkspaceWindows(n); },
+ 
+     // dbus-send --print-reply=literal --session --dest=io.github.blueray453.TopNotchWorkspaces /io/github/blueray453/TopNotchWorkspaces/Overlay io.github.blueray453.TopNotchWorkspaces.Overlay.ToggleAllApps
+     // topnotch-call ToggleAllApps
+-    ToggleAllApps: () => OverlayService.toggleAllApps(),
++    ToggleAllApps: () => { OverlayService.toggleAllApps(); },
+ 
+     // dbus-send --print-reply=literal --session --dest=io.github.blueray453.TopNotchWorkspaces /io/github/blueray453/TopNotchWorkspaces/Overlay io.github.blueray453.TopNotchWorkspaces.Overlay.ToggleAllWindows
+     // topnotch-call ToggleAllWindows
+-    ToggleAllWindows: () => OverlayService.toggleAllWindows(),
++    ToggleAllWindows: () => { OverlayService.toggleAllWindows(); },
+ 
+     // dbus-send --print-reply=literal --session --dest=io.github.blueray453.TopNotchWorkspaces /io/github/blueray453/TopNotchWorkspaces/Overlay io.github.blueray453.TopNotchWorkspaces.Overlay.ToggleWorkspaceWindows uint32:3
+     // topnotch-call ToggleWorkspaceWindows 3
+-    ToggleWorkspaceWindows: (n) => OverlayService.toggleWorkspaceWindows(n),
++    ToggleWorkspaceWindows: (n) => { OverlayService.toggleWorkspaceWindows(n); },
+ 
+     // dbus-send --print-reply=literal --session --dest=io.github.blueray453.TopNotchWorkspaces /io/github/blueray453/TopNotchWorkspaces/Overlay io.github.blueray453.TopNotchWorkspaces.Overlay.CycleWindowsOnWorkspace uint32:3
+     // topnotch-call CycleWindowsOnWorkspace 3
+-    CycleWindowsOnWorkspace: (n) => WorkspaceActions.cycleWindowsOnWorkspace(n, 1),
++    CycleWindowsOnWorkspace: (n) => { WorkspaceActions.cycleWindowsOnWorkspace(n, 1); },
+ 
+     // dbus-send --print-reply=literal --session --dest=io.github.blueray453.TopNotchWorkspaces /io/github/blueray453/TopNotchWorkspaces/Overlay io.github.blueray453.TopNotchWorkspaces.Overlay.ToggleGroupFlyout uint32:2 string:"VSCodium"
+     // topnotch-call ToggleGroupFlyout 2 "VSCodium"
+@@ -697,7 +697,7 @@ function _removeOneCli(extensionPath, { name, path }) {
+         if (!linkFile.query_exists(null)) return;
+         const info = linkFile.query_info(
+             Gio.FILE_ATTRIBUTE_STANDARD_SYMLINK_TARGET,
+-            Gio.FileQueryOptions.NOFOLLOW_SYMLINKS, null);
++            Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS, null);
+         if (info.get_symlink_target() === cliScript) {
+             linkFile.delete(null);
+             journal(`[dbusService] CLI symlink removed: ${name}`);
+diff --git a/lib/genericOverlay.js b/lib/genericOverlay.js
+index 67e3c1c..8d3f8c7 100644
+--- a/lib/genericOverlay.js
++++ b/lib/genericOverlay.js
+@@ -45,8 +45,8 @@ export class GenericSearchOverlay extends SearchOverlayBase {
+         this._onResult = options.onResult || null;
+         this._hint = options.hint || null;
+         this._checked = new Set();
+-        this._items = items.map(it => ({
+-            id: String(it.id ?? it.label ?? it),
++        this._items = items.map((it, i) => ({
++            id: String(it.id ?? i),
+             label: String(it.label ?? it),
+             icon: it.icon || null,
+         }));
+diff --git a/lib/keyboardSimulatorFunctions.js b/lib/keyboardSimulatorFunctions.js
+index 25c06fd..294e047 100644
+--- a/lib/keyboardSimulatorFunctions.js
++++ b/lib/keyboardSimulatorFunctions.js
+@@ -29,6 +29,16 @@ const state = {
+     atspiInited: false,
+ };
+ 
++let _virtualKeyboard = null;
++function getVirtualKeyboard() {
++    if (!_virtualKeyboard) {
++        _virtualKeyboard = Clutter.get_default_backend()
++            .get_default_seat()
++            .create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
++    }
++    return _virtualKeyboard;
++}
++
+ function typeString(text) {
+     const chars = Array.from(text);
+     journal(`[typeString] typing "${text}" (${chars.length} chars)`);
+@@ -44,9 +54,7 @@ function typeString(text) {
+ }
+ 
+ function pressKeys(keys) {
+-    const VirtualKeyboard = Clutter.get_default_backend()
+-        .get_default_seat()
+-        .create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
++    const VirtualKeyboard = getVirtualKeyboard();
+ 
+     const eventTime = Clutter.get_current_event_time() * 1000;
+ 
+@@ -66,6 +74,10 @@ function keyNameToClutterKey(keyName) {
+ }
+ 
+ function keysReleased(onReleased) {
++    if (state.timeoutId) {
++        try { GLib.Source.remove(state.timeoutId); } catch (e) { /* gone */ }
++        state.timeoutId = 0;
++    }
+     state.attempts = 0;
+     const MAX_ATTEMPTS = 40;
+ 
+diff --git a/lib/model.js b/lib/model.js
+index d90e0e0..06e8b8f 100644
+--- a/lib/model.js
++++ b/lib/model.js
+@@ -174,7 +174,8 @@ export function connectModelSignals(settings = null) {
+     _listen(Display, 'window-created', () => requestRender());
+     _listen(Main.sessionMode, 'updated', () => requestRender());
+     if (settings) {
+-        _listen(settings, 'changed', () => {
++        _listen(settings, 'changed', (_s, key) => {
++            if (key.startsWith('discovered-')) return;
+             applySettings(settings);
+             requestRender();
+         });
+diff --git a/lib/peekController.js b/lib/peekController.js
+index 55eb995..67bec0e 100644
+--- a/lib/peekController.js
++++ b/lib/peekController.js
+@@ -66,6 +66,7 @@ class PeekController {
+ 
+         this._switchPending = null;
+         this._dragOrigWs = null;
++        this._finishDragId = 0;
+     }
+ 
+     start(win, { mode = 'clone', below = null, parent = null, index = -1 } = {}) {
+@@ -189,7 +190,11 @@ class PeekController {
+             if (inside) {
+                 s.keepStack = true;
+                 const win = s.win;
+-                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 80, () => {
++                if (this._finishDragId) {
++                    try { GLib.Source.remove(this._finishDragId); } catch (e) { /* gone */ }
++                }
++                this._finishDragId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 80, () => {
++                    this._finishDragId = 0;
+                     WorkspaceActions.navigateToWindowMru(win);
+                     return GLib.SOURCE_REMOVE;
+                 });
+@@ -211,6 +216,10 @@ class PeekController {
+     destroy() {
+         this._cancelSwitch();
+         if (this._hideTimer) { GLib.Source.remove(this._hideTimer); this._hideTimer = 0; }
++        if (this._finishDragId) {
++            try { GLib.Source.remove(this._finishDragId); } catch (e) { /* gone */ }
++            this._finishDragId = 0;
++        }
+         this._teardown();
+         this._detach();
+         if (this._container) {
+diff --git a/lib/pinnedEdgeFlyout.js b/lib/pinnedEdgeFlyout.js
+index 59cc253..56d9a49 100644
+--- a/lib/pinnedEdgeFlyout.js
++++ b/lib/pinnedEdgeFlyout.js
+@@ -101,21 +101,22 @@ const EdgeDash = GObject.registerClass(
+                 if (!this.visible) Interactions.getTooltip().hideNow();
+             });
+ 
++            this._initTimeoutIds = [];
+             for (const delay of [0, 300, 1000]) {
+                 if (delay === 0) {
+-                    GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
++                    this._initTimeoutIds.push(GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                         if (this._destroying) return GLib.SOURCE_REMOVE;
+                         this._forceIconSizes('idle');
+                         this._hideNonFavoriteApps();
+                         return GLib.SOURCE_REMOVE;
+-                    });
++                    }));
+                 } else {
+-                    GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
++                    this._initTimeoutIds.push(GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
+                         if (this._destroying) return GLib.SOURCE_REMOVE;
+                         this._forceIconSizes(`timeout-${delay}`);
+                         this._hideNonFavoriteApps();
+                         return GLib.SOURCE_REMOVE;
+-                    });
++                    }));
+                 }
+             }
+ 
+@@ -448,6 +449,10 @@ const EdgeDash = GObject.registerClass(
+         destroy() {
+             this._destroying = true;
+             Interactions.getTooltip().hideNow();
++            for (const id of (this._initTimeoutIds ?? [])) {
++                try { GLib.Source.remove(id); } catch (e) { /* gone */ }
++            }
++            this._initTimeoutIds = [];
+             if (this._setGeometryTimeout) {
+                 GLib.Source.remove(this._setGeometryTimeout);
+                 this._setGeometryTimeout = 0;
+@@ -475,6 +480,7 @@ export class PinnedEdgeFlyout {
+ 
+         this._grabActive = false;
+         this._needLeave = false;
++        this._dashFailures = 0;
+ 
+         this._poll = new Poller(this._scope, {
+             interval: POLL_MS,
+@@ -587,7 +593,7 @@ export class PinnedEdgeFlyout {
+     _handleShowApps() {
+         journal('[pinnedEdge] show-apps requested');
+         this._close('show-apps');
+-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, Motion.dur('dashClose') + 20, () => {
++        this._scope.timeout(Motion.dur('dashClose') + 20, () => {
+             this._onShowAppsCb?.();
+             return GLib.SOURCE_REMOVE;
+         });
+@@ -674,7 +680,14 @@ export class PinnedEdgeFlyout {
+     }
+ 
+     _tick() {
+-        if (!this._dash && !this._ensureDash()) return;
++        if (!this._dash && !this._ensureDash()) {
++            if (++this._dashFailures > 3) {
++                journal('[pinnedEdge] dash creation failed repeatedly — stopping poll');
++                this._poll.stop();
++            }
++            return;
++        }
++        if (this._dash) this._dashFailures = 0;
+ 
+         const [x, y, mods] = global.get_pointer();
+         const zone = this._zone();
+diff --git a/lib/windowFunctions.js b/lib/windowFunctions.js
+index 1a31c0c..41636ce 100644
+--- a/lib/windowFunctions.js
++++ b/lib/windowFunctions.js
+@@ -154,17 +154,32 @@ function moveResizeWindow(meta_window, x_coordinate, y_coordinate, width, height
+         meta_window.unmaximize(Meta.MaximizeFlags.BOTH);
+ 
+     let windowReadyId = 0;
++    let unmanagingId = 0;
++
++    const cleanup = () => {
++        if (unmanagingId) {
++            try { meta_window.disconnect(unmanagingId); } catch (e) { /* gone */ }
++            unmanagingId = 0;
++        }
++    };
+ 
+     windowReadyId = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+-        meta_window.move_resize_frame(1, x_coordinate, y_coordinate, width, height);
+-        journal(`Alhamdulillah, moved meta_window`);
+-        windowReadyId = 0;
++        try {
++            meta_window.move_resize_frame(1, x_coordinate, y_coordinate, width, height);
++            journal(`Alhamdulillah, moved meta_window`);
++        } finally {
++            windowReadyId = 0;
++            cleanup();
++        }
+         return GLib.SOURCE_REMOVE;
+     });
+ 
+-    meta_window.connect('unmanaging', () => {
+-        if (windowReadyId)
+-            GLib.Source.remove(windowReadyId);
++    unmanagingId = meta_window.connect('unmanaging', () => {
++        if (windowReadyId) {
++            try { GLib.Source.remove(windowReadyId); } catch (e) { /* gone */ }
++            windowReadyId = 0;
++        }
++        unmanagingId = 0;
+     });
+ }
+ 
+@@ -269,21 +284,20 @@ export function GetWindowsCurrentWorkspaceOfFocusedWindowWMClass() {
+ 
+ export function ToggleWindowsCurrentWorkspace() {
+     let windows = getNormalWindowsCurrentWorkspace();
+-    if (windows.length !== 2) return false;
++    if (windows.length !== 2) return;
+ 
+     let hiddenWindow = windows.find(w => !w.showing_on_its_workspace());
+     if (hiddenWindow) {
+         hiddenWindow.unminimize();
+         hiddenWindow.maximize(3);
+         WorkspaceActions.navigateToWindowMru(hiddenWindow);
+-        return true;
++        return;
+     }
+ 
+     let covered = windows.find(w => coverage.isCoveredPartially(w));
+-    if (!covered) return false;
++    if (!covered) return;
+ 
+     WorkspaceActions.navigateToWindowMru(covered);
+-    return true;
+ }
+ 
+ export function GetWindowsExcludingGivenWMClass(wm_classes) {
+@@ -303,7 +317,7 @@ export function ToggleLookingGlass() {
+ }
+ 
+ export function MinimizeOtherWindowsOfFocusedWindowWMClass() {
+-    getOtherNormalWindowsCurrentWorkspaceOfFocusedWindowWmClass().map(w => w.minimize());
++    getOtherNormalWindowsCurrentWorkspaceOfFocusedWindowWmClass().forEach(w => w.minimize());
+ }
+ 
+ export function WindowActivateGivenWinID(win_id) {
+diff --git a/lib/windowOverlay.js b/lib/windowOverlay.js
+index 483470b..7e0d326 100644
+--- a/lib/windowOverlay.js
++++ b/lib/windowOverlay.js
+@@ -119,13 +119,13 @@ export class WindowSearchOverlay extends SearchOverlayBase {
+             };
+         });
+ 
+-        const persisted = Model.intent.overlayFilters ?? {};
++        const persisted = initialFilters ? (Model.intent.overlayFilters ?? {}) : {};
+         this._filters = {
+             workspace: initialFilters?.workspace ?? persisted.workspace ?? null,
+             app: initialFilters?.app ?? persisted.app ?? null,
+             pinnedOnly: initialFilters?.pinnedOnly ?? persisted.pinnedOnly ?? false,
+         };
+-        this._persistFilters();
++        if (initialFilters) this._persistFilters();
+ 
+         this._rows = [];
+         this._scrollAccum = 0;
+diff --git a/lib/workspaceFunctions.js b/lib/workspaceFunctions.js
+index 32a5fb9..81196c6 100644
+--- a/lib/workspaceFunctions.js
++++ b/lib/workspaceFunctions.js
+@@ -32,6 +32,7 @@ export function GetWorkspaceIndexByName(workspaceName) {
+             return JSON.stringify(i);
+         }
+     }
++    return JSON.stringify(null);
+ }
+ 
+ export function GetWorkspaces() {
+diff --git a/lib/workspaceIndicator.js b/lib/workspaceIndicator.js
+index 70b7334..b042c23 100644
+--- a/lib/workspaceIndicator.js
++++ b/lib/workspaceIndicator.js
+@@ -1190,8 +1190,6 @@ export class WorkspaceIndicator extends PanelMenu.Button {
+         this._scope.dispose();
+         this._mainBox?.destroy();
+ 
+-        Main.panel.set_offscreen_redirect(Clutter.OffscreenRedirect.ALWAYS);
+-
+         super.destroy();
+     }
+ }
+\ No newline at end of file
+diff --git a/logger.js b/logger.js
+index a97b56d..681e976 100644
+--- a/logger.js
++++ b/logger.js
+@@ -76,7 +76,7 @@ function createLogger(source) {
+     const relativeSource = sourceFile;
+ 
+ 
+-    return function journal(msg) {
++    return function journal(msg, isError = false) {
+ 
+         /*
+          * Logging disabled?
+@@ -109,7 +109,7 @@ function createLogger(source) {
+             logOutput === 'journal' ||
+             logOutput === 'both'
+         ) {
+-            writeToJournal(output);
++            writeToJournal(output, isError);
+         }
+ 
+ 
+@@ -123,10 +123,10 @@ function createLogger(source) {
+ }
+ 
+ 
+-function writeToJournal(output) {
++function writeToJournal(output, isError = false) {
+     GLib.log_structured(
+         uuid,
+-        GLib.LogLevelFlags.LEVEL_MESSAGE,
++        isError ? GLib.LogLevelFlags.LEVEL_WARNING : GLib.LogLevelFlags.LEVEL_MESSAGE,
+         {
+             MESSAGE: output,
+             SYSLOG_IDENTIFIER: uuid,
+diff --git a/prefs.js b/prefs.js
+index 18f28e8..2d8fe33 100644
+--- a/prefs.js
++++ b/prefs.js
+@@ -133,11 +133,17 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
+             row.drop-after  { box-shadow: inset 0 -2px 0 0 @accent_color; }
+             row.dragging    { opacity: 0.4; }
+         `);
++        const display = Gdk.Display.get_default();
+         Gtk.StyleContext.add_provider_for_display(
+-            Gdk.Display.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);
++            display, css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);
+ 
+         let dragged = null;
+         const cleanups = [];
++        cleanups.push(() => {
++            try {
++                Gtk.StyleContext.remove_provider_for_display(display, css);
++            } catch (e) { /* gone */ }
++        });
+ 
+         // ---- Behaviour ----
+         const behaviour = new Adw.PreferencesGroup({
+diff --git a/stylesheet.css b/stylesheet.css
+index 6bb73c7..0f6a37c 100644
+--- a/stylesheet.css
++++ b/stylesheet.css
+@@ -238,10 +238,6 @@
+     font-weight: 500;
+ }
+ 
+-.window-selector-overlay .overlay-search-entry {
+-    padding: 4px 12px;
+-}
+-
+ /* Overrides the generated icon-size so the magnifier is invisible
+    in the selector's bare-underline field. Do not delete. */
+ .window-selector-overlay .overlay-search-icon {

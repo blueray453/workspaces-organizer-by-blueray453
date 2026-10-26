@@ -76,7 +76,7 @@ function createLogger(source) {
     const relativeSource = sourceFile;
 
 
-    return function journal(msg) {
+    return function journal(msg, isError = false) {
 
         /*
          * Logging disabled?
@@ -109,7 +109,7 @@ function createLogger(source) {
             logOutput === 'journal' ||
             logOutput === 'both'
         ) {
-            writeToJournal(output);
+            writeToJournal(output, isError);
         }
 
 
@@ -123,10 +123,10 @@ function createLogger(source) {
 }
 
 
-function writeToJournal(output) {
+function writeToJournal(output, isError = false) {
     GLib.log_structured(
         uuid,
-        GLib.LogLevelFlags.LEVEL_MESSAGE,
+        isError ? GLib.LogLevelFlags.LEVEL_WARNING : GLib.LogLevelFlags.LEVEL_MESSAGE,
         {
             MESSAGE: output,
             SYSLOG_IDENTIFIER: uuid,

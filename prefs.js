@@ -133,11 +133,17 @@ export default class WorkspacesOrganizerPreferences extends ExtensionPreferences
             row.drop-after  { box-shadow: inset 0 -2px 0 0 @accent_color; }
             row.dragging    { opacity: 0.4; }
         `);
+        const display = Gdk.Display.get_default();
         Gtk.StyleContext.add_provider_for_display(
-            Gdk.Display.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);
+            display, css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);
 
         let dragged = null;
         const cleanups = [];
+        cleanups.push(() => {
+            try {
+                Gtk.StyleContext.remove_provider_for_display(display, css);
+            } catch (e) { /* gone */ }
+        });
 
         // ---- Behaviour ----
         const behaviour = new Adw.PreferencesGroup({

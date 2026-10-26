@@ -238,10 +238,6 @@
     font-weight: 500;
 }
 
-.window-selector-overlay .overlay-search-entry {
-    padding: 4px 12px;
-}
-
 /* Overrides the generated icon-size so the magnifier is invisible
    in the selector's bare-underline field. Do not delete. */
 .window-selector-overlay .overlay-search-icon {
