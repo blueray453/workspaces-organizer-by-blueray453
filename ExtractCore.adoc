@@ -1,0 +1,43 @@
+Create
+
+--
+core/
+├── primitives/
+│   ├── logger.js              moved from logger.js
+│   ├── scheduling.js          moved from lib/scheduling.js
+│   ├── util.js                moved from lib/util.js
+│   ├── fuzzy.js               moved from lib/fuzzy.js
+│   ├── motion.js              moved from lib/motion.js
+│   ├── smoother.js            moved from lib/smoother.js
+│   ├── cssLoader.js           moved from lib/cssLoader.js
+│   ├── text.js                NEW
+│   └── layout.js              NEW
+├── input/
+│   ├── keyboard.js            NEW (extracted from keyboardSimulatorFunctions.js)
+│   └── active-hover.js        NEW (extracted from interactions.js)
+├── theme/
+│   ├── sizes.js               moved + config injection
+│   └── theme.js               moved + config injection
+├── meta/
+│   ├── meta-window.js         NEW (extracted from windowFunctions.js)
+│   ├── window-filters.js      NEW (extracted from model.js)
+│   ├── window-actions.js      NEW (extracted from workspaceActions.js)
+│   ├── app-resolve.js         NEW (extracted from ui.js + model.js)
+│   ├── apps.js                NEW (extracted from appOverlay.js)
+│   ├── coverage.js            moved, drop Model import
+│   ├── mru-cycle.js           moved, focus becomes a parameter
+│   └── peek.js                defer — see note at end
+├── dnd/
+│   ├── draggable.js           NEW (extracted from interactions.js)
+│   ├── drop-strip.js          NEW (extracted from interactions.js)
+│   ├── reorder-bar.js         NEW (extracted from interactions.js)
+│   ├── external-drag.js       moved from lib/externalDrag.js
+│   └── external-auto.js       NEW (extracted from interactions.js)
+└── widgets/
+    ├── tooltip.js             NEW (extracted from interactions.js)
+    ├── context-menu.js        NEW (extracted from interactions.js)
+    ├── overlay-base.js        moved from lib/overlayBase.js
+    ├── strip.js               moved from lib/strip.js
+    ├── window-border.js       moved from lib/windowBorder.js
+    └── ui-widgets.js          NEW (extracted from ui.js)
+--

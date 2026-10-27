@@ -3,3 +3,5 @@ only Window.focus(), Window.activate() and Window.activate_with_workspace(), Win
 set_child_above_sibling does not affect MRU
 
 instead of brining window to current workspace it is better to go to the ws and do things. it keeps the MRU unaffected.
+
+peek instad of activate/focus when make sense
